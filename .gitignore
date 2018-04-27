@@ -1,0 +1,11 @@
+main.tf
+.terraform
+terraform-provider-restapi
+test.sh
+test.log
+terraform.tfstate
+terraform.tfstate.backup
+crash.log
+**/github_api_token
+**/release_info.md
+scripts/terraform-provider-restapi*
