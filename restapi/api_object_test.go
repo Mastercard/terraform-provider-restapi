@@ -3,23 +3,15 @@ package restapi
 import (
   "log"
   "testing"
-  "net/http"
-  "time"
   "encoding/json"
   "fmt"
-  "io/ioutil"
-  "strings"
+  "github.com/Mastercard/terraform-provider-restapi/fakeserver"
 )
 
-var api_object_server *http.Server
-
 var test_debug = false
-var http_server_debug = false
+var http_server_debug = true
 var api_object_debug = false
 var api_client_debug = false
-
-/* Populated with generate_test_api_objects */
-var test_api_objects map[string]test_api_object
 
 type test_api_object struct {
   Test_case string             `json:"Test_case"`
@@ -32,14 +24,20 @@ type test_api_object struct {
 }
 
 func TestAPIObject(t *testing.T) {
-  var testing_objects map[string]*api_object
   var err error
 
   if test_debug { log.Println("api_object_test.go: Creating test API objects") }
-  generate_test_api_objects(t, test_debug)
 
-  if test_debug { log.Println("api_object_test.go: Starting HTTP server") }
-  setup_api_object_server(test_debug)
+  /* Holds the full list of api_object items that we are testing
+     indexed by the name of the test case */
+  testing_objects := make(map[string]*api_object)
+
+  /* Messy... fakeserver wants "generic" objects, but it is much easier
+     to write our test cases with typed (test_api_object) objects. Make
+     maps of both */
+  generated_objects := make(map[string]test_api_object)
+  api_server_objects := make(map[string]map[string]interface{})
+  generate_test_api_objects(&generated_objects, &api_server_objects, t, test_debug)
 
   client := NewAPIClient (
     "http://127.0.0.1:8081/",  /* URL */
@@ -57,14 +55,11 @@ func TestAPIObject(t *testing.T) {
 
   /* Construct a local map of test case objects with only the ID populated */
   if test_debug { log.Println("api_object_test.go: Building test objects...") }
-  testing_objects = make(map[string]*api_object)
-
-  for id, api_obj := range test_api_objects {
+  for id, test_obj := range generated_objects {
     if test_debug { log.Printf("api_object_test.go:   '%s'\n", id) }
-
     o, err := NewAPIObject(
       client,                            /* The HTTP client created above */
-      "/api",                            /* path to the "object" in the test server (note: id will automatically be appended) */
+      "/api/objects",                    /* path to the "object" in the test server (note: id will automatically be appended) */
       "",                                /* Do not set an ID to force the constructor to verify id_attribute works */
       fmt.Sprintf(`{ "Id": "%s" }`, id), /* Start with only an empty JSON object ID as our "data" */
       api_object_debug,                  /* Whether the object's debug is enabled */
@@ -72,10 +67,13 @@ func TestAPIObject(t *testing.T) {
     if err != nil {
       t.Fatalf("api_object_test.go: Failed to create new api_object for id '%s'", id)
     } else {
-      test_case := api_obj.Test_case
+      test_case := test_obj.Test_case
       testing_objects[test_case] = o
     }
   }
+
+  if test_debug { log.Println("api_object_test.go: Starting HTTP server") }
+  svr := fakeserver.NewFakeServer(8081, api_server_objects, true, http_server_debug)
 
   /* Loop through all of the objects and GET their data from the server */
   log.Printf("api_object_test.go: Testing read_object()")
@@ -133,127 +131,12 @@ func TestAPIObject(t *testing.T) {
   }
 
   if test_debug { log.Println("api_object_test.go: Stopping HTTP server") }
-  shutdown_api_object_server()
+  svr.Shutdown()
   if test_debug { log.Println("api_object_test.go: Done") }
 }
 
 
-
-/* HTTP handler that will read an object, store it in our list
-   of tested objects and print the object back to the caller */
-func handle_api_object (w http.ResponseWriter, r *http.Request) {
-  var obj test_api_object
-  var id string
-  var ok bool
-
-  /* Assume this will never fail */
-  b, _ := ioutil.ReadAll(r.Body)
-
-  if http_server_debug {
-    log.Printf("api_object_test.go http_server: Recieved request: %+v\n", r)
-    log.Printf("api_object_test.go http_server: BODY: %s\n", string(b))
-    log.Printf("api_object_test.go http_server: Test cases and IDs:\n")
-    for id, obj := range test_api_objects {
-      log.Printf("  %s: %s\n", id, obj.Test_case)
-    }
-  }
-
-  parts := strings.Split(r.RequestURI, "/")
-
-  /* If it was a valid request, there will be three parts
-     and the ID will exist */
-  if len(parts) == 3 {
-    id = parts[2]
-    obj, ok = test_api_objects[id];
-    if http_server_debug { log.Printf("api_object_test.go http_server: Detected ID %s (exists: %t, method: %s)", id, ok, r.Method) }
-    /* Make sure the object requested exists unless it's being created */
-    if !ok {
-      http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-      return
-    }
-  } else if r.RequestURI != "/api" {
-    /* How did something get to this handler with the wrong number of args??? */
-    http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-    return
-  }
-
-  if r.Method == "DELETE" {
-    /* Get rid of this one */
-    delete(test_api_objects, id)
-    if http_server_debug { log.Printf("api_object_test.go http_server: Object deleted.\n") }
-    return
-  }
-  /* if data was sent, parse the data */
-  if string(b) != "" {
-    err := json.Unmarshal(b, &obj)
-
-    if err != nil {
-      /* Failure goes back to the user as a 500. Log data here for
-         debugging (which shouldn't ever fail!) */
-      log.Fatalf("api_object_test.go http_server: Unmarshal of request failed: %s\n", err);
-      log.Fatalf("\nBEGIN passed data:\n%s\nEND passed data.", string(b));
-      http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-      return
-    } else {
-      /* In the case of POST above, id is not yet known - set it here */
-      if id == "" { id = obj.Id }
-
-      /* Overwrite our stored test object */
-      if http_server_debug {
-        log.Printf("api_object_test.go http_server: Overwriting %s with new data:%+v\n", id, obj)
-      }
-      test_api_objects[id] = obj
-
-      /* Coax the data we were sent back to JSON and send it to the user */
-      b, _ := json.Marshal(obj)
-      w.Write(b)
-      return
-    }
-  } else {
-    /* No data was sent... must be just a retrieval */
-    if http_server_debug { log.Printf("api_object_test.go http_server: Returning object.\n") }
-    b, _ := json.Marshal(obj)
-    w.Write(b)
-    return
-  }
-
-  /* All cases by now should have already returned... something wasn't handled */
-  http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-  return
-}
-
-
-/* Bind an HTTP server to localhost and populate "objects" with
-   /api/{id} from our map of test objects */
-func setup_api_object_server (test_debug bool) {
-  serverMux := http.NewServeMux()
-
-  for id, obj := range test_api_objects {
-    if test_debug { log.Printf("api_object_test.go:   Adding handler for '/api/%s' => '%s' test case\n", id, obj.Test_case) }
-    serverMux.HandleFunc(fmt.Sprintf("/api/%s", id), handle_api_object)
-  }
-
-  /* Add one for POST to just /api, too */
-  serverMux.HandleFunc("/api", handle_api_object)
-
-  api_object_server = &http.Server{
-    Addr: "127.0.0.1:8081",
-    Handler: serverMux,
-  }
-
-  go api_object_server.ListenAndServe()
-
-  /* Let the server start */
-  time.Sleep(1 * time.Second)
-}
-
-func shutdown_api_object_server () {
-  api_object_server.Close()
-}
-
-func generate_test_api_objects (t *testing.T, test_debug bool) {
-  test_api_objects = make(map[string]test_api_object)
-
+func generate_test_api_objects (typed *map[string]test_api_object, untyped *map[string]map[string]interface{}, t *testing.T, test_debug bool) {
   add_test_api_object(
     `{
       "Test_case": "normal",
@@ -269,14 +152,14 @@ func generate_test_api_objects (t *testing.T, test_debug bool) {
         "size": "6 in",
         "weight": "10 oz"
       }
-    }`, t, test_debug)
+    }`, typed, untyped, t, test_debug)
 
   add_test_api_object(
     `{
       "Test_case": "minimal",
       "Id": "2",
       "Thing": "fork"
-    }`, t, test_debug)
+    }`, typed, untyped, t, test_debug)
 
   add_test_api_object(
     `{
@@ -288,7 +171,7 @@ func generate_test_api_objects (t *testing.T, test_debug bool) {
         "height": "8.5 in",
         "width": "11 in"
       }
-    }`, t, test_debug)
+    }`, typed, untyped, t, test_debug)
   add_test_api_object(
     `{
       "Test_case": "no Attrs",
@@ -298,7 +181,7 @@ func generate_test_api_objects (t *testing.T, test_debug bool) {
       "Colors": [
         "none"
       ]
-    }`, t, test_debug)
+    }`, typed, untyped, t, test_debug)
 
   add_test_api_object(
     `{
@@ -314,19 +197,31 @@ func generate_test_api_objects (t *testing.T, test_debug bool) {
         "size": "1.5 ft",
         "weight": "15 lb"
       }
-    }`, t, test_debug)
+    }`, typed, untyped, t, test_debug)
 }
 
-func add_test_api_object (input string, t *testing.T, test_debug bool) {
-  var obj test_api_object
-  err := json.Unmarshal([]byte(input), &obj)
+func add_test_api_object (input string, test_api_objects *map[string]test_api_object, api_server_objects *map[string]map[string]interface{}, t *testing.T, test_debug bool) {
+  var err error
+  var id string
+  var test_case string
+  var test_obj test_api_object
+  api_server_obj := make(map[string]interface{})
 
+  err = json.Unmarshal([]byte(input), &test_obj)
   if err != nil {
-    t.Fatalf("api_object_test.go: Failed to unmarshall JSON from '%s'", input)
+    t.Fatalf("api_object_test.go: Failed to unmarshall JSON (to test_api_object) from '%s'", input)
   } else {
-    id := obj.Id
-    Test_case := obj.Test_case
-    if test_debug { log.Printf("api_object_test.go: Adding test object for case '%s' as id '%s'\n", Test_case, id) }
-    test_api_objects[id] = obj
+    id = test_obj.Id
+    test_case = test_obj.Test_case
+    if test_debug { log.Printf("api_object_test.go: Adding test object for case '%s' as id '%s'\n", test_case, id) }
+    (*test_api_objects)[id] = test_obj
+  }
+
+  err = json.Unmarshal([]byte(input), &api_server_obj)
+  if err != nil {
+    t.Fatalf("api_object_test.go: Failed to unmarshall JSON (to api_server_object) from '%s'", input)
+  } else {
+    if test_debug { log.Printf("api_object_test.go: Adding API server test object for case '%s' as id '%s'\n", test_case, id) }
+    (*api_server_objects)[id] = api_server_obj
   }
 }
