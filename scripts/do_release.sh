@@ -13,6 +13,14 @@ if [[ -z "$github_api_token" && -f github_api_token ]];then
   github_api_token=$(cat github_api_token)
 fi
 
+if [[ -z "$owner" ]];then
+  owner="Mastercard"
+fi
+
+if [[ -z "$repo" ]];then
+  repo="terraform-provider-restapi"
+fi
+
 if [[ -z "$github_api_token" || -z "$owner" || -z "$repo" || -z "$tag" ]];then
   echo "USAGE: $0 github_api_token=TOKEN owner=someone repo=somerepo tag=vX.Y.Z"
   exit 1
