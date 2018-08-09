@@ -32,11 +32,11 @@ func Provider() terraform.ResourceProvider {
         DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
         Description: "When set, will use this password for BASIC auth to the API.",
       },
-      "authorization_header": &schema.Schema{
-        Type: schema.TypeString,
+      "headers": &schema.Schema{
+        Type: schema.TypeMap,
+        Elem: schema.TypeString,
         Optional: true,
-        DefaultFunc: schema.EnvDefaultFunc("REST_API_AUTH_HEADER", nil),
-        Description: "If the API does not support BASIC authentication, you can set the Authorization header contents to be sent in all requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token. This takes precedence over BASIC auth credentials.",
+        Description: "A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.",
       },
       "timeout": &schema.Schema{
         Type: schema.TypeInt,
@@ -100,12 +100,19 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     }
   }
 
+  headers := make(map[string]string)
+  if i_headers := d.Get("headers"); i_headers != nil {
+    for k, v := range i_headers.(map[string]interface{}) {
+      headers[k] = v.(string)
+    }
+  }
+
   return NewAPIClient(
     d.Get("uri").(string),
     d.Get("insecure").(bool),
     d.Get("username").(string),
     d.Get("password").(string),
-    d.Get("authorization_header").(string),
+    headers,
     d.Get("timeout").(int),
     d.Get("id_attribute").(string),
     copy_keys,

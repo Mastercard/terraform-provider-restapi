@@ -18,7 +18,7 @@ type api_client struct {
   insecure              bool
   username              string
   password              string
-  auth_header           string
+  headers               map[string]string
   redirects             int
   timeout               int
   id_attribute          string
@@ -30,7 +30,7 @@ type api_client struct {
 
 
 // Make a new api client for RESTful calls
-func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_auth_header string, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) *api_client {
+func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) *api_client {
   if i_debug {
     log.Printf("api_client.go: Constructing debug api_client\n")
   }
@@ -60,7 +60,7 @@ func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password 
     insecure: i_insecure,
     username: i_username,
     password: i_password,
-    auth_header: i_auth_header,
+    headers: i_headers,
     id_attribute: i_id_attribute,
     copy_keys: i_copy_keys,
     write_returns_object: i_wro,
@@ -90,6 +90,7 @@ func (client *api_client) send_request (method string, path string, data string)
   } else {
     req, err = http.NewRequest(method, full_uri, buffer)
 
+    /* Default of application/json, but allow headers array to overwrite later */
     if err == nil {
       req.Header.Set("Content-Type", "application/json")
     }
@@ -105,9 +106,13 @@ func (client *api_client) send_request (method string, path string, data string)
   }
 
   /* Allow for tokens or other pre-created secrets */
-  if client.auth_header != "" {
-    req.Header.Set("Authorization", client.auth_header)
-  } else if client.username != "" && client.password != "" {
+  if len(client.headers) > 0 {
+    for n, v := range client.headers {
+      req.Header.Set(n, v)
+    }
+  }
+
+  if client.username != "" && client.password != "" {
     /* ... and fall back to basic auth if configured */
     req.SetBasicAuth(client.username, client.password)
   }

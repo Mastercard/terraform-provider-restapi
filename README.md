@@ -22,7 +22,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `insecure` (boolean, optional): When using https, this disables TLS verification of the host.
 - `username` (string, optional): When set, will use this username for BASIC auth to the API.
 - `password` (string, optional): When set, will use this password for BASIC auth to the API.
-- `authorization_header` (string, optional): If the API does not support BASIC authentication, you can set the Authorization header contents to be sent in all requests. This is useful if you want to use a script via the `external` provider or provide a pre-approved token. This takes precedence over BASIC auth credentials.
+- `headers` (hash of strings, optional): A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.
 - `timeout` (integer, optional): When set, will cause requests taking longer than this time (in seconds) to be aborted. Default is `0` which means no timeout is set.
 - `id_attribute` (string, optional): When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to `http://foo.com/bar/VALUE_OF_NAME`.
 - `copy_keys` (array of strings, optional): When set, any `PUT` to the API for an object will copy these keys from the data the provider has gathered about the object. This is useful if internal API information must also be provided with updates, such as the revision of the object.
