@@ -85,3 +85,6 @@ if [[ $? != 0 ]]; then
   echo "$response"
   exit 1
 fi
+
+#Success - get rid of the release_info.md file
+rm -f release_info.md

@@ -26,7 +26,12 @@ if [[ -z "$github_api_token" || -z "$owner" || -z "$repo" || -z "$tag" ]];then
   exit 1
 fi
 
+if [[ "$tag" != "v*" ]];then
+  tag="v$tag"
+fi
+
 #Make sure we are good to go
+echo "Running tests..."
 cd ../restapi
 go test 
 cd -
@@ -34,12 +39,20 @@ cd -
 #Build for all architectures we want
 ARTIFACTS=()
 #for GOOS in darwin linux windows netbsd openbsd solaris;do
+echo "Building..."
 for GOOS in darwin linux windows;do
   for GOARCH in "386" amd64;do
     export GOOS GOARCH
-    OUT_FILE="terraform-provider-restapi-$GOOS-$GOARCH"
-    go build -o "$OUT_FILE" ../
-    ARTIFACTS+=("$OUT_FILE")
+
+    TF_OUT_FILE="terraform-provider-restapi-$tag-$GOOS-$GOARCH"
+    echo "  $TF_OUT_FILE"
+    go build -o "$TF_OUT_FILE" ../
+    ARTIFACTS+=("$TF_OUT_FILE")
+
+    FS_OUT_FILE="fakeserver-$tag-$GOOS-$GOARCH"
+    echo "  $FS_OUT_FILE"
+    go build -o "$FS_OUT_FILE" ../fakeservercli
+    ARTIFACTS+=("$FS_OUT_FILE")
   done
 done
 
