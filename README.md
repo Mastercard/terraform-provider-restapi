@@ -13,6 +13,8 @@ There are a few requirements about how the API must work for this provider to be
     * POST on `/api/v1/things` creates a new object
     * GET, PUT and DELETE on `/api/v1/things/{id}` manages an existing object
 
+Have a look at the [examples directory](examples) for some use cases
+
 &nbsp;
 
 ## Provider configuration
@@ -51,3 +53,10 @@ This provider also exports the following parameters:
 This provider also exports the following parameters:
 - `id`: The native ID of the API object as the API server recognizes it.
 - `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
+
+&nbsp;
+
+## Installation
+There are two standard methods of installing this provider detailed [in Terraform's documentation](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins). You can place the file in the directory of your .tf file in `terraform.d/plugins/{OS}_{ARCH}/` or place it in your home directory at `~/.terraform.d/plugins/{OS}_{ARCH}/`
+
+The released binaries are named `terraform-provider-restapi-vX.Y.Z-{OS}-{ARCH}` so you know which binary to install. Be sure to rename the binary you use during installation to just `terraform-provider-restapi-vX.Y.Z`.
