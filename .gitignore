@@ -6,7 +6,7 @@ test.log
 terraform.tfstate
 terraform.tfstate.backup
 crash.log
-examples/terrform*
+examples/terraform*
 **/github_api_token
 **/release_info.md
 scripts/terraform-provider-restapi*

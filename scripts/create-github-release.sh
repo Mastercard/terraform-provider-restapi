@@ -67,16 +67,13 @@ if [[ ! -f release_info.md ]];then
 fi
 
 release_info=$(cat release_info.md)
-set +e
-read -r -d '' RELEASE_JSON <<EOF
-{
-  "tag_name": "$tag",
-  "name": "$tag",
-  "body": "$release_info",
-  "draft": $draft
-}
-EOF
-set -e
+JSON_STRING=$(jq --arg notes "$release_info"
+RELEASE_JSON=$(jq -n \
+  --arg tag "$tag" \
+  --arg name "$tag" \
+  --arg body "$release_info" \
+  '{ "tag_name": $tag, "name": $name, "body": $body, "draft": '$draft'}'
+  )
 
 # Send the data
 response=$(curl -sH "$AUTH" "$GH_REPO/releases" -X POST -d "$RELEASE_JSON")

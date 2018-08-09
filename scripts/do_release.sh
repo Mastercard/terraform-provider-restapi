@@ -26,7 +26,7 @@ if [[ -z "$github_api_token" || -z "$owner" || -z "$repo" || -z "$tag" ]];then
   exit 1
 fi
 
-if [[ "$tag" != "v*" ]];then
+if [[ "$tag" != v* ]];then
   tag="v$tag"
 fi
 
@@ -44,7 +44,7 @@ for GOOS in darwin linux windows;do
   for GOARCH in "386" amd64;do
     export GOOS GOARCH
 
-    TF_OUT_FILE="terraform-provider-restapi-$tag-$GOOS-$GOARCH"
+    TF_OUT_FILE="terraform-provider-restapi_$tag-$GOOS-$GOARCH"
     echo "  $TF_OUT_FILE"
     go build -o "$TF_OUT_FILE" ../
     ARTIFACTS+=("$TF_OUT_FILE")

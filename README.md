@@ -22,7 +22,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `insecure` (boolean, optional): When using https, this disables TLS verification of the host.
 - `username` (string, optional): When set, will use this username for BASIC auth to the API.
 - `password` (string, optional): When set, will use this password for BASIC auth to the API.
-- `headers` (hash of strings, optional): A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.
+- `headers` (hash of strings, optional): A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.
 - `timeout` (integer, optional): When set, will cause requests taking longer than this time (in seconds) to be aborted. Default is `0` which means no timeout is set.
 - `id_attribute` (string, optional): When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to `http://foo.com/bar/VALUE_OF_NAME`.
 - `copy_keys` (array of strings, optional): When set, any `PUT` to the API for an object will copy these keys from the data the provider has gathered about the object. This is useful if internal API information must also be provided with updates, such as the revision of the object.
@@ -59,4 +59,4 @@ This provider also exports the following parameters:
 ## Installation
 There are two standard methods of installing this provider detailed [in Terraform's documentation](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins). You can place the file in the directory of your .tf file in `terraform.d/plugins/{OS}_{ARCH}/` or place it in your home directory at `~/.terraform.d/plugins/{OS}_{ARCH}/`
 
-The released binaries are named `terraform-provider-restapi-vX.Y.Z-{OS}-{ARCH}` so you know which binary to install. Be sure to rename the binary you use during installation to just `terraform-provider-restapi-vX.Y.Z`.
+The released binaries are named `terraform-provider-restapi_vX.Y.Z-{OS}-{ARCH}` so you know which binary to install. You *may* need to rename the binary you use during installation to just `terraform-provider-restapi_vX.Y.Z`.
