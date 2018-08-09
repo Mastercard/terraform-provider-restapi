@@ -82,6 +82,9 @@ func Provider() terraform.ResourceProvider {
 	 one underscore. This is not documented anywhere I could find */
       "restapi_object": resourceRestApi(),
     },
+    DataSourcesMap: map[string]*schema.Resource{
+      "restapi_object": dataSourceRestApi(),
+    },
     ConfigureFunc: configureProvider,
   }
 }

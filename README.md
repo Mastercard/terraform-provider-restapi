@@ -38,3 +38,16 @@ There are a few requirements about how the API must work for this provider to be
 This provider also exports the following parameters:
 - `id`: The ID of the object that is being managed.
 - `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
+
+&nbsp;
+
+## `restapi` datasource configuration
+- `path` (string, required): The API path on top of the base URL set in the provider that represents objects of this type on the API server.
+- `search_key` (string, required): When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'.
+- `search_value` (string, required): The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.
+- `results_key` (string, required): When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are to be used exactly as-is.
+- `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
+
+This provider also exports the following parameters:
+- `id`: The native ID of the API object as the API server recognizes it.
+- `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
