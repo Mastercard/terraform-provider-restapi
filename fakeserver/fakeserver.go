@@ -73,6 +73,13 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
 
   if svr.debug {
     log.Printf("fakeserver.go: Recieved request: %+v\n", r)
+    log.Printf("fakeserver.go: Headers:\n")
+    for name, headers := range r.Header {
+      name = strings.ToLower(name)
+      for _, h := range headers {
+      log.Printf("fakeserver.go:  %v: %v", name, h)
+      }
+    }
     log.Printf("fakeserver.go: BODY: %s\n", string(b))
     log.Printf("fakeserver.go: IDs and objects:\n")
     for id, obj := range svr.objects {
