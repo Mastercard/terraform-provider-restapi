@@ -14,6 +14,7 @@ type fakeserver struct {
   server   *http.Server
   objects  map[string]map[string]interface{}
   debug    bool
+  running  bool
 }
 
 func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_start bool, i_debug bool) *fakeserver {
@@ -22,6 +23,7 @@ func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_st
   svr := &fakeserver{
     debug: i_debug,
     objects: i_objects,
+    running: false,
   }
 
   serverMux.HandleFunc("/", svr.handle_api_object)
@@ -33,22 +35,32 @@ func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_st
 
   svr.server = api_object_server
 
-  if i_start { svr.Start() }
+  if i_start { svr.StartInBackground() }
+  if svr.debug {log.Printf("fakeserver.go: Set up fakeserver: port=%d, debug=%t\n", i_port, svr.debug) }
 
   return svr
 }
 
-func(svr *fakeserver)Start() {
+func(svr *fakeserver)StartInBackground() {
   go svr.server.ListenAndServe()
 
   /* Let the server start */
   time.Sleep(1 * time.Second)
+  svr.running = true
 }
 
 func(svr *fakeserver)Shutdown() {
   svr.server.Close()
+  svr.running = false
 }
 
+func(svr *fakeserver)Running() bool {
+  return svr.running
+}
+
+func(svr *fakeserver)GetServer() *http.Server {
+  return svr.server
+}
 
 func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request) {
   var obj map[string]interface{}
@@ -84,6 +96,14 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
   } else if r.RequestURI != "/api/objects" {
     /* How did something get to this handler with the wrong number of args??? */
     http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+    return
+  } else if r.RequestURI == "/api/objects" && r.Method == "GET" {
+    result := make([]map[string]interface{}, 0)
+    for _, hash := range svr.objects {
+      result = append(result, hash)
+    }
+    b, _ := json.Marshal(result)
+    w.Write(b)
     return
   }
 
