@@ -27,6 +27,26 @@ func resourceRestApi() *schema.Resource {
         Description: "The API path on top of the base URL set in the provider that represents objects of this type on the API server.",
         Required:    true,
       },
+      "create_path": &schema.Schema{
+        Type:        schema.TypeString,
+        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to WRITE (POST) objects of this type on the API server.",
+        Optional:    true,
+      },
+      "read_path": &schema.Schema{
+        Type:        schema.TypeString,
+        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to READ (GET) objects of this type on the API server.",
+        Optional:    true,
+      },
+      "update_path": &schema.Schema{
+        Type:        schema.TypeString,
+        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to MODIFY (PUT) objects of this type on the API server.",
+        Optional:    true,
+      },
+      "destroy_path": &schema.Schema{
+        Type:        schema.TypeString,
+        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to DESTROY (DELETE) objects of this type on the API server.",
+        Optional:    true,
+      },
       "data": &schema.Schema{
         Type:        schema.TypeString,
         Description: "Valid JSON data that this provider will manage with the API server.",

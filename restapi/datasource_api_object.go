@@ -52,9 +52,16 @@ func dataSourceRestApi() *schema.Resource {
 
 
 func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
+  /* Datasource really only uses GET... but our constructor
+  supports different paths per action. Just use path for all of them */
+  path := d.Get("path").(string)
+
   obj, err := NewAPIObject (
     meta.(*api_client),
-    d.Get("path").(string),
+    path,
+    path,
+    path,
+    path,
     d.Id(),
     "{}",
     d.Get("debug").(bool),
@@ -73,7 +80,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   /*
     Issue a GET to the base path and expect results to come back
   */
-  res_str, err := obj.api_client.send_request("GET", obj.path, "")
+  res_str, err := obj.api_client.send_request("GET", path, "")
   if err != nil { return err }
 
   /*

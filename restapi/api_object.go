@@ -11,7 +11,10 @@ import (
 
 type api_object struct {
   api_client           *api_client
-  path                 string
+  get_path             string
+  post_path            string
+  put_path             string
+  delete_path          string
   debug                bool
   id                   string
 
@@ -21,24 +24,29 @@ type api_object struct {
 }
 
 // Make an api_object to manage a RESTful object in an API
-func NewAPIObject (i_client *api_client, i_path string, i_id string, i_data string, i_debug bool) (*api_object, error) {
+func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, i_put_path string, i_delete_path string, i_id string, i_data string, i_debug bool) (*api_object, error) {
   if i_debug {
     log.Printf("api_object.go: Constructing debug api_object\n")
-    log.Printf(" path: %s\n", i_path)
     log.Printf(" id: %s\n", i_id)
   }
 
   obj := api_object{
     api_client: i_client,
-    path: i_path,
+    get_path: i_get_path,
+    post_path: i_put_path,
+    put_path: i_post_path,
+    delete_path: i_delete_path,
     debug: i_debug,
     id: i_id,
     data: make(map[string]interface{}),
     api_data: make(map[string]interface{}),
   }
 
-  if "" == i_path { return nil, errors.New("No path passed to api_object constructor") }
-  if "" == i_data { return nil, errors.New("No data passed to api_object constructor") }
+  if "" == i_get_path    { return nil, errors.New("No GET path passed to api_object constructor") }
+  if "" == i_post_path   { return nil, errors.New("No POST path passed to api_object constructor") }
+  if "" == i_put_path    { return nil, errors.New("No PUT path passed to api_object constructor") }
+  if "" == i_delete_path { return nil, errors.New("No DELETE path passed to api_object constructor") }
+  if "" == i_data        { return nil, errors.New("No data passed to api_object constructor") }
 
   if i_data != ""{
     if i_debug { log.Printf("api_object.go: Parsing data: '%s'", i_data) }
@@ -71,7 +79,10 @@ func NewAPIObject (i_client *api_client, i_path string, i_id string, i_data stri
 func (obj *api_object) toString() string {
   var buffer bytes.Buffer
   buffer.WriteString(fmt.Sprintf("id: %s\n", obj.id))
-  buffer.WriteString(fmt.Sprintf("path: %s\n", obj.path))
+  buffer.WriteString(fmt.Sprintf("get_path: %s\n", obj.get_path))
+  buffer.WriteString(fmt.Sprintf("post_path: %s\n", obj.post_path))
+  buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.put_path))
+  buffer.WriteString(fmt.Sprintf("delete_path: %s\n", obj.delete_path))
   buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
   buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
   buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.api_data)))
@@ -139,7 +150,7 @@ func (obj *api_object) create_object() error {
   }
 
   b, _ := json.Marshal(obj.data)
-  res_str, err := obj.api_client.send_request("POST", obj.path, string(b))
+  res_str, err := obj.api_client.send_request("POST", obj.post_path, string(b))
   if err != nil { return err }
 
   /* We will need to sync state as well as get the object's ID */
@@ -167,7 +178,7 @@ func (obj *api_object) read_object() error {
     return errors.New("Cannot read an object unless the ID has been set.")
   }
 
-  res_str, err := obj.api_client.send_request("GET", obj.path + "/" + obj.id, "")
+  res_str, err := obj.api_client.send_request("GET", obj.get_path + "/" + obj.id, "")
   if err != nil { return err }
 
   err = obj.update_state(res_str)
@@ -180,7 +191,7 @@ func (obj *api_object) update_object() error {
   }
 
   b, _ := json.Marshal(obj.data)
-  res_str, err := obj.api_client.send_request("PUT", obj.path + "/" + obj.id, string(b))
+  res_str, err := obj.api_client.send_request("PUT", obj.put_path + "/" + obj.id, string(b))
   if err != nil { return err }
 
   if obj.api_client.write_returns_object {
@@ -199,7 +210,7 @@ func (obj *api_object) delete_object() error {
     return nil
   }
 
-  _, err := obj.api_client.send_request("DELETE", obj.path + "/" + obj.id, "")
+  _, err := obj.api_client.send_request("DELETE", obj.delete_path + "/" + obj.id, "")
   if err != nil { return err }
 
   return nil

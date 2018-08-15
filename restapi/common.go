@@ -13,9 +13,23 @@ import (
 func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error) {
   log.Printf("resource_api_object.go: make_api_object routine called for id '%s'\n", d.Id())
 
+
+  get_path := d.Get("path").(string)
+  post_path := d.Get("path").(string)
+  put_path := d.Get("path").(string)
+  delete_path := d.Get("path").(string)
+
+  if nil != d.Get("create_path")  { post_path   = d.Get("create_path").(string) }
+  if nil != d.Get("read_path")    { get_path    = d.Get("read_path").(string) }
+  if nil != d.Get("update_path")  { put_path    = d.Get("update_path").(string) }
+  if nil != d.Get("destroy_path") { delete_path = d.Get("destroy_path").(string) }
+
   obj, err := NewAPIObject (
     m.(*api_client),
-    d.Get("path").(string),
+    get_path,
+    post_path,
+    put_path,
+    delete_path,
     d.Id(),
     d.Get("data").(string),
     d.Get("debug").(bool),
