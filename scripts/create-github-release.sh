@@ -67,12 +67,11 @@ if [[ ! -f release_info.md ]];then
 fi
 
 release_info=$(cat release_info.md)
-JSON_STRING=$(jq --arg notes "$release_info"
 RELEASE_JSON=$(jq -n \
   --arg tag "$tag" \
   --arg name "$tag" \
   --arg body "$release_info" \
-  '{ "tag_name": $tag, "name": $name, "body": $body, "draft": '$draft'}'
+  '{ "tag_name": $tag, "name": $name, "body": $body, "draft": '$draft'}' \
   )
 
 # Send the data
@@ -82,6 +81,3 @@ if [[ $? != 0 ]]; then
   echo "$response"
   exit 1
 fi
-
-#Success - get rid of the release_info.md file
-rm -f release_info.md

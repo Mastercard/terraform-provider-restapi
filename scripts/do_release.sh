@@ -63,3 +63,5 @@ done
 for FILE in "${ARTIFACTS[@]}";do
   ./upload-github-release-asset.sh github_api_token=$github_api_token owner=$owner repo=$repo tag=$tag filename="$FILE"
 done
+
+rm -f release_info.md
