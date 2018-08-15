@@ -34,6 +34,10 @@ Have a look at the [examples directory](examples) for some use cases
 
 ## `restapi` resource configuration
 - `path` (string, required): The API path on top of the base URL set in the provider that represents objects of this type on the API server.
+- `create_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to WRITE (POST) objects of this type on the API server.
+- `read_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to READ (GET) objects of this type on the API server.
+- `update_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to MODIFY (PUT) objects of this type on the API server.
+- `destroy_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to DESTROY (DELETE) objects of this type on the API server.
 - `data` (string, required): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
