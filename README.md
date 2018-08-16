@@ -34,16 +34,18 @@ Have a look at the [examples directory](examples) for some use cases
 
 ## `restapi` resource configuration
 - `path` (string, required): The API path on top of the base URL set in the provider that represents objects of this type on the API server.
-- `create_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to WRITE (POST) objects of this type on the API server.
-- `read_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to READ (GET) objects of this type on the API server.
-- `update_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to MODIFY (PUT) objects of this type on the API server.
-- `destroy_path` (string, optional): Defaults to `path`. The API path on top of the base URL set in the provider that represents where to DESTROY (DELETE) objects of this type on the API server.
+- `create_path` (string, optional): Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.
+- `read_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
+- `update_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
+- `destroy_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `data` (string, required): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
 This provider also exports the following parameters:
 - `id`: The ID of the object that is being managed.
 - `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
+
+Note that the `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`.
 
 &nbsp;
 

@@ -29,22 +29,22 @@ func resourceRestApi() *schema.Resource {
       },
       "create_path": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to WRITE (POST) objects of this type on the API server.",
+        Description: "Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.",
         Optional:    true,
       },
       "read_path": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to READ (GET) objects of this type on the API server.",
+        Description: "Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
         Optional:    true,
       },
       "update_path": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to MODIFY (PUT) objects of this type on the API server.",
+        Description: "Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
         Optional:    true,
       },
       "destroy_path": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "Defaults to `path`. The API path on top of the base URL set in the provider that represents where to DESTROY (DELETE) objects of this type on the API server.",
+        Description: "Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
         Optional:    true,
       },
       "data": &schema.Schema{
