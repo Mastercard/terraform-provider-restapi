@@ -33,7 +33,10 @@ fi
 #Make sure we are good to go
 echo "Running tests..."
 cd ../restapi
-go test 
+if ! go test;then
+  echo "Failed testing. Aborting."
+  exit 1
+fi
 cd -
 
 #Build for all architectures we want
