@@ -19,6 +19,13 @@ func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error)
   put_path := d.Get("path").(string) + "/{id}"
   delete_path := d.Get("path").(string) + "/{id}"
 
+  /* Allow user to specify the ID manually */
+  id := d.Get("id").(string)
+  if id == "" {
+    /* If not specified, see if terraform has an ID */
+    id = d.Id()
+  }
+
   if nil != d.Get("create_path")  { post_path   = d.Get("create_path").(string) }
   if nil != d.Get("read_path")    { get_path    = d.Get("read_path").(string) }
   if nil != d.Get("update_path")  { put_path    = d.Get("update_path").(string) }

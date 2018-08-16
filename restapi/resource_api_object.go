@@ -47,6 +47,11 @@ func resourceRestApi() *schema.Resource {
         Description: "Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
         Optional:    true,
       },
+      "id": &schema.Schema{
+        Type:        schema.TypeString,
+        Description: "Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.",
+        Optional:    true,
+      },
       "data": &schema.Schema{
         Type:        schema.TypeString,
         Description: "Valid JSON data that this provider will manage with the API server.",
