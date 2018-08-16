@@ -7,6 +7,7 @@ import (
   "encoding/json"
   "bytes"
   "github.com/davecgh/go-spew/spew"
+  "strings"
 )
 
 type api_object struct {
@@ -33,8 +34,8 @@ func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, 
   obj := api_object{
     api_client: i_client,
     get_path: i_get_path,
-    post_path: i_put_path,
-    put_path: i_post_path,
+    post_path: i_post_path,
+    put_path: i_put_path,
     delete_path: i_delete_path,
     debug: i_debug,
     id: i_id,
@@ -150,7 +151,7 @@ func (obj *api_object) create_object() error {
   }
 
   b, _ := json.Marshal(obj.data)
-  res_str, err := obj.api_client.send_request("POST", obj.post_path, string(b))
+  res_str, err := obj.api_client.send_request("POST", strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
   if err != nil { return err }
 
   /* We will need to sync state as well as get the object's ID */
@@ -178,7 +179,7 @@ func (obj *api_object) read_object() error {
     return errors.New("Cannot read an object unless the ID has been set.")
   }
 
-  res_str, err := obj.api_client.send_request("GET", obj.get_path + "/" + obj.id, "")
+  res_str, err := obj.api_client.send_request("GET", strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
   if err != nil { return err }
 
   err = obj.update_state(res_str)
@@ -191,7 +192,7 @@ func (obj *api_object) update_object() error {
   }
 
   b, _ := json.Marshal(obj.data)
-  res_str, err := obj.api_client.send_request("PUT", obj.put_path + "/" + obj.id, string(b))
+  res_str, err := obj.api_client.send_request("PUT", strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
   if err != nil { return err }
 
   if obj.api_client.write_returns_object {
@@ -210,7 +211,7 @@ func (obj *api_object) delete_object() error {
     return nil
   }
 
-  _, err := obj.api_client.send_request("DELETE", obj.delete_path + "/" + obj.id, "")
+  _, err := obj.api_client.send_request("DELETE", strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
   if err != nil { return err }
 
   return nil
