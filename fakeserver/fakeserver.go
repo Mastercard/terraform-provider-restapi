@@ -95,8 +95,9 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
     id = parts[3]
     obj, ok = svr.objects[id];
     if svr.debug { log.Printf("fakeserver.go: Detected ID %s (exists: %t, method: %s)", id, ok, r.Method) }
+
     /* Make sure the object requested exists unless it's being created */
-    if !ok {
+    if r.Method != "POST" && !ok {
       http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
       return
     }
