@@ -37,7 +37,7 @@ func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error)
     post_path,
     put_path,
     delete_path,
-    d.Id(),
+    id,
     d.Get("data").(string),
     d.Get("debug").(bool),
   )
