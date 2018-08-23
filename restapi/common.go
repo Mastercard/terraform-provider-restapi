@@ -26,10 +26,10 @@ func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error)
 
   log.Printf("common.go: make_api_object routine called for id '%s'\n", id)
 
-  if nil != d.Get("create_path")  { post_path   = d.Get("create_path").(string) }
-  if nil != d.Get("read_path")    { get_path    = d.Get("read_path").(string) }
-  if nil != d.Get("update_path")  { put_path    = d.Get("update_path").(string) }
-  if nil != d.Get("destroy_path") { delete_path = d.Get("destroy_path").(string) }
+  if "" != d.Get("create_path")  { post_path   = d.Get("create_path").(string) }
+  if "" != d.Get("read_path")    { get_path    = d.Get("read_path").(string) }
+  if "" != d.Get("update_path")  { put_path    = d.Get("update_path").(string) }
+  if "" != d.Get("destroy_path") { delete_path = d.Get("destroy_path").(string) }
 
   obj, err := NewAPIObject (
     m.(*api_client),
