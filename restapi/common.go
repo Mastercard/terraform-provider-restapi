@@ -11,8 +11,6 @@ import (
    terraform cannot just reuse objects, so each CRUD operation
    results in a new object created */
 func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error) {
-  log.Printf("resource_api_object.go: make_api_object routine called for id '%s'\n", d.Id())
-
 
   post_path := d.Get("path").(string)
   get_path := d.Get("path").(string) + "/{id}"
@@ -25,6 +23,8 @@ func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error)
     /* If not specified, see if terraform has an ID */
     id = d.Id()
   }
+
+  log.Printf("common.go: make_api_object routine called for id '%s'\n", id)
 
   if nil != d.Get("create_path")  { post_path   = d.Get("create_path").(string) }
   if nil != d.Get("read_path")    { get_path    = d.Get("read_path").(string) }

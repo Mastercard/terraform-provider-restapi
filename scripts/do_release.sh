@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+OSs=("darwin", "linux", "windows")
+ARCHs=("386", "amd64")
+
 #Get into the right directory
 cd $(dirname $0)
 
@@ -43,8 +46,8 @@ cd -
 ARTIFACTS=()
 #for GOOS in darwin linux windows netbsd openbsd solaris;do
 echo "Building..."
-for GOOS in darwin linux windows;do
-  for GOARCH in "386" amd64;do
+for GOOS in "${OSs[@]}";do
+  for GOARCH in "${ARCHs[@]}";do
     export GOOS GOARCH
 
     TF_OUT_FILE="terraform-provider-restapi_$tag-$GOOS-$GOARCH"
@@ -67,4 +70,10 @@ for FILE in "${ARTIFACTS[@]}";do
   ./upload-github-release-asset.sh github_api_token=$github_api_token owner=$owner repo=$repo tag=$tag filename="$FILE"
 done
 
+echo "Cleaning up..."
 rm -f release_info.md
+for GOOS in "${OSs[@]}";do
+  for GOARCH in "${ARCHs[@]}";do
+    rm -f "terraform-provider-restapi_$tag-$GOOS-$GOARCH" "fakeserver-$tag-$GOOS-$GOARCH"
+  done
+done
