@@ -38,7 +38,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `read_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `update_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `destroy_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
-- `object_id` (string, optional): Allows users to set the object's ID to a specific string.
+- `object_id` (string, optional): Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
 - `data` (string, required): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
