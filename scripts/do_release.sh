@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-OSs=("darwin", "linux", "windows")
-ARCHs=("386", "amd64")
+OSs=("darwin" "linux" "windows")
+ARCHs=("386" "amd64")
 
 #Get into the right directory
 cd $(dirname $0)
