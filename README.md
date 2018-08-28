@@ -51,10 +51,12 @@ Note that the `*_path` elements are for very specific use cases where one might 
 &nbsp;
 
 ## `restapi` datasource configuration
+Note that you must set the 'id_attribute' key on the restapi provider in order to use this datasource since it is used to set the ID of the discovered object that matches the search criteria.
 - `path` (string, required): The API path on top of the base URL set in the provider that represents objects of this type on the API server.
-- `search_key` (string, required): When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'.
-- `search_value` (string, required): The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.
-- `results_key` (string, required): When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are to be used exactly as-is.
+- `search_key` (string, required): When reading search results from the API, this key is used to identify the specific record to read. This should be a unique field within each record such as 'name' or a path to such an field in the form 'field/field/field'. Example: 'attributes/name' would search for the name field under the attributes map of each record found within the portion of the API response indicated by 'results_key'.
+- `search_value` (string, required): The value found in the last field in 'search_key' of each record will be compared to this value to determine if the correct record was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.
+- `results_key` (string, required): When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values' will look for an array of records under the results/values portion of the API response. If omitted, it is assumed the results coming back are to be used exactly as-is.
+- `single_object` (boolean, optional): If set to true, indicates that the API call will return a single object instead of an array of objects. In this case, 'results_key', 'search_key', and 'search_value' are all ignored. We recommend setting them all to to "". 
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
 This provider also exports the following parameters:
