@@ -34,11 +34,6 @@ func dataSourceRestApi() *schema.Resource {
         Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values' will look for an array of records under the results/values portion of the API response. If omitted, it is assumed the results coming back are to be used exactly as-is.",
         Optional:    true,
       },
-      "single_object": &schema.Schema{
-        Type:        schema.TypeBool,
-        Description: "If set to true, indicates that the API call will return a single object instead of an array of objects. In this case, 'results_key', 'search_key', and 'search_value' are all ignored. We recommend setting them all to to \"\".",
-        Optional:    true,
-      },
       "debug": &schema.Schema{
         Type:        schema.TypeBool,
         Description: "Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting the `TF_LOG` environment variable to values like 1 or DEBUG",
@@ -75,14 +70,12 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   if err != nil { return err }
   log.Printf("datasource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
 
-  single_obj   := d.Get("single_object").(bool)
   search_key   := d.Get("search_key").(string)
   search_val   := d.Get("search_value").(string)
   results_key  := d.Get("results_key").(string)
   id_attribute := obj.api_client.id_attribute
   id := ""
   var data_array []interface{}
-  var single_object_data map[string]interface{}
 
   /*
     Issue a GET to the base path and expect results to come back
@@ -97,7 +90,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   err = json.Unmarshal([]byte(res_str), &result)
   if err != nil { return err }
 
-  if "" != results_key && !single_obj {
+  if "" != results_key {
     ptr := &result
     parts := strings.Split(results_key, "/")
     part := ""
@@ -122,66 +115,54 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     } /* End Loop through parts */
 
     data_array = (*ptr).([]interface{})
-  } else if "" == results_key && !single_obj {
-    data_array = result.([]interface{})
-  } else { // single_obj
-    ptr := &result
-    single_object_data = (*ptr).(map[string]interface{})
-  }
-
-  if !single_obj {
-
-    /* Loop through all of the results seeking the specific record */
-    for _, item := range data_array {
-      hash := item.(map[string]interface{})
-
-      // Parse search_key
-      search_parts := strings.Split(search_key, "/")
-      search_part := ""
-      search_seen := ""
-      search_hash := hash
-
-      // Loop through search parts
-      for len(search_parts) > 1 {
-        log.Printf("datasource_api_object.go: Looping through search_parts\n")
-        search_part, search_parts = search_parts[0], search_parts[1:]
-
-        // Protect against double slashes by mistake
-        if "" == search_part { break }
-
-        if _, ok := search_hash[search_part]; ok {
-          log.Printf("search_hash[search_part] exists: '%s'\n", search_hash[search_part])
-          search_hash = search_hash[search_part].(map[string]interface{})
-          search_seen += "/" + search_part
-        } else {
-          return(errors.New(fmt.Sprintf("Failed to find %s in returned data structure after finding '%s'", search_part, search_seen)))
-        }
-      } // end search_parts loop
-
-      search_part, search_parts = search_parts[0], search_parts[1:]
-      search_data_map := search_hash
-      log.Printf("search_part is set to '%s'\n", search_part)
-      if search_data_map[search_part] == search_val {
-        /* We found our record */
-        log.Printf("datasource_api_object.go: Found our record\n")
-        id = search_data_map[id_attribute].(string)
-        /* But there is no id attribute??? */
-        if "" == id {
-          log.Printf("datasource_api_object.go: But record did not have '%s' attribute\n", id_attribute)
-          return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s'", search_key, search_val, id_attribute)))
-        }
-        break
-      } // end if for checking search_key against search_val
-    } // end data_array loop
-
-    // Change get_path to include ID
-    obj.get_path = path + "/{id}"
-
   } else {
-    // Assume id_attribute at top of single object
-    id = single_object_data[id_attribute].(string)
-    log.Printf("datasource_api_object.go: Single object ID: '%s'\n", id)
+    data_array = result.([]interface{})
   }
+
+  /* Loop through all of the results seeking the specific record */
+  for _, item := range data_array {
+    hash := item.(map[string]interface{})
+
+    // Parse search_key
+    search_parts := strings.Split(search_key, "/")
+    search_part := ""
+    search_seen := ""
+    search_hash := hash
+
+    // Loop through search parts
+    for len(search_parts) > 1 {
+      log.Printf("datasource_api_object.go: Looping through search_parts\n")
+      search_part, search_parts = search_parts[0], search_parts[1:]
+
+      // Protect against double slashes by mistake
+      if "" == search_part { break }
+
+      if _, ok := search_hash[search_part]; ok {
+        log.Printf("search_hash[search_part] exists: '%s'\n", search_hash[search_part])
+        search_hash = search_hash[search_part].(map[string]interface{})
+        search_seen += "/" + search_part
+      } else {
+        return(errors.New(fmt.Sprintf("Failed to find %s in returned data structure after finding '%s'", search_part, search_seen)))
+      }
+    } // end search_parts loop
+
+    search_part, search_parts = search_parts[0], search_parts[1:]
+    search_data_map := search_hash
+    log.Printf("search_part is set to '%s'\n", search_part)
+    if search_data_map[search_part] == search_val {
+      /* We found our record */
+      log.Printf("datasource_api_object.go: Found our record\n")
+      id = search_data_map[id_attribute].(string)
+      /* But there is no id attribute??? */
+      if "" == id {
+        return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s'", search_key, search_val, id_attribute)))
+      }
+      break
+    } // end if for checking search_key against search_val
+  } // end data_array loop
+
+  // Change get_path to include ID
+  obj.get_path = path + "/{id}"
 
   /* Back to terraform-specific stuff. Set the id and refresh the object */
   log.Printf("datasource_api_object.go: Setting object ID to '%s'\n", id)
