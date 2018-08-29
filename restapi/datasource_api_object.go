@@ -154,7 +154,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
           search_hash = search_hash[search_part].(map[string]interface{})
           search_seen += "/" + search_part
         } else {
-          log.Printf("Failed to find %s in returned data structure after finding '%s'", search_part, search_seen)
+          return(errors.New(fmt.Sprintf("Failed to find %s in returned data structure after finding '%s'", search_part, search_seen)))
         }
       } // end search_parts loop
 
