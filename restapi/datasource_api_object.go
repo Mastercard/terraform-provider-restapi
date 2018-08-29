@@ -87,23 +87,14 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   /*
     Issue a GET to the base path and expect results to come back
   */
-  res_headers, res_body, err := obj.api_client.send_request("GET", path, "")
+  res_str, err := obj.api_client.send_request("GET", path, "")
   if err != nil { return err }
-
-  if obj.debug {
-    log.Printf("api_object.go: Response headers:\n")
-    for name, headers := range res_headers {
-      for _, h := range headers {
-       log.Printf("api_object.go:   %v: %v", name, h)
-      }
-    }
-  }
 
   /*
     Parse it seeking JSON data
   */
   var result interface{}
-  err = json.Unmarshal([]byte(res_body), &result)
+  err = json.Unmarshal([]byte(res_str), &result)
   if err != nil { return err }
 
   if "" != results_key && !single_obj {
