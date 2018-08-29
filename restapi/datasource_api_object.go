@@ -21,7 +21,7 @@ func dataSourceRestApi() *schema.Resource {
       },
       "search_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'.",
+        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique field within each record such as 'name' or a path to such an field in the form 'field/field/field'. Example: 'attributes/name' would search for the name field under the attributes map of each record found within the portion of the API response indicated by 'results_key'.",
         Required:    true,
       },
       "search_value": &schema.Schema{
@@ -31,17 +31,17 @@ func dataSourceRestApi() *schema.Resource {
       },
       "results_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are to be used exactly as-is.",
+        Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values' will look for an array of records under the results/values portion of the API response. If omitted, it is assumed the results coming back are to be used exactly as-is.",
         Optional:    true,
       },
       "single_object": &schema.Schema{
         Type:        schema.TypeBool,
-        Description: "Whether the API returns a single object as a map. In this case, we don't need to search for matching object.",
+        Description: "If set to true, indicates that the API call will return a single object instead of an array of objects. In this case, 'results_key', 'search_key', and 'search_value' are all ignored. We recommend setting them all to to \"\".",
         Optional:    true,
       },
       "debug": &schema.Schema{
         Type:        schema.TypeBool,
-        Description: "Whether to emit verbose debug output while working with the API object on the server.",
+        Description: "Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting the `TF_LOG` environment variable to values like 1 or DEBUG",
         Optional:    true,
       },
       "api_data": &schema.Schema{
