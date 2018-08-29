@@ -21,7 +21,7 @@ func dataSourceRestApi() *schema.Resource {
       },
       "search_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'.",
+        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique field within each record such as 'name' or a path to such an field in the form 'field/field/field'. Example: 'attributes/name' would search for the name field under the attributes map of each record found within the portion of the API response indicated by 'results_key'.",
         Required:    true,
       },
       "search_value": &schema.Schema{
@@ -31,12 +31,12 @@ func dataSourceRestApi() *schema.Resource {
       },
       "results_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are to be used exactly as-is.",
+        Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values' will look for an array of records under the results/values portion of the API response. If omitted, it is assumed the results coming back are to be used exactly as-is.",
         Optional:    true,
       },
       "debug": &schema.Schema{
         Type:        schema.TypeBool,
-        Description: "Whether to emit verbose debug output while working with the API object on the server.",
+        Description: "Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting the `TF_LOG` environment variable to values like 1 or DEBUG",
         Optional:    true,
       },
       "api_data": &schema.Schema{
@@ -62,13 +62,13 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     path,
     path,
     path,
-    d.Id(),
+    "0", // We temporarily set ID of the new object to 0
     "{}",
     d.Get("debug").(bool),
   )
 
   if err != nil { return err }
-  log.Printf("resource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
+  log.Printf("datasource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
 
   search_key   := d.Get("search_key").(string)
   search_val   := d.Get("search_value").(string)
@@ -105,7 +105,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
       hash := (*ptr).(map[string]interface{})
       if _, ok := hash[part]; ok {
-        fmt.Printf("  exists\n")
+        fmt.Printf("hash[part] exists\n")
         v := hash[part]
         ptr = &v
         seen += "/" + part
@@ -123,26 +123,55 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   for _, item := range data_array {
     hash := item.(map[string]interface{})
 
-    /* We found our record */
-    if hash[search_key] == search_val {
-      id = hash[id_attribute].(string)
+    // Parse search_key
+    search_parts := strings.Split(search_key, "/")
+    search_part := ""
+    search_seen := ""
+    search_hash := hash
 
+    // Loop through search parts
+    for len(search_parts) > 1 {
+      log.Printf("datasource_api_object.go: Looping through search_parts\n")
+      search_part, search_parts = search_parts[0], search_parts[1:]
+
+      // Protect against double slashes by mistake
+      if "" == search_part { break }
+
+      if _, ok := search_hash[search_part]; ok {
+        log.Printf("search_hash[search_part] exists: '%s'\n", search_hash[search_part])
+        search_hash = search_hash[search_part].(map[string]interface{})
+        search_seen += "/" + search_part
+      } else {
+        return(errors.New(fmt.Sprintf("Failed to find %s in returned data structure after finding '%s'", search_part, search_seen)))
+      }
+    } // end search_parts loop
+
+    search_part, search_parts = search_parts[0], search_parts[1:]
+    search_data_map := search_hash
+    log.Printf("search_part is set to '%s'\n", search_part)
+    if search_data_map[search_part] == search_val {
+      /* We found our record */
+      log.Printf("datasource_api_object.go: Found our record\n")
+      id = search_data_map[id_attribute].(string)
       /* But there is no id attribute??? */
       if "" == id {
         return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s'", search_key, search_val, id_attribute)))
       }
       break
-    }
-  }
+    } // end if for checking search_key against search_val
+  } // end data_array loop
+
+  // Change get_path to include ID
+  obj.get_path = path + "/{id}"
 
   /* Back to terraform-specific stuff. Set the id and refresh the object */
-  d.SetId(obj.id)
+  log.Printf("datasource_api_object.go: Setting object ID to '%s'\n", id)
   obj.id = id
 
   err = obj.read_object()
   if err == nil {
     /* Setting terraform ID tells terraform the object was created or it exists */
-    log.Printf("resource_api_object.go: Data resource. Returned id is '%s'\n", obj.id);
+    log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.id);
     d.SetId(obj.id)
     set_resource_state(obj, d)
   }

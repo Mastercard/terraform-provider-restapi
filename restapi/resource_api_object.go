@@ -59,7 +59,7 @@ func resourceRestApi() *schema.Resource {
       },
       "debug": &schema.Schema{
         Type:        schema.TypeBool,
-        Description: "Whether to emit verbose debug output while working with the API object on the server.",
+        Description: "Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting the TF_LOG environment variable to values like 1 or DEBUG.",
         Optional:    true,
       },
       "api_data": &schema.Schema{
