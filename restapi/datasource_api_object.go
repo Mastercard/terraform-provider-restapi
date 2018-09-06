@@ -55,6 +55,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   /* Datasource really only uses GET... but our constructor
   supports different paths per action. Just use path for all of them */
   path := d.Get("path").(string)
+  debug := d.Get("debug").(bool)
 
   obj, err := NewAPIObject (
     meta.(*api_client),
@@ -64,11 +65,11 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     path,
     d.Id(),
     "{}",
-    d.Get("debug").(bool),
+    debug,
   )
 
   if err != nil { return err }
-  log.Printf("resource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
+  log.Printf("datasource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
 
   search_key   := d.Get("search_key").(string)
   search_val   := d.Get("search_value").(string)
@@ -80,12 +81,14 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   /*
     Issue a GET to the base path and expect results to come back
   */
+  if debug { log.Printf("datasource_api_object.go: Calling API on path '%s'", path) }
   res_str, err := obj.api_client.send_request("GET", path, "")
   if err != nil { return err }
 
   /*
     Parse it seeking JSON data
   */
+  if debug { log.Printf("datasource_api_object.go: Response recieved... parsing") }
   var result interface{}
   err = json.Unmarshal([]byte(res_str), &result)
   if err != nil { return err }
@@ -95,6 +98,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     parts := strings.Split(results_key, "/")
     part := ""
     seen := ""
+    if debug { log.Printf("datasource_api_object.go: Locating results_key in parts: %v...", parts) }
 
     for len(parts) > 0 {
       /* AKA, Slice...*/
@@ -105,11 +109,12 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
       hash := (*ptr).(map[string]interface{})
       if _, ok := hash[part]; ok {
-        fmt.Printf("  exists\n")
+        if debug { log.Printf("datasource_api_object.go:  %s - exists", part) }
         v := hash[part]
         ptr = &v
         seen += "/" + part
       } else {
+        if debug { log.Printf("datasource_api_object.go:  %s - MISSING", part) }
         return(errors.New(fmt.Sprintf("Failed to find %s in returned data structure after finding '%s'", part, seen)))
       }
     } /* End Loop through parts */
@@ -125,7 +130,8 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
     /* We found our record */
     if hash[search_key] == search_val {
-      id = hash[id_attribute].(string)
+      id = fmt.Sprintf("%v", hash[id_attribute])
+      if debug { log.Printf("datasource_api_object.go: Found ID %s", id) }
 
       /* But there is no id attribute??? */
       if "" == id {
@@ -136,13 +142,17 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   }
 
   /* Back to terraform-specific stuff. Set the id and refresh the object */
+  if debug { log.Printf("datasource_api_object.go: Attempting to refresh object information after resetting paths") }
   d.SetId(obj.id)
   obj.id = id
+  obj.get_path = obj.get_path + "/" + id
+  obj.put_path = obj.put_path + "/" + id
+  obj.delete_path = obj.delete_path + "/" + id
 
   err = obj.read_object()
   if err == nil {
     /* Setting terraform ID tells terraform the object was created or it exists */
-    log.Printf("resource_api_object.go: Data resource. Returned id is '%s'\n", obj.id);
+    log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.id);
     d.SetId(obj.id)
     set_resource_state(obj, d)
   }
