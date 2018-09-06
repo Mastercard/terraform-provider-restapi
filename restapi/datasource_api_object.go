@@ -59,10 +59,10 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
   obj, err := NewAPIObject (
     meta.(*api_client),
+    path + "/{id}",
     path,
-    path,
-    path,
-    path,
+    path + "/{id}",
+    path + "/{id}",
     d.Id(),
     "{}",
     debug,
@@ -145,9 +145,6 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   if debug { log.Printf("datasource_api_object.go: Attempting to refresh object information after resetting paths") }
   d.SetId(obj.id)
   obj.id = id
-  obj.get_path = obj.get_path + "/" + id
-  obj.put_path = obj.put_path + "/" + id
-  obj.delete_path = obj.delete_path + "/" + id
 
   err = obj.read_object()
   if err == nil {
