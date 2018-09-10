@@ -24,8 +24,6 @@ type test_api_object struct {
 }
 
 func TestAPIObject(t *testing.T) {
-  var err error
-
   if test_debug { log.Println("api_object_test.go: Creating test API objects") }
 
   /* Holds the full list of api_object items that we are testing
@@ -37,9 +35,9 @@ func TestAPIObject(t *testing.T) {
      maps of both */
   generated_objects := make(map[string]test_api_object)
   api_server_objects := make(map[string]map[string]interface{})
-  generate_test_api_objects(&generated_objects, &api_server_objects, t, test_debug)
+  GenerateTestApiObjects(&generated_objects, &api_server_objects, t, test_debug)
 
-  client := NewAPIClient (
+  client, err := NewAPIClient (
     "http://127.0.0.1:8081/",  /* URL */
     false,                     /* insecure */
     "",                        /* username */
@@ -139,7 +137,7 @@ func TestAPIObject(t *testing.T) {
 }
 
 
-func generate_test_api_objects (typed *map[string]test_api_object, untyped *map[string]map[string]interface{}, t *testing.T, test_debug bool) {
+func GenerateTestApiObjects (typed *map[string]test_api_object, untyped *map[string]map[string]interface{}, t *testing.T, test_debug bool) {
   add_test_api_object(
     `{
       "Test_case": "normal",
