@@ -16,13 +16,19 @@ func TestAPIClient(t *testing.T) {
   setup_api_client_server()
 
   /* Notice the intentional trailing / */
-  client := NewAPIClient ("http://127.0.0.1:8080/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
+  client, err := NewAPIClient ("http://127.0.0.1:8080/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
 
   var res string
-  var err error
 
   log.Printf("api_client_test.go: Testing standard OK request\n")
   res, err = client.send_request("GET", "/ok", "")
+  if err != nil { t.Fatalf("client_test.go: %s", err) }
+  if res != "It works!" {
+    t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
+  }
+
+  log.Printf("api_client_test.go: Testing redirect request\n")
+  res, err = client.send_request("GET", "/redirect", "")
   if err != nil { t.Fatalf("client_test.go: %s", err) }
   if res != "It works!" {
     t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
@@ -46,6 +52,9 @@ func setup_api_client_server () {
   serverMux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
     time.Sleep(9999 * time.Second)
     w.Write([]byte("This will never return!!!!!"))
+  })
+  serverMux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
+    http.Redirect(w, r, "/ok", http.StatusPermanentRedirect)
   })
 
 

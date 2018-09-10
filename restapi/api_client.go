@@ -30,9 +30,13 @@ type api_client struct {
 
 
 // Make a new api client for RESTful calls
-func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) *api_client {
+func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) (*api_client, error) {
   if i_debug {
     log.Printf("api_client.go: Constructing debug api_client\n")
+  }
+
+  if i_uri == "" {
+    return nil, errors.New("uri must be set to construct an API client")
   }
 
   /* Sane default */
@@ -68,7 +72,32 @@ func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password 
     redirects: 5,
     debug: i_debug,
   }
-  return &client
+
+  if i_debug {
+    log.Printf("api_client.go: Constructed object:\n%s", client.toString())
+  }
+  return &client, nil
+}
+
+// Convert the important bits about this object to string representation
+// This is useful for debugging.
+func (obj *api_client) toString() string {
+  var buffer bytes.Buffer
+  buffer.WriteString(fmt.Sprintf("uri: %s\n", obj.uri))
+  buffer.WriteString(fmt.Sprintf("insecure: %t\n", obj.insecure))
+  buffer.WriteString(fmt.Sprintf("username: %s\n", obj.username))
+  buffer.WriteString(fmt.Sprintf("password: %s\n", obj.password))
+  buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", obj.id_attribute))
+  buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", obj.write_returns_object))
+  buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", obj.create_returns_object))
+  buffer.WriteString(fmt.Sprintf("headers:\n"))
+  for k,v := range obj.headers {
+    buffer.WriteString(fmt.Sprintf("  %s: %s\n", k,v))
+  }
+  for _, n := range obj.copy_keys {
+    buffer.WriteString(fmt.Sprintf("  %s", n))
+  }
+  return buffer.String()
 }
 
 /* Helper function that handles sending/receiving and handling
