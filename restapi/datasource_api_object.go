@@ -52,29 +52,15 @@ func dataSourceRestApi() *schema.Resource {
 
 
 func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
-  /* Datasource really only uses GET... but our constructor
-  supports different paths per action. Just use path for all of them */
   path := d.Get("path").(string)
   debug := d.Get("debug").(bool)
-
-  obj, err := NewAPIObject (
-    meta.(*api_client),
-    path + "/{id}",
-    path,
-    path + "/{id}",
-    path + "/{id}",
-    d.Id(),
-    "{}",
-    debug,
-  )
-
-  if err != nil { return err }
-  log.Printf("datasource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
+  client := meta.(*api_client)
+  log.Printf("datasource_api_object.go: Data routine called.")
 
   search_key   := d.Get("search_key").(string)
   search_val   := d.Get("search_value").(string)
   results_key  := d.Get("results_key").(string)
-  id_attribute := obj.api_client.id_attribute
+  id_attribute := client.id_attribute
   id := ""
   var data_array []interface{}
 
@@ -82,7 +68,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     Issue a GET to the base path and expect results to come back
   */
   if debug { log.Printf("datasource_api_object.go: Calling API on path '%s'", path) }
-  res_str, err := obj.api_client.send_request("GET", path, "")
+  res_str, err := client.send_request("GET", path, "")
   if err != nil { return err }
 
   /*
@@ -141,10 +127,20 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     }
   }
 
-  /* Back to terraform-specific stuff. Set the id and refresh the object */
-  if debug { log.Printf("datasource_api_object.go: Attempting to refresh object information after resetting paths") }
+  /* Back to terraform-specific stuff. Create an api_object with the ID and refresh it object */
+  if debug { log.Printf("datasource_api_object.go: Attempting to construct api_object to refresh data") }
+  obj, err := NewAPIObject (
+    client,
+    path + "/{id}",
+    path,
+    path + "/{id}",
+    path + "/{id}",
+    id,
+    "{}",
+    debug,
+  )
+  if err != nil { return err }
   d.SetId(obj.id)
-  obj.id = id
 
   err = obj.read_object()
   if err == nil {
