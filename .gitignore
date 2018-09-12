@@ -2,7 +2,6 @@ main.tf
 .terraform
 terraform-provider-restapi
 test.sh
-test.log
 terraform.tfstate
 terraform.tfstate.backup
 crash.log
@@ -11,3 +10,4 @@ examples/terraform*
 **/release_info.md
 scripts/terraform-provider-restapi*
 scripts/fakeserver*
+tmp
