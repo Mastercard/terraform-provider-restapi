@@ -107,7 +107,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     }
   }
 
-  return NewAPIClient(
+  client, err := NewAPIClient(
     d.Get("uri").(string),
     d.Get("insecure").(bool),
     d.Get("username").(string),
@@ -119,5 +119,6 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     d.Get("write_returns_object").(bool),
     d.Get("create_returns_object").(bool),
     d.Get("debug").(bool),
-  ), nil
+  )
+  return client, err
 }
