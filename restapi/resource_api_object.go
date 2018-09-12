@@ -4,7 +4,6 @@ import (
   "github.com/hashicorp/terraform/helper/schema"
   "fmt"
   "strings"
-  "errors"
   "log"
 )
 
@@ -81,7 +80,7 @@ func resourceRestApi() *schema.Resource {
 func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported []*schema.ResourceData, err error) {
   input := d.Id()
   n := strings.LastIndex(input, "/")
-  if n == -1 { return imported, errors.New("Invalid path to import api_object. Must be /<full path from server root>/<object id>") }
+  if n == -1 { return imported, fmt.Errorf("Invalid path to import api_object '%s'. Must be /<full path from server root>/<object id>", input) }
 
   path := input[0:n]
   d.Set("path", path)
