@@ -20,14 +20,14 @@ func TestAPIClient(t *testing.T) {
 
   var res string
 
-  log.Printf("api_client_test.go: Testing standard OK request\n")
+  if(debug) { log.Printf("api_client_test.go: Testing standard OK request\n") }
   res, err = client.send_request("GET", "/ok", "")
   if err != nil { t.Fatalf("client_test.go: %s", err) }
   if res != "It works!" {
     t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
   }
 
-  log.Printf("api_client_test.go: Testing redirect request\n")
+  if(debug) { log.Printf("api_client_test.go: Testing redirect request\n") }
   res, err = client.send_request("GET", "/redirect", "")
   if err != nil { t.Fatalf("client_test.go: %s", err) }
   if res != "It works!" {
@@ -35,7 +35,7 @@ func TestAPIClient(t *testing.T) {
   }
 
   /* Verify timeout works */
-  log.Printf("api_client_test.go: Testing timeout aborts requests\n")
+  if(debug) { log.Printf("api_client_test.go: Testing timeout aborts requests\n") }
   res, err = client.send_request("GET", "/slow", "")
   if err == nil { t.Fatalf("client_test.go: Timeout did not trigger on slow request") }
 
