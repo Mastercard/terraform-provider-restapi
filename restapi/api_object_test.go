@@ -9,7 +9,7 @@ import (
 )
 
 var test_debug = false
-var http_server_debug = true
+var http_server_debug = false
 var api_object_debug = false
 var api_client_debug = false
 
@@ -35,7 +35,7 @@ func TestAPIObject(t *testing.T) {
      maps of both */
   generated_objects := make(map[string]test_api_object)
   api_server_objects := make(map[string]map[string]interface{})
-  GenerateTestApiObjects(&generated_objects, &api_server_objects, t, test_debug)
+  GenerateTestObjects(&generated_objects, &api_server_objects, t, test_debug)
 
   client, err := NewAPIClient (
     "http://127.0.0.1:8081/",  /* URL */
@@ -50,6 +50,7 @@ func TestAPIObject(t *testing.T) {
     false,                     /* Create returns object */
     api_client_debug,          /* Debug logging */
     )
+
 
   /* Construct a local map of test case objects with only the ID populated */
   if test_debug { log.Println("api_object_test.go: Building test objects...") }
@@ -77,7 +78,7 @@ func TestAPIObject(t *testing.T) {
   svr := fakeserver.NewFakeServer(8081, api_server_objects, true, http_server_debug)
 
   /* Loop through all of the objects and GET their data from the server */
-  log.Printf("api_object_test.go: Testing read_object()")
+  if test_debug { log.Printf("api_object_test.go: Testing read_object()") }
   for Test_case, _ := range testing_objects {
     if test_debug { log.Printf("api_object_test.go: Getting data for '%s' test case from server\n", Test_case) }
     err := testing_objects[Test_case].read_object()
@@ -87,13 +88,13 @@ func TestAPIObject(t *testing.T) {
   }
 
   /* Verify our copy_keys is happy by seeing if Thing made it into the data hash */
-  log.Printf("api_object_test.go: Testing copy_keys()")
+  if test_debug { log.Printf("api_object_test.go: Testing copy_keys()") }
   if testing_objects["normal"].data["Thing"].(string) == "" {
     t.Fatalf("api_object_test.go: copy_keys for 'normal' object failed. Expected 'Thing' to be non-empty, but got '%+v'\n", testing_objects["normal"].data["Thing"])
   }
 
   /* Go ahead and update one of our objects */
-  log.Printf("api_object_test.go: Testing update_object()")
+  if test_debug { log.Printf("api_object_test.go: Testing update_object()") }
   testing_objects["minimal"].data["Thing"] = "spoon"
   testing_objects["minimal"].update_object()
   if err != nil {
@@ -104,7 +105,7 @@ func TestAPIObject(t *testing.T) {
   }
 
   /* Delete one and make sure a 404 follows */
-  log.Printf("api_object_test.go: Testing delete_object()")
+  if test_debug { log.Printf("api_object_test.go: Testing delete_object()") }
   testing_objects["pet"].delete_object()
   err = testing_objects["pet"].read_object()
   if err == nil {
@@ -112,7 +113,7 @@ func TestAPIObject(t *testing.T) {
   }
 
   /* Recreate the one we just got rid of */
-  log.Printf("api_object_test.go: Testing create_object()")
+  if test_debug { log.Printf("api_object_test.go: Testing create_object()") }
   testing_objects["pet"].data["Thing"] = "dog"
   err = testing_objects["pet"].create_object()
   if err != nil {
@@ -137,7 +138,7 @@ func TestAPIObject(t *testing.T) {
 }
 
 
-func GenerateTestApiObjects (typed *map[string]test_api_object, untyped *map[string]map[string]interface{}, t *testing.T, test_debug bool) {
+func GenerateTestObjects (typed *map[string]test_api_object, untyped *map[string]map[string]interface{}, t *testing.T, test_debug bool) {
   add_test_api_object(
     `{
       "Test_case": "normal",
