@@ -5,7 +5,6 @@ import (
   "fmt"
   "errors"
   "log"
-  "strings"
   "encoding/json"
 )
 
@@ -31,8 +30,13 @@ func dataSourceRestApi() *schema.Resource {
       },
       "results_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are to be used exactly as-is.",
+        Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.",
         Optional:    true,
+      },
+      "id_attribute": &schema.Schema{
+        Type: schema.TypeString,
+        Description: "Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)",
+        Optional: true,
       },
       "debug": &schema.Schema{
         Type:        schema.TypeBool,
@@ -58,11 +62,19 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   log.Printf("datasource_api_object.go: Data routine called.")
 
   search_key   := d.Get("search_key").(string)
-  search_val   := d.Get("search_value").(string)
+  search_value := d.Get("search_value").(string)
   results_key  := d.Get("results_key").(string)
+  if debug { log.Printf("datasource_api_object.go:\npath: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s", path, search_key, search_value, results_key) }
+
+  /* Allow user to override provider-level id_attribute */
   id_attribute := client.id_attribute
+  if "" != d.Get("id_attribute").(string) {
+    id_attribute = d.Get("id_attribute").(string)
+  }
+
   id := ""
   var data_array []interface{}
+  var ok bool
 
   /*
     Issue a GET to the base path and expect results to come back
@@ -80,34 +92,26 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   if err != nil { return err }
 
   if "" != results_key {
-    ptr := &result
-    parts := strings.Split(results_key, "/")
-    part := ""
-    seen := ""
-    if debug { log.Printf("datasource_api_object.go: Locating results_key in parts: %v...", parts) }
+    var tmp interface{}
 
-    for len(parts) > 0 {
-      /* AKA, Slice...*/
-      part, parts = parts[0], parts[1:]
+    if debug { log.Printf("datasource_api_object.go: Locating '%s' in the results", results_key) }
+    /* First verify the data we got back is a hash */
+    if _, ok = result.(map[string]interface{}); !ok {
+      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", path, results_key)
+    }
 
-      /* Protect against double slashes by mistake */
-      if "" == part { break }
-
-      hash := (*ptr).(map[string]interface{})
-      if _, ok := hash[part]; ok {
-        if debug { log.Printf("datasource_api_object.go:  %s - exists", part) }
-        v := hash[part]
-        ptr = &v
-        seen += "/" + part
-      } else {
-        if debug { log.Printf("datasource_api_object.go:  %s - MISSING", part) }
-        return(errors.New(fmt.Sprintf("Failed to find %s in returned data structure after finding '%s'", part, seen)))
-      }
-    } /* End Loop through parts */
-
-    data_array = (*ptr).([]interface{})
+    tmp, err = GetObjectAtKey(result.(map[string]interface{}), results_key, debug)
+    if err != nil {
+      return fmt.Errorf("datasource_api_object.go: Error finding results_key: %s", err)
+    }
+    if data_array, ok = tmp.([]interface{}); !ok {
+      return fmt.Errorf("datasource_api_object.go: The data at results_key location '%s' is not an array.", results_key)
+    }
   } else {
-    data_array = result.([]interface{})
+    if debug { log.Printf("datasource_api_object.go: results_key is not set - coaxing data to array of interfaces") }
+    if data_array, ok = result.([]interface{}); !ok {
+      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. Perhaps you meant to add a results_key?", path)
+    }
   }
 
   /* Loop through all of the results seeking the specific record */
@@ -115,13 +119,13 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     hash := item.(map[string]interface{})
 
     /* We found our record */
-    if hash[search_key] == search_val {
+    if hash[search_key] == search_value {
       id = fmt.Sprintf("%v", hash[id_attribute])
       if debug { log.Printf("datasource_api_object.go: Found ID %s", id) }
 
       /* But there is no id attribute??? */
       if "" == id {
-        return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s'", search_key, search_val, id_attribute)))
+        return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s'", search_key, search_value, id_attribute)))
       }
       break
     }
@@ -136,6 +140,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     path + "/{id}",
     path + "/{id}",
     id,
+    id_attribute,
     "{}",
     debug,
   )
