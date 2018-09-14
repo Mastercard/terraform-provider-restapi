@@ -26,9 +26,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
   api_server_objects := make(map[string]map[string]interface{})
 
   svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug)
-  if os.Getenv("REST_API_URI") != "http://127.0.0.1:8082" {
-    t.Fatalf("REST_API_URI environment variable must be set to 'http://127.0.0.1:8082' but it is set to '%s'", os.Getenv("REST_API_URI"))
-  }
+  os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
   client, err := NewAPIClient("http://127.0.0.1:8082/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
   if err != nil { t.Fatal(err) }
@@ -48,6 +46,24 @@ func TestAccRestApiObject_Basic(t *testing.T) {
           resource.TestCheckResourceAttr("restapi_object.Foo", "id", "1234"),
           resource.TestCheckResourceAttr("restapi_object.Foo", "api_data.first", "Foo"),
           resource.TestCheckResourceAttr("restapi_object.Foo", "api_data.last", "Bar"),
+        ),
+      },
+      /* Make a complex object with id_attribute as a child of another key
+         Note that we have to pass "id" just so fakeserver won't get angry at us
+       */
+      {
+        Config: generate_test_resource(
+          "Bar",
+          `{ "id": "4321", "attributes": { "id": "4321" }, "config": { "first": "Bar", "last": "Baz" } }`,
+          map[string]interface{}{
+            "debug": debug,
+            "id_attribute": "attributes/id",
+          },
+        ),
+        Check: resource.ComposeTestCheckFunc(
+          testAccCheckRestapiObjectExists("restapi_object.Bar", "4321", client),
+          resource.TestCheckResourceAttr("restapi_object.Bar", "id", "4321"),
+          resource.TestCheckResourceAttrSet("restapi_object.Bar", "api_data.config"),
         ),
       },
     },
