@@ -63,6 +63,7 @@ func TestAPIObject(t *testing.T) {
       "/api/objects/{id}",               /* path to the "object" in the test server for PUT (note: id will automatically be appended) */
       "/api/objects/{id}",               /* path to the "object" in the test server for DELETE (note: id will automatically be appended) */
       "",                                /* Do not set an ID to force the constructor to verify id_attribute works */
+      "",                                /* Use the client's value for id_attribute */
       fmt.Sprintf(`{ "Id": "%s" }`, id), /* Start with only an empty JSON object ID as our "data" */
       api_object_debug,                  /* Whether the object's debug is enabled */
     )

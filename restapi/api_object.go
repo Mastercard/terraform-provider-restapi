@@ -18,6 +18,7 @@ type api_object struct {
   delete_path          string
   debug                bool
   id                   string
+  id_attribute         string
 
   /* Set internally */
   data         map[string]interface{} /* Data as managed by the user */
@@ -25,10 +26,19 @@ type api_object struct {
 }
 
 // Make an api_object to manage a RESTful object in an API
-func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, i_put_path string, i_delete_path string, i_id string, i_data string, i_debug bool) (*api_object, error) {
+func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, i_put_path string, i_delete_path string, i_id string, i_ida string, i_data string, i_debug bool) (*api_object, error) {
   if i_debug {
     log.Printf("api_object.go: Constructing debug api_object\n")
     log.Printf(" id: %s\n", i_id)
+  }
+
+  /* id_attribute can be set either on the client (to apply for all calls with the server)
+     or on a per object basis (for only calls to this kind of object).
+     Permit overridding from the API client here by using the client-wide value only
+     if a per-object value is not set */
+  id_attr := i_ida
+  if i_ida == "" {
+    id_attr = i_client.id_attribute
   }
 
   obj := api_object{
@@ -39,6 +49,7 @@ func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, 
     delete_path: i_delete_path,
     debug: i_debug,
     id: i_id,
+    id_attribute: id_attr,
     data: make(map[string]interface{}),
     api_data: make(map[string]interface{}),
   }
@@ -60,13 +71,15 @@ func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, 
     /* Opportunistically set the object's ID if it is provided in the data.
        If it is not set, we will get it later in synchronize_state */
     if obj.id == "" {
-      val, ok := obj.data[obj.api_client.id_attribute]
-      if ok {
-        obj.id = fmt.Sprintf("%v", val)
+      var tmp string
+      tmp, err = GetStringAtKey(obj.data, obj.id_attribute, obj.debug)
+      if err == nil {
+        if i_debug { log.Printf("api_object.go: opportunisticly set id from data provided.") }
+        obj.id = tmp
       } else if !obj.api_client.write_returns_object && !obj.api_client.create_returns_object {
         /* If the id is not set and we cannot obtain it
 	   later, error out to be safe */
-        return nil, errors.New(fmt.Sprintf("Provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response. Without an id, the object cannot be managed.", obj.api_client.id_attribute))
+        return nil, errors.New(fmt.Sprintf("Provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response. Without an id, the object cannot be managed.", obj.id_attribute))
       }
     }
   }
@@ -107,18 +120,11 @@ func (obj *api_object) update_state(state string) error {
   /* A usable ID was not passed (in constructor or here), 
      so we have to guess what it is from the data structure */
   if obj.id == "" {
-    val, ok := obj.api_data[obj.api_client.id_attribute]
-    if ok {
-      /* Coax to string */
-      obj.id = fmt.Sprintf("%v", val)
-      log.Printf("api_object.go: Updating object id (unset) to '%s'\n", obj.id)
-    } else {
-      /* An ID is REQUIRED to manage the object. We canot proceed */
-      err_message := fmt.Sprintf("api_object.go: Error: %s is not in the data presented nor passed in the constructor.\n", obj.api_client.id_attribute)
-      err_message += fmt.Sprintf("List of keys available:\n")
-      for k := range obj.data { err_message += fmt.Sprintf("  %s\n", k) }
-      errors.New(err_message)
+    val, err := GetStringAtKey(obj.api_data, obj.id_attribute, obj.debug)
+    if err != nil {
+      return fmt.Errorf("api_object.go: Error extracting ID from data element: %s", err)
     }
+    obj.id = val
   } else if obj.debug {
     log.Printf("api_object.go: Not updating id. It is already set to '%s'\n", obj.id)
   }
