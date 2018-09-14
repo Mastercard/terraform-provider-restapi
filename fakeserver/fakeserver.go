@@ -36,7 +36,7 @@ func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_st
   svr.server = api_object_server
 
   if i_start { svr.StartInBackground() }
-  if svr.debug {log.Printf("fakeserver.go: Set up fakeserver: port=%d, debug=%t\n", i_port, svr.debug) }
+  if svr.debug { log.Printf("fakeserver.go: Set up fakeserver: port=%d, debug=%t\n", i_port, svr.debug) }
 
   return svr
 }
@@ -66,7 +66,6 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
   var obj map[string]interface{}
   var id string
   var ok bool
-  svr.debug = true
 
   /* Assume this will never fail */
   b, _ := ioutil.ReadAll(r.Body)
@@ -88,7 +87,7 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
   }
 
   parts := strings.Split(r.RequestURI, "/")
-  if svr.debug {log.Printf("fakeserver.go: Split request up into %d parts: %v\n", len(parts), parts) }
+  if svr.debug { log.Printf("fakeserver.go: Split request up into %d parts: %v\n", len(parts), parts) }
   /* If it was a valid request, there will be three parts
      and the ID will exist */
   if len(parts) == 4 {
@@ -149,9 +148,7 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
       }
 
       /* Overwrite our stored test object */
-      if svr.debug {
-        log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, obj)
-      }
+      if svr.debug { log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, obj) }
       svr.objects[id] = obj
 
       /* Coax the data we were sent back to JSON and send it to the user */
