@@ -12,9 +12,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
   api_server_objects := make(map[string]map[string]interface{})
 
   svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug)
-  if os.Getenv("REST_API_URI") != "http://127.0.0.1:8082" {
-    t.Fatalf("REST_API_URI environment variable must be set to 'http://127.0.0.1:8082' but it is set to '%s'", os.Getenv("REST_API_URI"))
-  }
+  os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
   client, err := NewAPIClient("http://127.0.0.1:8082/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
   if err != nil { t.Fatal(err) }
