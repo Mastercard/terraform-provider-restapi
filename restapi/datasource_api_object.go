@@ -6,6 +6,7 @@ import (
   "errors"
   "log"
   "encoding/json"
+  "strings"
 )
 
 func dataSourceRestApi() *schema.Resource {
@@ -118,9 +119,40 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   for _, item := range data_array {
     hash := item.(map[string]interface{})
 
+    /* Parse search_key in case it has multiple levels*/
+    var tmp interface{}
+    var search_hash map[string]interface{}
+    var reduced_search_key string
+    search_parts := strings.Split(search_key, "/")
+    final_search_part := search_parts[len(search_parts) - 1]
+    if debug { log.Printf("datasource_api_object.go: final_search_part: '%s'", final_search_part) }
+    if len(search_parts) > 1 {
+      /* strip off last search_part and recombine */
+      search_parts = search_parts[:len(search_parts) - 1]
+      reduced_search_key = strings.Join(search_parts, "/")
+      if debug { log.Printf("datasource_api_object.go: reduced_search_key: '%s'", reduced_search_key) }
+      tmp, err = GetObjectAtKey(hash, reduced_search_key, debug)
+      if err != nil {
+        return fmt.Errorf("datasource_api_object.go: Error parsing seach_key: %s", err)
+      }
+      if search_hash, ok = tmp.(map[string]interface{}); !ok {
+        return fmt.Errorf("datasource_api_object.go: The results of parsing '%s' did not return a hash.", reduced_search_key)
+      }
+    } else if len(search_parts) == 1 { // search_key only had one segment
+      tmp, err = GetObjectAtKey(hash, search_key, debug)
+      if err != nil {
+        return fmt.Errorf("datasource_api_object.go: Error parsing seach_key: %s", err)
+      }
+      if search_hash, ok = tmp.(map[string]interface{}); !ok {
+        return fmt.Errorf("datasource_api_object.go: The results of parsing '%s' did not return a hash.", search_key)
+      }
+    } else { // search_key was empty
+      search_hash = hash
+    }
+
     /* We found our record */
-    if hash[search_key] == search_value {
-      id = fmt.Sprintf("%v", hash[id_attribute])
+    if search_hash[final_search_part] == search_value {
+      id = fmt.Sprintf("%v", search_hash[id_attribute])
       if debug { log.Printf("datasource_api_object.go: Found ID %s", id) }
 
       /* But there is no id attribute??? */
