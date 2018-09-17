@@ -21,7 +21,7 @@ func dataSourceRestApi() *schema.Resource {
       },
       "search_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name' or a path to such an field in the form 'field/field/field'.",
+        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name' or a path to such a field in the form 'field/field/field'.",
         Required:    true,
       },
       "search_value": &schema.Schema{
