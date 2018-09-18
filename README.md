@@ -53,6 +53,7 @@ Note that the `*_path` elements are for very specific use cases where one might 
 
 ## `restapi` datasource configuration
 - `path` (string, required): The API path on top of the base URL set in the provider that represents objects of this type on the API server.
+- `query_string` (string, optional): An optional query string to send when performing the search.
 - `search_key` (string, required): When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'.
 - `search_value` (string, required): The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.
 - `results_key` (string, required): When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is
