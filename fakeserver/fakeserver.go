@@ -8,6 +8,7 @@ import (
   "fmt"
   "io/ioutil"
   "strings"
+  "os"
 )
 
 type fakeserver struct {
@@ -17,7 +18,7 @@ type fakeserver struct {
   running  bool
 }
 
-func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_start bool, i_debug bool) *fakeserver {
+func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_start bool, i_debug bool, dir string) *fakeserver {
   serverMux := http.NewServeMux()
 
   svr := &fakeserver{
@@ -26,7 +27,18 @@ func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_st
     running: false,
   }
 
-  serverMux.HandleFunc("/", svr.handle_api_object)
+  //If we were passed an argument for where to serve /static from...
+  if dir != "" {
+    _, err := os.Stat(dir)
+    if err == nil {
+      if svr.debug { log.Printf("fakeserver.go: Will serve static files in '%s' under /static path", dir) }
+      serverMux.Handle("/static/", http.StripPrefix("/static/", http.FileServer( http.Dir(dir))))
+    } else {
+      log.Printf("fakeserver.go: WARNING: Not serving /static because directory '%s' does not exist", dir)
+    }
+  }
+
+  serverMux.HandleFunc("/api/", svr.handle_api_object)
 
   api_object_server := &http.Server{
     Addr: fmt.Sprintf("127.0.0.1:%d", i_port),

@@ -13,10 +13,11 @@ func main() {
 
   port := flag.Int("port", 8080, "The port fakeserver will listen on")
   debug := flag.Bool("debug", false, "Enable debug output of the server")
+  static_dir := flag.String("static_dir", "", "Serve static content from this directory")
 
   flag.Parse()
 
-  svr := fakeserver.NewFakeServer(*port, api_server_objects, false, *debug)
+  svr := fakeserver.NewFakeServer(*port, api_server_objects, false, *debug, *static_dir)
 
   fmt.Printf("Starting server on port %d...\n", *port)
   fmt.Println("Objects are at /api/objects/{id}")
