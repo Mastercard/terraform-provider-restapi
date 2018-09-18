@@ -11,7 +11,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
   debug := false
   api_server_objects := make(map[string]map[string]interface{})
 
-  svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug)
+  svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug, "")
   os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
   client, err := NewAPIClient("http://127.0.0.1:8082/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
