@@ -138,6 +138,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
     return nil, fmt.Errorf("GetObjectAtKey: Resulting map at %s does not have key %s. Available: %s", seen, part, strings.Join(GetKeys(hash), ","))
   }
 
+  if debug { log.Printf("common.go:GetObjectAtKey:  %s - exists", part) }
 
   return hash[part], nil
 }
