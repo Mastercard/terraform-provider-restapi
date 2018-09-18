@@ -76,7 +76,7 @@ func TestAPIObject(t *testing.T) {
   }
 
   if test_debug { log.Println("api_object_test.go: Starting HTTP server") }
-  svr := fakeserver.NewFakeServer(8081, api_server_objects, true, http_server_debug)
+  svr := fakeserver.NewFakeServer(8081, api_server_objects, true, http_server_debug, "")
 
   /* Loop through all of the objects and GET their data from the server */
   if test_debug { log.Printf("api_object_test.go: Testing read_object()") }
