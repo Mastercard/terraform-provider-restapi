@@ -86,8 +86,15 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
     }
   }
 
-  parts := strings.Split(r.RequestURI, "/")
-  if svr.debug { log.Printf("fakeserver.go: Split request up into %d parts: %v\n", len(parts), parts) }
+  path := r.URL.EscapedPath()
+  parts := strings.Split(path, "/")
+  if svr.debug {
+    log.Printf("fakeserver.go: Request received: %s %s\n", r.Method, path)
+    log.Printf("fakeserver.go: Split request up into %d parts: %v\n", len(parts), parts)
+    if r.URL.RawQuery != "" {
+      log.Printf("fakeserver.go: Query string: %s\n", r.URL.RawQuery)
+    }
+  }
   /* If it was a valid request, there will be three parts
      and the ID will exist */
   if len(parts) == 4 {
@@ -100,11 +107,12 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
       http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
       return
     }
-  } else if r.RequestURI != "/api/objects" {
+  } else if path != "/api/objects" {
     /* How did something get to this handler with the wrong number of args??? */
+    if svr.debug { log.Printf("fakeserver.go: Bad request - got to /api/objects without the right number of args") }
     http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
     return
-  } else if r.RequestURI == "/api/objects" && r.Method == "GET" {
+  } else if path == "/api/objects" && r.Method == "GET" {
     result := make([]map[string]interface{}, 0)
     for _, hash := range svr.objects {
       result = append(result, hash)
@@ -142,6 +150,7 @@ func (svr *fakeserver)handle_api_object (w http.ResponseWriter, r *http.Request)
 	} else if val, ok := obj["ID"]; ok {
           id = fmt.Sprintf("%v", val)
 	} else {
+          if svr.debug { log.Printf("fakeserver.go: Bad request - POST to /api/objects without id field") }
           http.Error(w, "POST sent with no id field in the data. Cannot persist this!", http.StatusBadRequest)
 	  return
 	}

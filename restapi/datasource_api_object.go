@@ -66,7 +66,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   query_string := d.Get("query_string").(string)
   debug := d.Get("debug").(bool)
   client := meta.(*api_client)
-  log.Printf("datasource_api_object.go: Data routine called.")
+  if debug { log.Printf("datasource_api_object.go: Data routine called.") }
 
   search_key   := d.Get("search_key").(string)
   search_value := d.Get("search_value").(string)
@@ -110,7 +110,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     if debug { log.Printf("datasource_api_object.go: Locating '%s' in the results", results_key) }
     /* First verify the data we got back is a hash */
     if _, ok = result.(map[string]interface{}); !ok {
-      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", path, results_key)
+      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", search_path, results_key)
     }
 
     tmp, err = GetObjectAtKey(result.(map[string]interface{}), results_key, debug)
@@ -123,7 +123,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   } else {
     if debug { log.Printf("datasource_api_object.go: results_key is not set - coaxing data to array of interfaces") }
     if data_array, ok = result.([]interface{}); !ok {
-      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. Perhaps you meant to add a results_key?", path)
+      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. Perhaps you meant to add a results_key?", search_path)
     }
   }
 

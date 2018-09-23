@@ -33,8 +33,15 @@ func TestAccRestapiobject_Basic(t *testing.T) {
       "last": "Bar"
     }
   `)
+  client.send_request("POST", "/api/objects", `
+    {
+      "id": "4321",
+      "first": "Foo",
+      "last": "Baz"
+    }
+  `)
 
-  /* Send a complex object that we will pretend is the results of a search */
+  /* Send a complex object that we will pretend is the results of a search
   client.send_request("POST", "/api/objects", `
     {
       "id": "people",
@@ -47,6 +54,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
       }
     }
   `)
+  */
 
   resource.UnitTest(t, resource.TestCase{
     Providers:    testAccProviders,
@@ -66,6 +74,24 @@ func TestAccRestapiobject_Basic(t *testing.T) {
           resource.TestCheckResourceAttr("data.restapi_object.Foo", "id", "1234"),
           resource.TestCheckResourceAttr("data.restapi_object.Foo", "api_data.first", "Foo"),
           resource.TestCheckResourceAttr("data.restapi_object.Foo", "api_data.last", "Bar"),
+        ),
+      },
+      {
+        /* Similar to the first, but also with a query string */
+        Config: fmt.Sprintf(`
+            data "restapi_object" "Baz" {
+               path = "/api/objects"
+               query_string = "someArg=foo&anotherArg=bar"
+               search_key = "last"
+               search_value = "Baz"
+               debug = %t
+            }
+          `, debug),
+        Check: resource.ComposeTestCheckFunc(
+          testAccCheckRestapiObjectExists("data.restapi_object.Baz", "4321", client),
+          resource.TestCheckResourceAttr("data.restapi_object.Baz", "id", "4321"),
+          resource.TestCheckResourceAttr("data.restapi_object.Baz", "api_data.first", "Foo"),
+          resource.TestCheckResourceAttr("data.restapi_object.Baz", "api_data.last", "Baz"),
         ),
       },
 /* TODO: Fails with fakeserver because a request for /api/objects/people/4321 is unexpected (400 error)
