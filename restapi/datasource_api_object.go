@@ -92,8 +92,8 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     search_path = fmt.Sprintf("%s?%s", search_path, query_string)
   }
 
-  if debug { log.Printf("datasource_api_object.go: Calling API on path '%s'", path) }
-  res_str, err := client.send_request("GET", path, "")
+  if debug { log.Printf("datasource_api_object.go: Calling API on path '%s'", search_path) }
+  res_str, err := client.send_request("GET", search_path, "")
   if err != nil { return err }
 
   /*
