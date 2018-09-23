@@ -19,6 +19,11 @@ func dataSourceRestApi() *schema.Resource {
         Description: "The API path on top of the base URL set in the provider that represents objects of this type on the API server.",
         Required:    true,
       },
+      "query_string": &schema.Schema{
+        Type:        schema.TypeString,
+        Description: "An optional query string to send when performing the search.",
+        Optional:    true,
+      },
       "search_key": &schema.Schema{
         Type:        schema.TypeString,
         Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name' or a path to such a field in the form 'field/field/field'.",
@@ -58,6 +63,7 @@ func dataSourceRestApi() *schema.Resource {
 
 func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   path := d.Get("path").(string)
+  query_string := d.Get("query_string").(string)
   debug := d.Get("debug").(bool)
   client := meta.(*api_client)
   log.Printf("datasource_api_object.go: Data routine called.")
@@ -65,7 +71,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   search_key   := d.Get("search_key").(string)
   search_value := d.Get("search_value").(string)
   results_key  := d.Get("results_key").(string)
-  if debug { log.Printf("datasource_api_object.go:\npath: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s", path, search_key, search_value, results_key) }
+  if debug { log.Printf("datasource_api_object.go:\npath: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s", path, query_string, search_key, search_value, results_key) }
 
   /* Allow user to override provider-level id_attribute */
   id_attribute := client.id_attribute
@@ -80,6 +86,12 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   /*
     Issue a GET to the base path and expect results to come back
   */
+  search_path := path
+  if "" != query_string {
+    if debug { log.Printf("datasource_api_object.go: Adding query string '%s'", query_string) }
+    search_path = fmt.Sprintf("%s?%s", search_path, query_string)
+  }
+
   if debug { log.Printf("datasource_api_object.go: Calling API on path '%s'", path) }
   res_str, err := client.send_request("GET", path, "")
   if err != nil { return err }
