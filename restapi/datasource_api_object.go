@@ -129,11 +129,15 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   /* Loop through all of the results seeking the specific record */
   for _, item := range data_array {
     hash := item.(map[string]interface{})
+    if debug {
+      log.Printf("datasource_api_object.go: Examining %v", hash)
+      log.Printf("datasource_api_object.go:   Comparing '%s' to '%s'", search_value, hash[search_key])
+    }
 
     /* We found our record */
     if hash[search_key] == search_value {
       id = fmt.Sprintf("%v", hash[id_attribute])
-      if debug { log.Printf("datasource_api_object.go: Found ID %s", id) }
+      if debug { log.Printf("datasource_api_object.go:   Found ID %s", id) }
 
       /* But there is no id attribute??? */
       if "" == id {
@@ -141,6 +145,10 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
       }
       break
     }
+  }
+
+  if "" == id {
+    return(fmt.Errorf("Failed to find an object with the '%s' key = '%s' at %s", search_key, search_value, search_path))
   }
 
   /* Back to terraform-specific stuff. Create an api_object with the ID and refresh it object */
