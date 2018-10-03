@@ -125,7 +125,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
       }
     } else {
       if debug { log.Printf("common.go:GetObjectAtKey:  %s - MISSING", part) }
-      return nil, fmt.Errorf("GetObjectAtKey: Failed to find %s in returned data structure after finding '%s'. Available: %s", part, seen, strings.Join(GetKeys(hash), ","))
+      return nil, fmt.Errorf("GetObjectAtKey: Failed to find '%s' in returned data structure after finding '%s'. Available: %s", part, seen, strings.Join(GetKeys(hash), ","))
     }
   } /* End Loop through parts */
 
@@ -135,7 +135,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
     if debug {
       log.Printf("common.go:GetObjectAtKey:  %s - MISSING (available: %s)", part, strings.Join(GetKeys(hash), ","))
     }
-    return nil, fmt.Errorf("GetObjectAtKey: Resulting map at %s does not have key %s. Available: %s", seen, part, strings.Join(GetKeys(hash), ","))
+    return nil, fmt.Errorf("GetObjectAtKey: Resulting map at '%s' does not have key '%s'. Available: %s", seen, part, strings.Join(GetKeys(hash), ","))
   }
 
   if debug { log.Printf("common.go:GetObjectAtKey:  %s - exists", part) }
