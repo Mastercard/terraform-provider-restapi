@@ -125,7 +125,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
       }
     } else {
       if debug { log.Printf("common.go:GetObjectAtKey:  %s - MISSING", part) }
-      return nil, fmt.Errorf("GetObjectAtKey: Failed to find %s in returned data structure after finding '%s'", part, seen)
+      return nil, fmt.Errorf("GetObjectAtKey: Failed to find %s in returned data structure after finding '%s'. Available: %s", part, seen, strings.Join(GetKeys(hash), ","))
     }
   } /* End Loop through parts */
 
