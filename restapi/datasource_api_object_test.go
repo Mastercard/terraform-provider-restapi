@@ -30,14 +30,30 @@ func TestAccRestapiobject_Basic(t *testing.T) {
     {
       "id": "1234",
       "first": "Foo",
-      "last": "Bar"
+      "last": "Bar",
+      "data": {
+        "identifier": "FooBar"
+      }
     }
   `)
   client.send_request("POST", "/api/objects", `
     {
       "id": "4321",
       "first": "Foo",
-      "last": "Baz"
+      "last": "Baz",
+      "data": {
+        "identifier": "FooBaz"
+      }
+    }
+  `)
+  client.send_request("POST", "/api/objects", `
+    {
+      "id": "5678",
+      "first": "Nested",
+      "last": "Fields",
+      "data": {
+        "identifier": "NestedFields"
+      }
     }
   `)
 
@@ -74,6 +90,22 @@ func TestAccRestapiobject_Basic(t *testing.T) {
           resource.TestCheckResourceAttr("data.restapi_object.Foo", "id", "1234"),
           resource.TestCheckResourceAttr("data.restapi_object.Foo", "api_data.first", "Foo"),
           resource.TestCheckResourceAttr("data.restapi_object.Foo", "api_data.last", "Bar"),
+        ),
+      },
+      {
+        Config: fmt.Sprintf(`
+            data "restapi_object" "Nested" {
+               path = "/api/objects"
+               search_key = "data/identifier"
+               search_value = "NestedFields"
+               debug = %t
+            }
+          `, debug),
+        Check: resource.ComposeTestCheckFunc(
+          testAccCheckRestapiObjectExists("data.restapi_object.Nested", "5678", client),
+          resource.TestCheckResourceAttr("data.restapi_object.Nested", "id", "5678"),
+          resource.TestCheckResourceAttr("data.restapi_object.Nested", "api_data.first", "Nested"),
+          resource.TestCheckResourceAttr("data.restapi_object.Nested", "api_data.last", "Fields"),
         ),
       },
       {
