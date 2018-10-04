@@ -80,8 +80,8 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         Config: fmt.Sprintf(`
             data "restapi_object" "Foo" {
                path = "/api/objects"
-               search_key = "first"
-               search_value = "Foo"
+               search_key = "last"
+               search_value = "Bar"
                debug = %t
             }
           `, debug),
