@@ -6,6 +6,7 @@ import (
   "errors"
   "log"
   "encoding/json"
+  "reflect"
 )
 
 func dataSourceRestApi() *schema.Resource {
@@ -25,7 +26,7 @@ func dataSourceRestApi() *schema.Resource {
       },
       "search_key": &schema.Schema{
         Type:        schema.TypeString,
-        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'.",
+        Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
         Required:    true,
       },
       "search_value": &schema.Schema{
@@ -107,6 +108,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
     var tmp interface{}
 
     if debug { log.Printf("datasource_api_object.go: Locating '%s' in the results", results_key) }
+
     /* First verify the data we got back is a hash */
     if _, ok = result.(map[string]interface{}); !ok {
       return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", search_path, results_key)
@@ -117,25 +119,35 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
       return fmt.Errorf("datasource_api_object.go: Error finding results_key: %s", err)
     }
     if data_array, ok = tmp.([]interface{}); !ok {
-      return fmt.Errorf("datasource_api_object.go: The data at results_key location '%s' is not an array.", results_key)
+      return fmt.Errorf("datasource_api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", results_key, reflect.TypeOf(tmp))
     }
   } else {
     if debug { log.Printf("datasource_api_object.go: results_key is not set - coaxing data to array of interfaces") }
     if data_array, ok = result.([]interface{}); !ok {
-      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. Perhaps you meant to add a results_key?", search_path)
+      return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", search_path, reflect.TypeOf(result))
     }
   }
 
   /* Loop through all of the results seeking the specific record */
   for _, item := range data_array {
-    hash := item.(map[string]interface{})
+    var hash map[string]interface{}
+
+    if hash, ok = item.(map[string]interface{}); !ok {
+      return fmt.Errorf("datasource_api_object.go: The elements being searched for data are not a map of key value pairs.")
+    }
+
     if debug {
       log.Printf("datasource_api_object.go: Examining %v", hash)
-      log.Printf("datasource_api_object.go:   Comparing '%s' to '%s'", search_value, hash[search_key])
+      log.Printf("datasource_api_object.go:   Comparing '%s' to the value in '%s'", search_value, search_key)
+    }
+
+    tmp, err := GetStringAtKey(hash, search_key, debug)
+    if err != nil {
+      return(fmt.Errorf("Failed to get the value of '%s' in the results array at '%s': %s", search_key, results_key, err))
     }
 
     /* We found our record */
-    if hash[search_key] == search_value {
+    if tmp == search_value {
       id = fmt.Sprintf("%v", hash[id_attribute])
       if debug { log.Printf("datasource_api_object.go:   Found ID %s", id) }
 
