@@ -148,7 +148,11 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
     /* We found our record */
     if tmp == search_value {
-      id = fmt.Sprintf("%v", hash[id_attribute])
+      id, err = GetStringAtKey(hash, id_attribute, debug)
+      if err != nil {
+        return(fmt.Errorf("Failed to find id_attribute '%s' in the record: %s", id_attribute, err))
+      }
+
       if debug { log.Printf("datasource_api_object.go:   Found ID %s", id) }
 
       /* But there is no id attribute??? */
