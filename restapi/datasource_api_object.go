@@ -71,13 +71,14 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   search_key   := d.Get("search_key").(string)
   search_value := d.Get("search_value").(string)
   results_key  := d.Get("results_key").(string)
-  if debug { log.Printf("datasource_api_object.go:\npath: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s", path, query_string, search_key, search_value, results_key) }
 
   /* Allow user to override provider-level id_attribute */
   id_attribute := client.id_attribute
   if "" != d.Get("id_attribute").(string) {
     id_attribute = d.Get("id_attribute").(string)
   }
+
+  if debug { log.Printf("datasource_api_object.go:\npath: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, query_string, search_key, search_value, results_key, id_attribute) }
 
   id := ""
   var data_array []interface{}
@@ -153,11 +154,11 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
         return(fmt.Errorf("Failed to find id_attribute '%s' in the record: %s", id_attribute, err))
       }
 
-      if debug { log.Printf("datasource_api_object.go:   Found ID %s", id) }
+      if debug { log.Printf("datasource_api_object.go:   Found ID '%s'", id) }
 
       /* But there is no id attribute??? */
       if "" == id {
-        return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s'", search_key, search_value, id_attribute)))
+        return(errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s', or the value was empty.", search_key, search_value, id_attribute)))
       }
       break
     }
