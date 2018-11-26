@@ -119,6 +119,14 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
       if tmp, ok := hash[part].(map[string]interface{});ok {
         if debug { log.Printf("common.go:GetObjectAtKey:    %s - is a map", part) }
         hash = tmp
+      } else if tmp, ok := hash[part].([]interface{}); ok {
+        if debug { log.Printf("common.go:GetObjectAtKey:    %s - is a list", part) }
+        mapString := make(map[string]interface{})
+        for key, value := range tmp {
+          strKey := fmt.Sprintf("%v", key)
+          mapString[strKey] = value
+        }
+        hash = mapString
       } else {
         if debug { log.Printf("common.go:GetObjectAtKey:    %s - is a %T", part, hash[part]) }
         return nil, fmt.Errorf("GetObjectAtKey: Object at '%s' is not a map. Is this the right path?", seen)
