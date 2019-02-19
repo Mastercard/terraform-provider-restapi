@@ -3,6 +3,7 @@ package restapi
 import (
   "log"
   "net/http"
+  "net/http/cookiejar"
   "crypto/tls"
   "errors"
   "fmt"
@@ -30,7 +31,7 @@ type api_client struct {
 
 
 // Make a new api client for RESTful calls
-func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) (*api_client, error) {
+func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_use_cookies bool, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) (*api_client, error) {
   if i_debug {
     log.Printf("api_client.go: Constructing debug api_client\n")
   }
@@ -55,10 +56,17 @@ func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password 
     TLSClientConfig: &tls.Config{InsecureSkipVerify: i_insecure},
   }
 
+  var cookieJar http.CookieJar
+
+  if i_use_cookies {
+    cookieJar, _ = cookiejar.New(nil)
+  }
+
   client := api_client{
     http_client: &http.Client{
       Timeout: time.Second * time.Duration(i_timeout),
       Transport: tr,
+      Jar: cookieJar,
       },
     uri: i_uri,
     insecure: i_insecure,

@@ -38,6 +38,12 @@ func Provider() terraform.ResourceProvider {
         Optional: true,
         Description: "A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.",
       },
+      "use_cookies": &schema.Schema{
+        Type: schema.TypeBool,
+        Optional: true,
+        DefaultFunc: schema.EnvDefaultFunc("REST_API_USE_COOKIES", nil),
+        Description: "Enable cookie jar to persist session.",
+      },
       "timeout": &schema.Schema{
         Type: schema.TypeInt,
         Optional: true,
@@ -113,6 +119,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     d.Get("username").(string),
     d.Get("password").(string),
     headers,
+    d.Get("use_cookies").(bool),
     d.Get("timeout").(int),
     d.Get("id_attribute").(string),
     copy_keys,
