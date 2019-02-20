@@ -32,6 +32,26 @@ func Provider() terraform.ResourceProvider {
         DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
         Description: "When set, will use this password for BASIC auth to the API.",
       },
+      "session_auth": &schema.Schema{
+        Type:     schema.TypeSet,
+        Optional: true,
+        Description: "When set, enables session authentication. Forces use_cookies.",
+        MaxItems: 1,
+        Elem: &schema.Resource{
+          Schema: map[string]*schema.Schema{
+            "path": &schema.Schema{
+              Type:        schema.TypeString,
+              Description: "The API path on top of the base URL set in the provider that represents objects of this type on the API server.",
+              Required:    true,
+            },
+            "data": &schema.Schema{
+              Type:        schema.TypeString,
+              Description: "Valid JSON data that this provider will manage with the API server.",
+              Required:    true,
+            },
+          },
+        },
+      },
       "headers": &schema.Schema{
         Type: schema.TypeMap,
         Elem: schema.TypeString,
@@ -118,6 +138,8 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
       headers[k] = v.(string)
     }
   }
+  
+  sessionAuthList := d.Get("session_auth").(*schema.Set).List()
 
   client, err := NewAPIClient(
     d.Get("uri").(string),
@@ -125,7 +147,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     d.Get("username").(string),
     d.Get("password").(string),
     headers,
-    d.Get("use_cookies").(bool),
+    d.Get("use_cookies").(bool) || len(sessionAuthList) == 1 ,
     d.Get("timeout").(int),
     d.Get("id_attribute").(string),
     copy_keys,
@@ -134,5 +156,14 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     d.Get("xssi_prefix").(string),
     d.Get("debug").(bool),
   )
+
+  if len(sessionAuthList) == 1  {
+    sessionAuth := sessionAuthList[0].(map[string]interface{})
+    method := "POST"
+    path := sessionAuth["path"].(string)
+    data := sessionAuth["data"].(string)
+
+    client.send_request(method, path, data)
+  }
   return client, err
 }
