@@ -75,6 +75,12 @@ func Provider() terraform.ResourceProvider {
         DefaultFunc: schema.EnvDefaultFunc("REST_API_CRO", nil),
         Description: "Set this when the API returns the object created only on creation operations (POST). This is used by the provider to refresh internal data structures.",
       },
+      "xssi_prefix": &schema.Schema{
+        Type: schema.TypeString,
+        Optional: true,
+        DefaultFunc: schema.EnvDefaultFunc("REST_API_XSSI_PREFIX", nil),
+        Description: "Trim the xssi prefix from response string, if present, before parsing.",
+      },
       "debug": &schema.Schema{
         Type: schema.TypeBool,
         Optional: true,
@@ -125,6 +131,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     copy_keys,
     d.Get("write_returns_object").(bool),
     d.Get("create_returns_object").(bool),
+    d.Get("xssi_prefix").(string),
     d.Get("debug").(bool),
   )
   return client, err

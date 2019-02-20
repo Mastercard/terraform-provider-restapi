@@ -26,12 +26,13 @@ type api_client struct {
   copy_keys             []string
   write_returns_object  bool
   create_returns_object bool
+  xssi_prefix           string
   debug                 bool
 }
 
 
 // Make a new api client for RESTful calls
-func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_use_cookies bool, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) (*api_client, error) {
+func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_use_cookies bool, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_xssi_prefix string, i_debug bool) (*api_client, error) {
   if i_debug {
     log.Printf("api_client.go: Constructing debug api_client\n")
   }
@@ -78,6 +79,7 @@ func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password 
     write_returns_object: i_wro,
     create_returns_object: i_cro,
     redirects: 5,
+    xssi_prefix: i_xssi_prefix,
     debug: i_debug,
   }
 
@@ -192,7 +194,7 @@ func (client *api_client) send_request (method string, path string, data string)
     resp.Body.Close()
 
     if err2 != nil { return "", err2 }
-    body := string(bodyBytes)
+    body := strings.TrimPrefix(string(bodyBytes), client.xssi_prefix)
 
     if resp.StatusCode == 301 || resp.StatusCode == 302 {
       //Redirecting... decrement num_redirects and proceed to the next loop
