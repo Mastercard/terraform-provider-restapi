@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.com/burbon/terraform-provider-restapi.svg?branch=master)](https://travis-ci.com/burbon/terraform-provider-restapi)
 # Terraform provider for generic REST APIs
 
 This terraform provider allows you to interact with APIs that may not yet have a first-class provider available.
