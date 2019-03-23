@@ -191,17 +191,18 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 	if debug {
 		log.Printf("datasource_api_object.go: Attempting to construct api_object to refresh data")
 	}
-	obj, err := NewAPIObject(
-		client,
-		path+"/{id}",
-		path,
-		path+"/{id}",
-		path+"/{id}",
-		id,
-		id_attribute,
-		"{}",
-		debug,
-	)
+
+	opts := &resourceRestApiOpts{
+		get_path:     path + "/{id}",
+		post_path:    path,
+		put_path:     path + "/{id}",
+		delete_path:  path + "/{id}",
+		debug:        debug,
+		id:           id,
+		id_attribute: id_attribute,
+		data:         "{}",
+	}
+	obj, err := NewAPIObject(client, opts)
 	if err != nil {
 		return err
 	}

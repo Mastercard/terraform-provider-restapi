@@ -26,79 +26,60 @@ type api_object struct {
 }
 
 // Make an api_object to manage a RESTful object in an API
-func NewAPIObject(i_client *api_client, i_get_path string, i_post_path string, i_put_path string, i_delete_path string, i_id string, i_ida string, i_data string, i_debug bool) (*api_object, error) {
-	if i_debug {
+func NewAPIObject(i_client *api_client, opts *resourceRestApiOpts) (*api_object, error) {
+	if opts.debug {
 		log.Printf("api_object.go: Constructing debug api_object\n")
-		log.Printf(" id: %s\n", i_id)
+		log.Printf(" id: %s\n", opts.id)
 	}
 
 	/* id_attribute can be set either on the client (to apply for all calls with the server)
 	   or on a per object basis (for only calls to this kind of object).
 	   Permit overridding from the API client here by using the client-wide value only
 	   if a per-object value is not set */
-	id_attr := i_ida
-	if i_ida == "" {
-		id_attr = i_client.id_attribute
+	if opts.id_attribute == "" {
+		opts.id_attribute = i_client.id_attribute
 	}
 
 	obj := api_object{
 		api_client:   i_client,
-		get_path:     i_get_path,
-		post_path:    i_post_path,
-		put_path:     i_put_path,
-		delete_path:  i_delete_path,
-		debug:        i_debug,
-		id:           i_id,
-		id_attribute: id_attr,
+		get_path:     opts.get_path,
+		post_path:    opts.post_path,
+		put_path:     opts.put_path,
+		delete_path:  opts.delete_path,
+		debug:        opts.debug,
+		id:           opts.id,
+		id_attribute: opts.id_attribute,
 		data:         make(map[string]interface{}),
 		api_data:     make(map[string]interface{}),
 	}
 
-	if "" == i_get_path {
-		return nil, errors.New("No GET path passed to api_object constructor")
-	}
-	if "" == i_post_path {
-		return nil, errors.New("No POST path passed to api_object constructor")
-	}
-	if "" == i_put_path {
-		return nil, errors.New("No PUT path passed to api_object constructor")
-	}
-	if "" == i_delete_path {
-		return nil, errors.New("No DELETE path passed to api_object constructor")
-	}
-	if "" == i_data {
-		return nil, errors.New("No data passed to api_object constructor")
+	if opts.debug {
+		log.Printf("api_object.go: Parsing data: '%s'", opts.data)
 	}
 
-	if i_data != "" {
-		if i_debug {
-			log.Printf("api_object.go: Parsing data: '%s'", i_data)
-		}
+	err := json.Unmarshal([]byte(opts.data), &obj.data)
+	if err != nil {
+		return nil, err
+	}
 
-		err := json.Unmarshal([]byte(i_data), &obj.data)
-		if err != nil {
-			return nil, err
-		}
-
-		/* Opportunistically set the object's ID if it is provided in the data.
-		   If it is not set, we will get it later in synchronize_state */
-		if obj.id == "" {
-			var tmp string
-			tmp, err = GetStringAtKey(obj.data, obj.id_attribute, obj.debug)
-			if err == nil {
-				if i_debug {
-					log.Printf("api_object.go: opportunisticly set id from data provided.")
-				}
-				obj.id = tmp
-			} else if !obj.api_client.write_returns_object && !obj.api_client.create_returns_object {
-				/* If the id is not set and we cannot obtain it
-				   later, error out to be safe */
-				return nil, errors.New(fmt.Sprintf("Provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response. Without an id, the object cannot be managed.", obj.id_attribute))
+	/* Opportunistically set the object's ID if it is provided in the data.
+	   If it is not set, we will get it later in synchronize_state */
+	if obj.id == "" {
+		var tmp string
+		tmp, err = GetStringAtKey(obj.data, obj.id_attribute, obj.debug)
+		if err == nil {
+			if opts.debug {
+				log.Printf("api_object.go: opportunisticly set id from data provided.")
 			}
+			obj.id = tmp
+		} else if !obj.api_client.write_returns_object && !obj.api_client.create_returns_object {
+			/* If the id is not set and we cannot obtain it
+			   later, error out to be safe */
+			return nil, errors.New(fmt.Sprintf("Provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response. Without an id, the object cannot be managed.", obj.id_attribute))
 		}
 	}
 
-	if obj.debug {
+	if opts.debug {
 		log.Printf("api_object.go: Constructed object: %s", obj.toString())
 	}
 	return &obj, nil

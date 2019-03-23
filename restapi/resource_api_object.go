@@ -111,8 +111,7 @@ func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported [
 	}
 	log.Printf("resource_api_object.go: Import routine called. Object built:\n%s\n", obj.toString())
 
-	err = obj.read_object()
-	if err == nil {
+	if err := obj.read_object(); err == nil {
 		set_resource_state(obj, d)
 		/* Data that we set in the state above must be passed along
 		   as an item in the stack of imported data */
@@ -197,19 +196,88 @@ func resourceRestApiDelete(d *schema.ResourceData, meta interface{}) error {
 	return err
 }
 
-func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (b bool, e error) {
-	exists := false
+func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (exists bool, err error) {
 	obj, err := make_api_object(d, meta)
 	if err != nil {
-		return false, err
+		return exists, err
 	}
 	log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
 
-	err = obj.read_object()
 	/* Assume all errors indicate the object just doesn't exist.
-	   This may not be a good assumption... */
-	if err == nil {
+	This may not be a good assumption... */
+	if err := obj.read_object(); err == nil {
 		exists = true
 	}
-	return exists, nil
+	return exists, err
+}
+
+type resourceRestApiOpts struct {
+	get_path     string
+	post_path    string
+	put_path     string
+	delete_path  string
+	debug        bool
+	id           string
+	id_attribute string
+	data         string
+}
+
+/* Simple helper routine to build an api_object struct
+   for the various calls terraform will use. Unfortunately,
+   terraform cannot just reuse objects, so each CRUD operation
+   results in a new object created */
+func make_api_object(d *schema.ResourceData, meta interface{}) (*api_object, error) {
+	opts, err := buildResourceRestApiOpts(d)
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := NewAPIObject(meta.(*api_client), opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return obj, nil
+}
+
+func buildResourceRestApiOpts(d *schema.ResourceData) (*resourceRestApiOpts, error) {
+	opts := &resourceRestApiOpts{}
+
+	if v := d.Get("path").(string); v != "" {
+		opts.post_path = v
+		opts.get_path = v + "/{id}"
+		opts.put_path = v + "/{id}"
+		opts.delete_path = v + "/{id}"
+	}
+
+	/* Allow user to override provider-level id_attribute */
+	opts.id_attribute = d.Get("id_attribute").(string)
+
+	/* Allow user to specify the ID manually */
+	if v := d.Get("object_id").(string); v != "" {
+		opts.id = v
+	} else {
+		/* If not specified, see if terraform has an ID */
+		opts.id = d.Id()
+	}
+
+	log.Printf("common.go: make_api_object routine called for id '%s'\n", opts.id)
+
+	if v := d.Get("create_path"); v != "" {
+		opts.post_path = v.(string)
+	}
+	if v := d.Get("read_path"); v != "" {
+		opts.post_path = v.(string)
+	}
+	if v := d.Get("update_path"); v != "" {
+		opts.post_path = v.(string)
+	}
+	if v := d.Get("destroy_path"); v != "" {
+		opts.post_path = v.(string)
+	}
+
+	opts.data = d.Get("data").(string)
+	opts.debug = d.Get("debug").(bool)
+
+	return opts, nil
 }

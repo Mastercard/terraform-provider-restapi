@@ -7,59 +7,6 @@ import (
 	"strings"
 )
 
-/* Simple helper routine to build an api_object struct
-   for the various calls terraform will use. Unfortunately,
-   terraform cannot just reuse objects, so each CRUD operation
-   results in a new object created */
-func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error) {
-
-	post_path := d.Get("path").(string)
-	get_path := d.Get("path").(string) + "/{id}"
-	put_path := d.Get("path").(string) + "/{id}"
-	delete_path := d.Get("path").(string) + "/{id}"
-
-	/* Allow user to override provider-level id_attribute */
-	id_attribute := m.(*api_client).id_attribute
-	if "" != d.Get("id_attribute").(string) {
-		id_attribute = d.Get("id_attribute").(string)
-	}
-
-	/* Allow user to specify the ID manually */
-	id := d.Get("object_id").(string)
-	if id == "" {
-		/* If not specified, see if terraform has an ID */
-		id = d.Id()
-	}
-
-	log.Printf("common.go: make_api_object routine called for id '%s'\n", id)
-
-	if "" != d.Get("create_path") {
-		post_path = d.Get("create_path").(string)
-	}
-	if "" != d.Get("read_path") {
-		get_path = d.Get("read_path").(string)
-	}
-	if "" != d.Get("update_path") {
-		put_path = d.Get("update_path").(string)
-	}
-	if "" != d.Get("destroy_path") {
-		delete_path = d.Get("destroy_path").(string)
-	}
-
-	obj, err := NewAPIObject(
-		m.(*api_client),
-		get_path,
-		post_path,
-		put_path,
-		delete_path,
-		id,
-		id_attribute,
-		d.Get("data").(string),
-		d.Get("debug").(bool),
-	)
-	return obj, err
-}
-
 /* After any operation that returns API data, we'll stuff
    all the k,v pairs into the api_data map so users can
    consume the values elsewhere if they'd like */

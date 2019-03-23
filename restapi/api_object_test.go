@@ -62,17 +62,18 @@ func TestAPIObject(t *testing.T) {
 		if test_debug {
 			log.Printf("api_object_test.go:   '%s'\n", id)
 		}
-		o, err := NewAPIObject(
-			client,                            /* The HTTP client created above */
-			"/api/objects/{id}",               /* path to the "object" in the test server for GET (note: id will automatically be appended) */
-			"/api/objects",                    /* path to the "object" in the test server for POST (note: id will automatically be appended) */
-			"/api/objects/{id}",               /* path to the "object" in the test server for PUT (note: id will automatically be appended) */
-			"/api/objects/{id}",               /* path to the "object" in the test server for DELETE (note: id will automatically be appended) */
-			"",                                /* Do not set an ID to force the constructor to verify id_attribute works */
-			"",                                /* Use the client's value for id_attribute */
-			fmt.Sprintf(`{ "Id": "%s" }`, id), /* Start with only an empty JSON object ID as our "data" */
-			api_object_debug,                  /* Whether the object's debug is enabled */
-		)
+
+		object_opts := &resourceRestApiOpts{
+			get_path:     "/api/objects/{id}",               /* path to the "object" in the test server for GET (note: id will automatically be appended) */
+			post_path:    "/api/objects",                    /* path to the "object" in the test server for POST (note: id will automatically be appended) */
+			put_path:     "/api/objects/{id}",               /* path to the "object" in the test server for PUT (note: id will automatically be appended) */
+			delete_path:  "/api/objects/{id}",               /* path to the "object" in the test server for DELETE (note: id will automatically be appended) */
+			id:           "",                                /* Do not set an ID to force the constructor to verify id_attribute works */
+			id_attribute: "",                                /* Use the client's value for id_attribute */
+			data:         fmt.Sprintf(`{ "Id": "%s" }`, id), /* Start with only an empty JSON object ID as our "data" */
+			debug:        api_object_debug,                  /* Whether the object's debug is enabled */
+		}
+		o, err := NewAPIObject(client, object_opts)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed to create new api_object for id '%s'", id)
 		} else {
