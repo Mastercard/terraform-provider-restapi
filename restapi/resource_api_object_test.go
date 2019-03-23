@@ -10,10 +10,10 @@ package restapi
 /*
   "log"
   "github.com/hashicorp/terraform/config"
-  "fmt"
 */
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
 	"github.com/hashicorp/terraform/helper/resource"
 	"os"
@@ -28,7 +28,20 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 	svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug, "")
 	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
-	client, err := NewAPIClient("http://127.0.0.1:8082/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
+	opt := &apiClientOpt{
+		uri:                   "http://127.0.0.1:8082/",
+		insecure:              false,
+		username:              "",
+		password:              "",
+		headers:               make(map[string]string, 0),
+		timeout:               2,
+		id_attribute:          "id",
+		copy_keys:             make([]string, 0),
+		write_returns_object:  false,
+		create_returns_object: false,
+		debug:                 debug,
+	}
+	client, err := NewAPIClient(opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,24 +91,23 @@ func TestAccRestApiObject_Basic(t *testing.T) {
    a name, JSON data and a list of params to set by coaxing it
    all to maps and then serializing to JSON */
 func generate_test_resource(name string, data string, params map[string]interface{}) string {
-	config := map[string]interface{}{
-		"path": "/api/objects",
-		"data": data,
+	str_data, _ := json.Marshal(data)
+	config := []string{
+		`path = "/api/objects"`,
+		fmt.Sprintf("data = %s", str_data),
 	}
-
 	for k, v := range params {
-		config[k] = v
+		entry := fmt.Sprintf(`%s = "%v"`, k, v)
+		config = append(config, entry)
+	}
+	str_config := ""
+	for _, v := range config {
+		str_config = str_config + v + "\n"
 	}
 
-	//What a mess...
-	generated := map[string]interface{}{
-		"resource": map[string]interface{}{
-			"restapi_object": map[string]interface{}{
-				name: config,
-			},
-		},
-	}
-
-	res, _ := json.Marshal(generated)
-	return string(res)
+	return fmt.Sprintf(`
+resource "restapi_object" "%s" {
+%s
+}
+`, name, str_config)
 }
