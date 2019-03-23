@@ -18,7 +18,20 @@ func TestAPIClient(t *testing.T) {
 	setup_api_client_server()
 
 	/* Notice the intentional trailing / */
-	client, err := NewAPIClient("http://127.0.0.1:8080/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
+	opt := &apiClientOpt{
+		uri:                   "http://127.0.0.1:8080/",
+		insecure:              false,
+		username:              "",
+		password:              "",
+		headers:               make(map[string]string, 0),
+		timeout:               2,
+		id_attribute:          "id",
+		copy_keys:             make([]string, 0),
+		write_returns_object:  false,
+		create_returns_object: false,
+		debug:                 debug,
+	}
+	client, err := NewAPIClient(opt)
 
 	var res string
 

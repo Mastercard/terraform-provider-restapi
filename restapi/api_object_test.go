@@ -39,19 +39,20 @@ func TestAPIObject(t *testing.T) {
 	api_server_objects := make(map[string]map[string]interface{})
 	GenerateTestObjects(&generated_objects, &api_server_objects, t, test_debug)
 
-	client, err := NewAPIClient(
-		"http://127.0.0.1:8081/",   /* URL */
-		false,                      /* insecure */
-		"",                         /* username */
-		"",                         /* password */
-		make(map[string]string, 0), /* additional headers to send */
-		5,                          /* HTTP Timeout in seconds */
-		"Id",                       /* Attribute from server that serves as ID */
-		[]string{"Thing"},          /* keys to copy from api_data to data */
-		true,                       /* Write returns object */
-		false,                      /* Create returns object */
-		api_client_debug,           /* Debug logging */
-	)
+	opt := &apiClientOpt{
+		uri:                   "http://127.0.0.1:8081/",
+		insecure:              false,
+		username:              "",
+		password:              "",
+		headers:               make(map[string]string, 0),
+		timeout:               5,
+		id_attribute:          "Id",
+		copy_keys:             []string{"Thing"},
+		write_returns_object:  true,
+		create_returns_object: false,
+		debug:                 api_client_debug,
+	}
+	client, err := NewAPIClient(opt)
 
 	/* Construct a local map of test case objects with only the ID populated */
 	if test_debug {

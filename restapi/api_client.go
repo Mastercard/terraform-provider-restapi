@@ -13,6 +13,23 @@ import (
 	"time"
 )
 
+type apiClientOpt struct {
+	uri                   string
+	insecure              bool
+	username              string
+	password              string
+	headers               map[string]string
+	use_cookie            bool
+	timeout               int
+	id_attribute          string
+	copy_keys             []string
+	write_returns_object  bool
+	create_returns_object bool
+	xssi_prefix           string
+	use_cookies           bool
+	debug                 bool
+}
+
 type api_client struct {
 	http_client           *http.Client
 	uri                   string
@@ -21,6 +38,7 @@ type api_client struct {
 	password              string
 	headers               map[string]string
 	redirects             int
+	use_cookie            bool
 	timeout               int
 	id_attribute          string
 	copy_keys             []string
@@ -31,58 +49,58 @@ type api_client struct {
 }
 
 // Make a new api client for RESTful calls
-func NewAPIClient(i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_use_cookies bool, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_xssi_prefix string, i_debug bool) (*api_client, error) {
-	if i_debug {
+func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
+	if opt.debug {
 		log.Printf("api_client.go: Constructing debug api_client\n")
 	}
 
-	if i_uri == "" {
+	if opt.uri == "" {
 		return nil, errors.New("uri must be set to construct an API client")
 	}
 
 	/* Sane default */
-	if i_id_attribute == "" {
-		i_id_attribute = "id"
+	if opt.id_attribute == "" {
+		opt.id_attribute = "id"
 	}
 
 	/* Remove any trailing slashes since we will append
 	   to this URL with our own root-prefixed location */
-	if strings.HasSuffix(i_uri, "/") {
-		i_uri = i_uri[:len(i_uri)-1]
+	if strings.HasSuffix(opt.uri, "/") {
+		opt.uri = opt.uri[:len(opt.uri)-1]
 	}
 
 	/* Disable TLS verification if requested */
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: i_insecure},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: opt.insecure},
 	}
 
 	var cookieJar http.CookieJar
 
-	if i_use_cookies {
+	if opt.use_cookies {
 		cookieJar, _ = cookiejar.New(nil)
 	}
 
 	client := api_client{
 		http_client: &http.Client{
-			Timeout:   time.Second * time.Duration(i_timeout),
+			Timeout:   time.Second * time.Duration(opt.timeout),
 			Transport: tr,
 			Jar:       cookieJar,
 		},
-		uri:                   i_uri,
-		insecure:              i_insecure,
-		username:              i_username,
-		password:              i_password,
-		headers:               i_headers,
-		id_attribute:          i_id_attribute,
-		copy_keys:             i_copy_keys,
-		write_returns_object:  i_wro,
-		create_returns_object: i_cro,
+		uri:                   opt.uri,
+		insecure:              opt.insecure,
+		username:              opt.username,
+		password:              opt.password,
+		headers:               opt.headers,
+		id_attribute:          opt.id_attribute,
+		copy_keys:             opt.copy_keys,
+		write_returns_object:  opt.write_returns_object,
+		create_returns_object: opt.create_returns_object,
+		xssi_prefix:           opt.xssi_prefix,
+		debug:                 opt.debug,
 		redirects:             5,
-		xssi_prefix:           i_xssi_prefix,
-		debug:                 i_debug,
 	}
 
-	if i_debug {
+	if opt.debug {
 		log.Printf("api_client.go: Constructed object:\n%s", client.toString())
 	}
 	return &client, nil

@@ -119,20 +119,22 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		}
 	}
 
-	client, err := NewAPIClient(
-		d.Get("uri").(string),
-		d.Get("insecure").(bool),
-		d.Get("username").(string),
-		d.Get("password").(string),
-		headers,
-		d.Get("use_cookies").(bool),
-		d.Get("timeout").(int),
-		d.Get("id_attribute").(string),
-		copy_keys,
-		d.Get("write_returns_object").(bool),
-		d.Get("create_returns_object").(bool),
-		d.Get("xssi_prefix").(string),
-		d.Get("debug").(bool),
-	)
+	opt := &apiClientOpt{
+		uri:                   d.Get("uri").(string),
+		insecure:              d.Get("insecure").(bool),
+		username:              d.Get("username").(string),
+		password:              d.Get("password").(string),
+		headers:               headers,
+		use_cookie:            d.Get("use_cookies").(bool),
+		timeout:               d.Get("timeout").(int),
+		id_attribute:          d.Get("id_attribute").(string),
+		copy_keys:             copy_keys,
+		write_returns_object:  d.Get("write_returns_object").(bool),
+		create_returns_object: d.Get("create_returns_object").(bool),
+		xssi_prefix:           d.Get("xssi_prefix").(string),
+		debug:                 d.Get("debug").(bool),
+	}
+
+	client, err := NewAPIClient(opt)
 	return client, err
 }
