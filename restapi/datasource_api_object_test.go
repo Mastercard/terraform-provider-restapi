@@ -106,6 +106,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("data.restapi_object.Foo", "api_data.first", "Foo"),
 					resource.TestCheckResourceAttr("data.restapi_object.Foo", "api_data.last", "Bar"),
 				),
+				// PreventDiskCleanup: true,
 			},
 			{
 				Config: fmt.Sprintf(`

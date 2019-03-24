@@ -216,6 +216,7 @@ type resourceRestApiOpts struct {
 	post_path    string
 	put_path     string
 	delete_path  string
+	search_path  string
 	debug        bool
 	id           string
 	id_attribute string

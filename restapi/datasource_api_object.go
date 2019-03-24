@@ -1,12 +1,8 @@
 package restapi
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
-	"reflect"
 )
 
 func dataSourceRestApi() *schema.Resource {
@@ -83,108 +79,23 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("datasource_api_object.go:\npath: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, query_string, search_key, search_value, results_key, id_attribute)
 	}
 
-	id := ""
-	var data_array []interface{}
-	var ok bool
-
-	/*
-	   Issue a GET to the base path and expect results to come back
-	*/
-	search_path := path
-	if "" != query_string {
-		if debug {
-			log.Printf("datasource_api_object.go: Adding query string '%s'", query_string)
-		}
-		search_path = fmt.Sprintf("%s?%s", search_path, query_string)
+	opts := &resourceRestApiOpts{
+		get_path:     path + "/{id}",
+		post_path:    path,
+		put_path:     path + "/{id}",
+		delete_path:  path + "/{id}",
+		search_path:  path,
+		debug:        debug,
+		id_attribute: id_attribute,
 	}
 
-	if debug {
-		log.Printf("datasource_api_object.go: Calling API on path '%s'", search_path)
-	}
-	res_str, err := client.send_request("GET", search_path, "")
+	obj, err := NewAPIObject(client, opts)
 	if err != nil {
 		return err
 	}
 
-	/*
-	   Parse it seeking JSON data
-	*/
-	if debug {
-		log.Printf("datasource_api_object.go: Response recieved... parsing")
-	}
-	var result interface{}
-	err = json.Unmarshal([]byte(res_str), &result)
-	if err != nil {
+	if err := obj.find_object(query_string, search_key, search_value, results_key); err != nil {
 		return err
-	}
-
-	if "" != results_key {
-		var tmp interface{}
-
-		if debug {
-			log.Printf("datasource_api_object.go: Locating '%s' in the results", results_key)
-		}
-
-		/* First verify the data we got back is a hash */
-		if _, ok = result.(map[string]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", search_path, results_key)
-		}
-
-		tmp, err = GetObjectAtKey(result.(map[string]interface{}), results_key, debug)
-		if err != nil {
-			return fmt.Errorf("datasource_api_object.go: Error finding results_key: %s", err)
-		}
-		if data_array, ok = tmp.([]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", results_key, reflect.TypeOf(tmp))
-		}
-	} else {
-		if debug {
-			log.Printf("datasource_api_object.go: results_key is not set - coaxing data to array of interfaces")
-		}
-		if data_array, ok = result.([]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", search_path, reflect.TypeOf(result))
-		}
-	}
-
-	/* Loop through all of the results seeking the specific record */
-	for _, item := range data_array {
-		var hash map[string]interface{}
-
-		if hash, ok = item.(map[string]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The elements being searched for data are not a map of key value pairs.")
-		}
-
-		if debug {
-			log.Printf("datasource_api_object.go: Examining %v", hash)
-			log.Printf("datasource_api_object.go:   Comparing '%s' to the value in '%s'", search_value, search_key)
-		}
-
-		tmp, err := GetStringAtKey(hash, search_key, debug)
-		if err != nil {
-			return (fmt.Errorf("Failed to get the value of '%s' in the results array at '%s': %s", search_key, results_key, err))
-		}
-
-		/* We found our record */
-		if tmp == search_value {
-			id, err = GetStringAtKey(hash, id_attribute, debug)
-			if err != nil {
-				return (fmt.Errorf("Failed to find id_attribute '%s' in the record: %s", id_attribute, err))
-			}
-
-			if debug {
-				log.Printf("datasource_api_object.go:   Found ID '%s'", id)
-			}
-
-			/* But there is no id attribute??? */
-			if "" == id {
-				return (errors.New(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s', or the value was empty.", search_key, search_value, id_attribute)))
-			}
-			break
-		}
-	}
-
-	if "" == id {
-		return (fmt.Errorf("Failed to find an object with the '%s' key = '%s' at %s", search_key, search_value, search_path))
 	}
 
 	/* Back to terraform-specific stuff. Create an api_object with the ID and refresh it object */
@@ -192,20 +103,6 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("datasource_api_object.go: Attempting to construct api_object to refresh data")
 	}
 
-	opts := &resourceRestApiOpts{
-		get_path:     path + "/{id}",
-		post_path:    path,
-		put_path:     path + "/{id}",
-		delete_path:  path + "/{id}",
-		debug:        debug,
-		id:           id,
-		id_attribute: id_attribute,
-		data:         "{}",
-	}
-	obj, err := NewAPIObject(client, opts)
-	if err != nil {
-		return err
-	}
 	d.SetId(obj.id)
 
 	err = obj.read_object()
