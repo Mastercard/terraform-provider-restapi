@@ -35,14 +35,7 @@ if [[ "$tag" != v* ]];then
   tag="v$tag"
 fi
 
-#Make sure we are good to go
-echo "Running tests..."
-cd ../restapi
-if ! go test;then
-  echo "Failed testing. Aborting."
-  exit 1
-fi
-cd -
+./test.sh
 
 #Build for all architectures we want
 ARTIFACTS=()

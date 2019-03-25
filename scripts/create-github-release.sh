@@ -59,6 +59,12 @@ curl -o /dev/null -sH "$AUTH" $GH_REPO || { echo "Error: Invalid repo, token or 
 if [[ ! -f release_info.md ]];then
   echo "release_info.md file does not exist. Creating it now - hit enter to continue."
   read JUNK
+  echo "## New"   > release_info.md
+  echo " - "      >> release_info.md
+  echo ""         >> release_info.md
+  echo "## Fixed" >> release_info.md
+  echo " - "      >> release_info.md
+  echo ""         >> release_info.md
   vi release_info.md
   if [[ ! -f release_info.md || -z "$(cat release_info.md)" ]];then
     echo "release_info.md file does not exist or is empty. I will not proceed."
