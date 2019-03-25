@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/burbon/terraform-provider-restapi.svg?branch=master)](https://travis-ci.com/burbon/terraform-provider-restapi)
+[![Coverage Status](https://coveralls.io/repos/github/burbon/terraform-provider-restapi/badge.svg?branch=master)](https://coveralls.io/github/burbon/terraform-provider-restapi?branch=master)
 # Terraform provider for generic REST APIs
 
 This terraform provider allows you to interact with APIs that may not yet have a first-class provider available.
