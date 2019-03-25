@@ -68,23 +68,14 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 	search_key := d.Get("search_key").(string)
 	search_value := d.Get("search_value").(string)
 	results_key := d.Get("results_key").(string)
-
-	/* Allow user to override provider-level id_attribute */
-	id_attribute := client.id_attribute
-	if "" != d.Get("id_attribute").(string) {
-		id_attribute = d.Get("id_attribute").(string)
-	}
+	id_attribute := d.Get("id_attribute").(string)
 
 	if debug {
 		log.Printf("datasource_api_object.go:\npath: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, query_string, search_key, search_value, results_key, id_attribute)
 	}
 
-	opts := &resourceRestApiOpts{
-		get_path:     path + "/{id}",
-		post_path:    path,
-		put_path:     path + "/{id}",
-		delete_path:  path + "/{id}",
-		search_path:  path,
+	opts := &apiObjectOpts{
+		path:         path,
 		debug:        debug,
 		id_attribute: id_attribute,
 	}

@@ -11,6 +11,19 @@ import (
 	"strings"
 )
 
+type apiObjectOpts struct {
+	path         string
+	get_path     string
+	post_path    string
+	put_path     string
+	delete_path  string
+	search_path  string
+	debug        bool
+	id           string
+	id_attribute string
+	data         string
+}
+
 type api_object struct {
 	api_client   *api_client
 	get_path     string
@@ -28,7 +41,7 @@ type api_object struct {
 }
 
 // Make an api_object to manage a RESTful object in an API
-func NewAPIObject(i_client *api_client, opts *resourceRestApiOpts) (*api_object, error) {
+func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error) {
 	if opts.debug {
 		log.Printf("api_object.go: Constructing debug api_object\n")
 		log.Printf(" id: %s\n", opts.id)
@@ -40,6 +53,22 @@ func NewAPIObject(i_client *api_client, opts *resourceRestApiOpts) (*api_object,
 	   if a per-object value is not set */
 	if opts.id_attribute == "" {
 		opts.id_attribute = i_client.id_attribute
+	}
+
+	if opts.post_path == "" {
+		opts.post_path = opts.path
+	}
+	if opts.get_path == "" {
+		opts.get_path = opts.path + "/{id}"
+	}
+	if opts.put_path == "" {
+		opts.put_path = opts.path + "/{id}"
+	}
+	if opts.delete_path == "" {
+		opts.delete_path = opts.path + "/{id}"
+	}
+	if opts.search_path == "" {
+		opts.search_path = opts.path
 	}
 
 	obj := api_object{

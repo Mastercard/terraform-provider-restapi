@@ -211,24 +211,12 @@ func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (exists boo
 	return exists, err
 }
 
-type resourceRestApiOpts struct {
-	get_path     string
-	post_path    string
-	put_path     string
-	delete_path  string
-	search_path  string
-	debug        bool
-	id           string
-	id_attribute string
-	data         string
-}
-
 /* Simple helper routine to build an api_object struct
    for the various calls terraform will use. Unfortunately,
    terraform cannot just reuse objects, so each CRUD operation
    results in a new object created */
 func make_api_object(d *schema.ResourceData, meta interface{}) (*api_object, error) {
-	opts, err := buildResourceRestApiOpts(d)
+	opts, err := buildApiObjectOpts(d)
 	if err != nil {
 		return nil, err
 	}
@@ -241,22 +229,19 @@ func make_api_object(d *schema.ResourceData, meta interface{}) (*api_object, err
 	return obj, nil
 }
 
-func buildResourceRestApiOpts(d *schema.ResourceData) (*resourceRestApiOpts, error) {
-	opts := &resourceRestApiOpts{}
-
-	if v := d.Get("path").(string); v != "" {
-		opts.post_path = v
-		opts.get_path = v + "/{id}"
-		opts.put_path = v + "/{id}"
-		opts.delete_path = v + "/{id}"
+func buildApiObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
+	opts := &apiObjectOpts{
+		path: d.Get("path").(string),
 	}
 
 	/* Allow user to override provider-level id_attribute */
-	opts.id_attribute = d.Get("id_attribute").(string)
+	if v, ok := d.GetOk("id_attribute"); ok {
+		opts.id_attribute = v.(string)
+	}
 
 	/* Allow user to specify the ID manually */
-	if v := d.Get("object_id").(string); v != "" {
-		opts.id = v
+	if v, ok := d.GetOk("object_id"); ok {
+		opts.id = v.(string)
 	} else {
 		/* If not specified, see if terraform has an ID */
 		opts.id = d.Id()
@@ -264,17 +249,18 @@ func buildResourceRestApiOpts(d *schema.ResourceData) (*resourceRestApiOpts, err
 
 	log.Printf("common.go: make_api_object routine called for id '%s'\n", opts.id)
 
-	if v := d.Get("create_path"); v != "" {
+	log.Printf("create_path: %s", d.Get("create_path"))
+	if v, ok := d.GetOk("create_path"); ok {
 		opts.post_path = v.(string)
 	}
-	if v := d.Get("read_path"); v != "" {
-		opts.post_path = v.(string)
+	if v, ok := d.GetOk("read_path"); ok {
+		opts.get_path = v.(string)
 	}
-	if v := d.Get("update_path"); v != "" {
-		opts.post_path = v.(string)
+	if v, ok := d.GetOk("update_path"); ok {
+		opts.put_path = v.(string)
 	}
-	if v := d.Get("destroy_path"); v != "" {
-		opts.post_path = v.(string)
+	if v, ok := d.GetOk("destroy_path"); ok {
+		opts.delete_path = v.(string)
 	}
 
 	opts.data = d.Get("data").(string)

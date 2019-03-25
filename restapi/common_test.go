@@ -26,11 +26,8 @@ func testAccCheckRestapiObjectExists(n string, id string, client *api_client) re
 
 		/* Make a throw-away API object to read from the API */
 		path := "/api/objects"
-		opts := &resourceRestApiOpts{
-			get_path:     path + "/{id}",
-			post_path:    path,
-			put_path:     path + "/{id}",
-			delete_path:  path + "/{id}",
+		opts := &apiObjectOpts{
+			path:         path,
 			id:           id,
 			id_attribute: "id",
 			data:         "{}",
