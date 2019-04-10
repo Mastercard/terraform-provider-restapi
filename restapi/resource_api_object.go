@@ -8,8 +8,6 @@ import (
 	"strconv"
 )
 
-
-
 func resourceRestApi() *schema.Resource {
 	// Consider data sensitive if env variables is set to true.
 	is_data_sensitive, _ := strconv.ParseBool(GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
