@@ -52,6 +52,7 @@ This provider also exports the following parameters:
 
 Note that the `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`.
 
+By default data isn't considered as sensitive. If you want to hide `data's` value in output you would need to set environment variable `API_DATA_IS_SENSITIVE="true"`.
 &nbsp;
 
 ## `restapi` datasource configuration

@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strings"
+	"os"
 )
 
 /* After any operation that returns API data, we'll stuff
@@ -131,4 +132,14 @@ func GetKeys(hash map[string]interface{}) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+/* GetEnvOrDefault is a helper function that returns the value of the
+given environment variable, if one exists, or the default value */
+func GetEnvOrDefault (k string, defaultvalue string) string{
+        v := os.Getenv(k)
+        if v == "" {
+            return defaultvalue
+        }
+        return v
 }

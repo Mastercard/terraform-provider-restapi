@@ -5,9 +5,13 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strings"
+	"strconv"
 )
 
 func resourceRestApi() *schema.Resource {
+	// Consider data sensitive if env variables is set to true.
+	is_data_sensitive, _ := strconv.ParseBool(GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
+
 	return &schema.Resource{
 		Create: resourceRestApiCreate,
 		Read:   resourceRestApiRead,
@@ -59,6 +63,7 @@ func resourceRestApi() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "Valid JSON data that this provider will manage with the API server.",
 				Required:    true,
+				Sensitive:   is_data_sensitive,
 			},
 			"debug": &schema.Schema{
 				Type:        schema.TypeBool,
