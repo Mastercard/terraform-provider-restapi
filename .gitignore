@@ -10,3 +10,4 @@ examples/terraform*
 scripts/terraform-provider-restapi*
 scripts/fakeserver*
 tmp
+vendor/*/
