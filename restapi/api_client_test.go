@@ -31,9 +31,10 @@ func TestAPIClient(t *testing.T) {
 		create_returns_object: false,
 		debug: debug,
 	}
-	client, err := NewAPIClient(opt)
+	client, _ := NewAPIClient(opt)
 
 	var res string
+        var err error
 
 	if debug {
 		log.Printf("api_client_test.go: Testing standard OK request\n")
@@ -61,7 +62,7 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		log.Printf("api_client_test.go: Testing timeout aborts requests\n")
 	}
-	res, err = client.send_request("GET", "/slow", "")
+	_, err = client.send_request("GET", "/slow", "")
 	if err == nil {
 		t.Fatalf("client_test.go: Timeout did not trigger on slow request")
 	}

@@ -95,7 +95,7 @@ func TestGetStringAtKey(t *testing.T) {
 		t.Fatalf("Error: Expected 'bar', but got %s", res)
 	}
 
-	res, err = GetStringAtKey(test_obj, "top/middle/junk", debug)
+	_, err = GetStringAtKey(test_obj, "top/middle/junk", debug)
 	if err == nil {
 		t.Fatalf("Error expected when trying to extract 'top/middle/junk' from payload")
 	}
