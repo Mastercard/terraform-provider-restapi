@@ -40,7 +40,7 @@ func TestResourceProvider_RequireBasic(t *testing.T) {
 
 	/*
 	   XXX: This is expected to work even though we are not
-	        explicitly declaring the required url paramter since
+	        explicitly declaring the required url parameter since
 	        the test suite is run with the ENV entry set.
 	*/
 	err = rp.Configure(terraform.NewResourceConfig(rawConfig))

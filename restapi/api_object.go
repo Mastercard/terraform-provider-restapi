@@ -299,7 +299,7 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 	   Parse it seeking JSON data
 	*/
 	if obj.debug {
-		log.Printf("datasource_api_object.go: Response recieved... parsing")
+		log.Printf("datasource_api_object.go: Response received... parsing")
 	}
 	var result interface{}
 	err = json.Unmarshal([]byte(res_str), &result)
