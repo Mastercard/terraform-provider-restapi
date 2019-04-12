@@ -25,7 +25,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 		copy_keys:             make([]string, 0),
 		write_returns_object:  false,
 		create_returns_object: false,
-		debug:                 debug,
+		debug: debug,
 	}
 	client, err := NewAPIClient(opt)
 	if err != nil {

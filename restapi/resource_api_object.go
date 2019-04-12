@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func resourceRestApi() *schema.Resource {

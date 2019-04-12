@@ -90,7 +90,7 @@ var client, err = NewAPIClient(&apiClientOpt{
 	copy_keys:             []string{"Thing"},
 	write_returns_object:  true,
 	create_returns_object: false,
-	debug:                 api_client_debug,
+	debug: api_client_debug,
 })
 
 func GenerateTestObjects(data_objects []string, t *testing.T, test_debug bool) (typed map[string]test_api_object, untyped map[string]map[string]interface{}) {
