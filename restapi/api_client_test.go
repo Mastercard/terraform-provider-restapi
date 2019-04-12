@@ -34,7 +34,7 @@ func TestAPIClient(t *testing.T) {
 	client, _ := NewAPIClient(opt)
 
 	var res string
-        var err error
+	var err error
 
 	if debug {
 		log.Printf("api_client_test.go: Testing standard OK request\n")

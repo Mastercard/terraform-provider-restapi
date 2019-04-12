@@ -192,7 +192,7 @@ func (obj *api_object) create_object() error {
 	}
 
 	b, _ := json.Marshal(obj.data)
-	res_str, err := obj.api_client.send_request("POST", strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
+	res_str, err := obj.api_client.send_request(obj.api_client.create_method, strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (obj *api_object) read_object() error {
 		return errors.New("Cannot read an object unless the ID has been set.")
 	}
 
-	res_str, err := obj.api_client.send_request("GET", strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
+	res_str, err := obj.api_client.send_request(obj.api_client.read_method, strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (obj *api_object) update_object() error {
 	}
 
 	b, _ := json.Marshal(obj.data)
-	res_str, err := obj.api_client.send_request("PUT", strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
+	res_str, err := obj.api_client.send_request(obj.api_client.update_method, strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func (obj *api_object) delete_object() error {
 		return nil
 	}
 
-	_, err := obj.api_client.send_request("DELETE", strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
+	_, err := obj.api_client.send_request(obj.api_client.destroy_method, strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 	if obj.debug {
 		log.Printf("datasource_api_object.go: Calling API on path '%s'", search_path)
 	}
-	res_str, err := obj.api_client.send_request("GET", search_path, "")
+	res_str, err := obj.api_client.send_request(obj.api_client.read_method, search_path, "")
 	if err != nil {
 		return err
 	}

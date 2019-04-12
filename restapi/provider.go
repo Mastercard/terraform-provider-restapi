@@ -56,6 +56,26 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_ATTRIBUTE", nil),
 				Description: "When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`",
 			},
+			"create_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server.",
+				Optional:    true,
+			},
+			"read_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.",
+				Optional:    true,
+			},
+			"update_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.",
+				Optional:    true,
+			},
+			"destroy_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `DELETE`. The HTTP method used to DELETE objects of this type on the API server.",
+				Optional:    true,
+			},
 			"copy_keys": &schema.Schema{
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
@@ -133,6 +153,19 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		create_returns_object: d.Get("create_returns_object").(bool),
 		xssi_prefix:           d.Get("xssi_prefix").(string),
 		debug:                 d.Get("debug").(bool),
+	}
+
+	if v, ok := d.GetOk("create_method"); ok {
+		opt.create_method = v.(string)
+	}
+	if v, ok := d.GetOk("read_method"); ok {
+		opt.read_method = v.(string)
+	}
+	if v, ok := d.GetOk("update_method"); ok {
+		opt.update_method = v.(string)
+	}
+	if v, ok := d.GetOk("destroy_method"); ok {
+		opt.destroy_method = v.(string)
 	}
 
 	client, err := NewAPIClient(opt)

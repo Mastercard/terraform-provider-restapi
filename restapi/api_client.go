@@ -22,6 +22,10 @@ type apiClientOpt struct {
 	use_cookie            bool
 	timeout               int
 	id_attribute          string
+	create_method         string
+	read_method           string
+	update_method         string
+	destroy_method        string
 	copy_keys             []string
 	write_returns_object  bool
 	create_returns_object bool
@@ -41,6 +45,10 @@ type api_client struct {
 	use_cookie            bool
 	timeout               int
 	id_attribute          string
+	create_method         string
+	read_method           string
+	update_method         string
+	destroy_method        string
 	copy_keys             []string
 	write_returns_object  bool
 	create_returns_object bool
@@ -69,6 +77,19 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		opt.uri = opt.uri[:len(opt.uri)-1]
 	}
 
+	if opt.create_method == "" {
+		opt.create_method = "POST"
+	}
+	if opt.read_method == "" {
+		opt.read_method = "GET"
+	}
+	if opt.update_method == "" {
+		opt.create_method = "PUT"
+	}
+	if opt.destroy_method == "" {
+		opt.destroy_method = "DELETE"
+	}
+
 	/* Disable TLS verification if requested */
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: opt.insecure},
@@ -92,6 +113,10 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		password:              opt.password,
 		headers:               opt.headers,
 		id_attribute:          opt.id_attribute,
+		create_method:         opt.create_method,
+		read_method:           opt.read_method,
+		update_method:         opt.update_method,
+		destroy_method:        opt.destroy_method,
 		copy_keys:             opt.copy_keys,
 		write_returns_object:  opt.write_returns_object,
 		create_returns_object: opt.create_returns_object,
