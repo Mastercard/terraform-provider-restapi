@@ -1,7 +1,5 @@
 #!/bin/bash -e
 
-cd $(dirname $0)
-
 OSs=("darwin" "linux" "windows")
 ARCHs=("386" "amd64")
 
