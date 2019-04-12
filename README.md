@@ -76,3 +76,24 @@ There are two standard methods of installing this provider detailed [in Terrafor
 The released binaries are named `terraform-provider-restapi_vX.Y.Z-{OS}-{ARCH}` so you know which binary to install. You *may* need to rename the binary you use during installation to just `terraform-provider-restapi_vX.Y.Z`.
 
 Once downloaded, be sure to make the plugin executable by running `chmod +x terraform-provider-restapi_vX.Y.Z-{OS}-{ARCH}`.
+
+&nbsp;
+
+## Contributing
+Pull requests are always welcome! Please be sure the following things are taken care of with your pull request:
+* `go fmt` is run before pushing
+* Be sure to add a test case for new functionality (or explain why this cannot be done)
+* Run the `scripts/test.sh` script to be sure everything works
+
+#### Development environment requirements
+* [Golang](https://golang.org/dl/) is installed and `go` is in your path
+* [Terraform](https://www.terraform.io/downloads.html) is installed and `terraform` is in your path
+* Optional for packaging dependencies: [govendor](https://github.com/kardianos/govendor) is installed and `govendor` is in your path by running `govendor update github.com/hashicorp/terraform`
+
+To make development easy, you can use the Docker image [druggeri/tdk](https://hub.docker.com/r/druggeri/tdk) as a development environment:
+```
+docker run -it --name tdk --rm -v "$HOME/go":/root/go druggeri/tdk
+go get github.com/Mastercard/terraform-provider-restapi
+cd ~/go/src/github.com/Mastercard/terraform-provider-restapi
+#Hack hack hack
+```
