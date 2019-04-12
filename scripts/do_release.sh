@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+cd $(dirname $0)
+
 OSs=("darwin" "linux" "windows")
 ARCHs=("386" "amd64")
 
@@ -40,6 +42,12 @@ fi
 #Build for all architectures we want
 ARTIFACTS=()
 #for GOOS in darwin linux windows netbsd openbsd solaris;do
+
+echo "Synchronizing dependencies..."
+cd ../
+govendor sync
+cd -
+
 echo "Building..."
 for GOOS in "${OSs[@]}";do
   for GOARCH in "${ARCHs[@]}";do
