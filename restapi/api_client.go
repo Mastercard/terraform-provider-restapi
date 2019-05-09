@@ -97,7 +97,7 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		create_returns_object: opt.create_returns_object,
 		xssi_prefix:           opt.xssi_prefix,
 		debug:                 opt.debug,
-		redirects:             5,
+		retries:               5,
 	}
 
 	if opt.debug {
@@ -189,7 +189,8 @@ func (client *api_client) send_request(method string, path string, data string) 
 		log.Printf("%s\n", body)
 	}
 
-	for num_redirects := client.redirects; num_redirects >= 0; num_redirects-- {
+        /* Retry with redirects and retriable HTTP status codes */
+	for num_retries := client.retries; num_retries >= 0; num_retries-- {
 		resp, err := client.http_client.Do(req)
 
 		if err != nil {
@@ -218,7 +219,11 @@ func (client *api_client) send_request(method string, path string, data string) 
 		if resp.StatusCode == 301 || resp.StatusCode == 302 {
 			//Redirecting... decrement num_redirects and proceed to the next loop
 			//uri = URI.parse(rsp['Location'])
-		} else if resp.StatusCode == 404 || resp.StatusCode < 200 || resp.StatusCode >= 303 {
+		) else if resp.StatusCode >= 500 {
+		        if client.debug {
+                            log.Printf("Received response code '%d': %s - Retrying, resp.StatusCode, body)
+                        }
+		} else if resp.StatusCode == 404 || resp.StatusCode < 200 || 500 > resp.StatusCode >= 303 {
 			return "", errors.New(fmt.Sprintf("Unexpected response code '%d': %s", resp.StatusCode, body))
 		} else {
 			if client.debug {
