@@ -37,7 +37,7 @@ type api_client struct {
 	username              string
 	password              string
 	headers               map[string]string
-	redirects             int
+	retries               int
 	use_cookie            bool
 	timeout               int
 	id_attribute          string
