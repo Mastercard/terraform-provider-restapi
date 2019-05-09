@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
@@ -217,10 +218,6 @@ func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (exists boo
 	if err := obj.read_object(); err == nil {
 		exists = true
 	}
-        if err != nil {
-            if strings.Contains(err.Error(), "500") {
-                /* 500 Internal Server error is indicative of a API server error */
-
 	return exists, err
 }
 
