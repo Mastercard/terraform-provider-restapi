@@ -204,6 +204,10 @@ func resourceRestApiDelete(d *schema.ResourceData, meta interface{}) error {
 func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (exists bool, err error) {
 	obj, err := make_api_object(d, meta)
 	if err != nil {
+            /* 500 Internal Server error is indicative of a API server error */
+            if string.Contains(err.Error(), "500") {
+                panic(errors.New("API responded with a 500 Internal Server Error"))
+            }
 		return exists, err
 	}
 	log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
@@ -213,6 +217,10 @@ func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (exists boo
 	if err := obj.read_object(); err == nil {
 		exists = true
 	}
+        if err != nil {
+            if strings.Contains(err.Error(), "500") {
+                /* 500 Internal Server error is indicative of a API server error */
+
 	return exists, err
 }
 
