@@ -18,6 +18,7 @@ type apiClientOpt struct {
 	insecure              bool
 	username              string
 	password              string
+	bearer_token          string
 	headers               map[string]string
 	use_cookie            bool
 	timeout               int
@@ -36,6 +37,7 @@ type api_client struct {
 	insecure              bool
 	username              string
 	password              string
+	bearer_token          string
 	headers               map[string]string
 	redirects             int
 	use_cookie            bool
@@ -90,6 +92,7 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		insecure:              opt.insecure,
 		username:              opt.username,
 		password:              opt.password,
+		bearer_token:          opt.bearer_token,
 		headers:               opt.headers,
 		id_attribute:          opt.id_attribute,
 		copy_keys:             opt.copy_keys,
@@ -114,6 +117,7 @@ func (obj *api_client) toString() string {
 	buffer.WriteString(fmt.Sprintf("insecure: %t\n", obj.insecure))
 	buffer.WriteString(fmt.Sprintf("username: %s\n", obj.username))
 	buffer.WriteString(fmt.Sprintf("password: %s\n", obj.password))
+	buffer.WriteString(fmt.Sprintf("bearer_token: %s\n", obj.bearer_token))
 	buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", obj.id_attribute))
 	buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", obj.write_returns_object))
 	buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", obj.create_returns_object))
@@ -171,6 +175,8 @@ func (client *api_client) send_request(method string, path string, data string) 
 	if client.username != "" && client.password != "" {
 		/* ... and fall back to basic auth if configured */
 		req.SetBasicAuth(client.username, client.password)
+	} else if client.bearer_token != "" {
+		req.Header.Set("Authorization", "Bearer " + client.bearer_token)
 	}
 
 	if client.debug {

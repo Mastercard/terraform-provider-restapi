@@ -49,6 +49,18 @@ func resourceRestApi() *schema.Resource {
 				Description: "Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
 				Optional:    true,
 			},
+			"create_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `POST`. The API method that used to CREATE objects of this type on the API server",
+				Default:     "POST",
+				Optional:    true,
+			},
+			"update_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `PUT`. The API method that used to UPDATE objects of this type on the API server",
+				Default:     "PUT",
+				Optional:    true,
+			},
 			"id_attribute": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)",
@@ -266,6 +278,12 @@ func buildApiObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("destroy_path"); ok {
 		opts.delete_path = v.(string)
+	}
+	if v, ok := d.GetOk("create_method"); ok {
+		opts.post_method = v.(string)
+	}
+	if v, ok := d.GetOk("update_method"); ok {
+		opts.put_method = v.(string)
 	}
 
 	opts.data = d.Get("data").(string)

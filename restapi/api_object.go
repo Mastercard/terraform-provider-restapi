@@ -18,6 +18,8 @@ type apiObjectOpts struct {
 	put_path     string
 	delete_path  string
 	search_path  string
+	post_method  string
+	put_method   string
 	debug        bool
 	id           string
 	id_attribute string
@@ -30,6 +32,8 @@ type api_object struct {
 	post_path    string
 	put_path     string
 	delete_path  string
+	post_method  string
+	put_method   string
 	search_path  string
 	debug        bool
 	id           string
@@ -70,6 +74,12 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 	if opts.search_path == "" {
 		opts.search_path = opts.path
 	}
+	if opts.post_method == "" {
+		opts.post_method = "POST"
+	}
+	if opts.put_method == "" {
+		opts.put_method = "PUT"
+	}
 
 	obj := api_object{
 		api_client:   i_client,
@@ -78,6 +88,8 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 		put_path:     opts.put_path,
 		delete_path:  opts.delete_path,
 		search_path:  opts.search_path,
+		post_method:  opts.post_method,
+		put_method:   opts.put_method,
 		debug:        opts.debug,
 		id:           opts.id,
 		id_attribute: opts.id_attribute,
@@ -128,6 +140,8 @@ func (obj *api_object) toString() string {
 	buffer.WriteString(fmt.Sprintf("post_path: %s\n", obj.post_path))
 	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.put_path))
 	buffer.WriteString(fmt.Sprintf("delete_path: %s\n", obj.delete_path))
+	buffer.WriteString(fmt.Sprintf("post_method: %s\n",obj.post_method ))
+	buffer.WriteString(fmt.Sprintf("put_method: %s\n",obj.put_method ))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.api_data)))
@@ -191,10 +205,13 @@ func (obj *api_object) create_object() error {
 		return errors.New("ERROR: Provided object does not have an id set and the client is not configured to read the object from a POST or PUT response. Without an id, the object cannot be managed.")
 	}
 
-	b, _ := json.Marshal(obj.data)
-	res_str, err := obj.api_client.send_request("POST", strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
-	if err != nil {
-		return err
+	var res_str string
+	var err error
+	if obj.put_method == "GET" {
+		res_str, err = obj.api_client.send_request(obj.post_method, strings.Replace(obj.put_path, "{id}", obj.id, -1), "")
+	} else {
+		b, _ := json.Marshal(obj.data)
+		res_str, err = obj.api_client.send_request(obj.post_method, strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
 	}
 
 	/* We will need to sync state as well as get the object's ID */
@@ -238,8 +255,14 @@ func (obj *api_object) update_object() error {
 		return errors.New("Cannot update an object unless the ID has been set.")
 	}
 
-	b, _ := json.Marshal(obj.data)
-	res_str, err := obj.api_client.send_request("PUT", strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
+	var res_str string
+	var err error
+	if obj.put_method == "GET" {
+		res_str, err = obj.api_client.send_request(obj.put_method, strings.Replace(obj.put_path, "{id}", obj.id, -1), "")
+	} else {
+		b, _ := json.Marshal(obj.data)
+		res_str, err = obj.api_client.send_request(obj.put_method, strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
+	}
 	if err != nil {
 		return err
 	}

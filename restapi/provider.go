@@ -32,6 +32,12 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
 				Description: "When set, will use this password for BASIC auth to the API.",
 			},
+			"bearer_token": &schema.Schema{
+				Type:		schema.TypeString,
+				Optional:   true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_BEARER_TOKEN", nil),
+				Description: "When set, will use this token for Bearer auth to the API.",
+			},
 			"headers": &schema.Schema{
 				Type:        schema.TypeMap,
 				Elem:        schema.TypeString,
@@ -124,6 +130,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		insecure:              d.Get("insecure").(bool),
 		username:              d.Get("username").(string),
 		password:              d.Get("password").(string),
+		bearer_token:          d.Get("bearer_token").(string),
 		headers:               headers,
 		use_cookie:            d.Get("use_cookies").(bool),
 		timeout:               d.Get("timeout").(int),

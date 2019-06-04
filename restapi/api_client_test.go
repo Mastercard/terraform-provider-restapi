@@ -23,6 +23,7 @@ func TestAPIClient(t *testing.T) {
 		insecure:              false,
 		username:              "",
 		password:              "",
+		bearer_token:          "",
 		headers:               make(map[string]string, 0),
 		timeout:               2,
 		id_attribute:          "id",
