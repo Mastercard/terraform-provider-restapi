@@ -80,7 +80,7 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Optional:    true,
-				Description: "Defines a list of HTTP methods to retry when retry_errors is set. Defaults to an empty list (no retries)",
+				Description: "Defines a list of HTTP methods to retry on when receiving a HTTP response code in the 500 range. Defaults to an empty list (no retries)",
 			},
 			"copy_keys": &schema.Schema{
 				Type:        schema.TypeList,

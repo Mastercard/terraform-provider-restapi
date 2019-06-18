@@ -157,7 +157,7 @@ func (obj *api_client) toString() string {
 	return buffer.String()
 }
 
-/* helper function for retry_methods condition */
+/* Helper function for retry_methods condition */
 func sliceContains(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {
@@ -229,6 +229,7 @@ func (client *api_client) send_request(method string, path string, data string) 
 		log.Printf("%s\n", body)
 	}
 
+	/* Retry only if this is one of the user specified HTTP methods to retry on */
 	num_retries := 0
 	if len(client.retry_methods) > 0 && sliceContains(method, client.retry_methods) {
 		num_retries = 5
@@ -276,7 +277,7 @@ func (client *api_client) send_request(method string, path string, data string) 
 			return body, nil
 		}
 		num_retries--
-	} //End loop through redirect attempts
+	} //End loop through retry attempts
 
 	return "", errors.New("Error - too many redirects!")
 }
