@@ -76,6 +76,12 @@ func Provider() terraform.ResourceProvider {
 				Description: "Defaults to `DELETE`. The HTTP method used to DELETE objects of this type on the API server.",
 				Optional:    true,
 			},
+			"retry_methods": &schema.Schema{
+				Type:        schema.TypeList,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Description: "Defines a list of HTTP methods to retry when retry_errors is set. Defaults to an empty list (no retries)",
+			},
 			"copy_keys": &schema.Schema{
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
@@ -139,6 +145,13 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		}
 	}
 
+	retry_methods := make([]string, 0)
+	if i_retry_methods := d.Get("retry_methods"); i_retry_methods != nil {
+		for _, v := range i_retry_methods.([]interface{}) {
+			retry_methods = append(retry_methods, v.(string))
+		}
+	}
+
 	opt := &apiClientOpt{
 		uri:                   d.Get("uri").(string),
 		insecure:              d.Get("insecure").(bool),
@@ -153,6 +166,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		create_returns_object: d.Get("create_returns_object").(bool),
 		xssi_prefix:           d.Get("xssi_prefix").(string),
 		debug:                 d.Get("debug").(bool),
+		retry_methods:         retry_methods,
 	}
 
 	if v, ok := d.GetOk("create_method"); ok {

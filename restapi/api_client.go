@@ -32,6 +32,7 @@ type apiClientOpt struct {
 	xssi_prefix           string
 	use_cookies           bool
 	debug                 bool
+	retry_methods         []string
 }
 
 type api_client struct {
@@ -41,7 +42,6 @@ type api_client struct {
 	username              string
 	password              string
 	headers               map[string]string
-	redirects             int
 	use_cookie            bool
 	timeout               int
 	id_attribute          string
@@ -54,6 +54,7 @@ type api_client struct {
 	create_returns_object bool
 	xssi_prefix           string
 	debug                 bool
+	retry_methods         []string
 }
 
 // Make a new api client for RESTful calls
@@ -122,7 +123,7 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		create_returns_object: opt.create_returns_object,
 		xssi_prefix:           opt.xssi_prefix,
 		debug:                 opt.debug,
-		redirects:             5,
+		retry_methods:         opt.retry_methods,
 	}
 
 	if opt.debug {
@@ -149,7 +150,21 @@ func (obj *api_client) toString() string {
 	for _, n := range obj.copy_keys {
 		buffer.WriteString(fmt.Sprintf("  %s", n))
 	}
+	buffer.WriteString(fmt.Sprintf("retry_methods:\n"))
+	for _, n := range obj.retry_methods {
+		buffer.WriteString(fmt.Sprintf("  %s", n))
+	}
 	return buffer.String()
+}
+
+/* helper function for retry_methods condition */
+func sliceContains(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
 
 /* Helper function that handles sending/receiving and handling
@@ -214,7 +229,12 @@ func (client *api_client) send_request(method string, path string, data string) 
 		log.Printf("%s\n", body)
 	}
 
-	for num_redirects := client.redirects; num_redirects >= 0; num_redirects-- {
+	num_retries := 0
+	if len(client.retry_methods) > 0 && sliceContains(method, client.retry_methods) {
+		num_retries = 5
+	}
+
+	for num_retries >= 0 {
 		resp, err := client.http_client.Do(req)
 
 		if err != nil {
@@ -241,8 +261,12 @@ func (client *api_client) send_request(method string, path string, data string) 
 		body := strings.TrimPrefix(string(bodyBytes), client.xssi_prefix)
 
 		if resp.StatusCode == 301 || resp.StatusCode == 302 {
-			//Redirecting... decrement num_redirects and proceed to the next loop
+			//Redirecting... decrement num_retries and proceed to the next loop
 			//uri = URI.parse(rsp['Location'])
+		} else if num_retries != 0 && (resp.StatusCode >= 500 || resp.StatusCode < 600) {
+			if client.debug {
+				log.Printf("Received response code '%d': %s - Retrying", resp.StatusCode, body)
+			}
 		} else if resp.StatusCode == 404 || resp.StatusCode < 200 || resp.StatusCode >= 303 {
 			return "", errors.New(fmt.Sprintf("Unexpected response code '%d': %s", resp.StatusCode, body))
 		} else {
@@ -251,7 +275,7 @@ func (client *api_client) send_request(method string, path string, data string) 
 			}
 			return body, nil
 		}
-
+		num_retries--
 	} //End loop through redirect attempts
 
 	return "", errors.New("Error - too many redirects!")
