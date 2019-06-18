@@ -264,7 +264,7 @@ func (client *api_client) send_request(method string, path string, data string) 
 		if resp.StatusCode == 301 || resp.StatusCode == 302 {
 			//Redirecting... decrement num_retries and proceed to the next loop
 			//uri = URI.parse(rsp['Location'])
-		} else if num_retries != 0 && (resp.StatusCode >= 500 || resp.StatusCode < 600) {
+		} else if num_retries != 0 && resp.StatusCode >= 500 && resp.StatusCode < 600 {
 			if client.debug {
 				log.Printf("Received response code '%d': %s - Retrying", resp.StatusCode, body)
 			}
@@ -279,5 +279,5 @@ func (client *api_client) send_request(method string, path string, data string) 
 		num_retries--
 	} //End loop through retry attempts
 
-	return "", errors.New("Error - too many redirects!")
+	return "", errors.New("Error - too many retries!")
 }
