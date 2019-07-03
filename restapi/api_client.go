@@ -84,7 +84,7 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		opt.read_method = "GET"
 	}
 	if opt.update_method == "" {
-		opt.create_method = "PUT"
+		opt.update_method = "PUT"
 	}
 	if opt.destroy_method == "" {
 		opt.destroy_method = "DELETE"
