@@ -29,7 +29,8 @@ func TestAPIClient(t *testing.T) {
 		copy_keys:             make([]string, 0),
 		write_returns_object:  false,
 		create_returns_object: false,
-		debug: debug,
+		debug:                 debug,
+		retry_methods:         []string{"GET"},
 	}
 	client, _ := NewAPIClient(opt)
 
@@ -67,6 +68,18 @@ func TestAPIClient(t *testing.T) {
 		t.Fatalf("client_test.go: Timeout did not trigger on slow request")
 	}
 
+	/* Verify retry on 500 error works */
+	if debug {
+		log.Printf("api_client_test.go: Testing retry on 500 errors\n")
+	}
+	res, err = client.send_request("GET", "/error", "")
+	if err != nil {
+		t.Fatalf("client_test.go: %s", err)
+	}
+	if res != "The 2nd try will work" {
+		t.Fatalf("client_test.go: Got back '%s' but expected 'The 2nd try will work'\n", res)
+	}
+
 	if debug {
 		log.Println("client_test.go: Stopping HTTP server")
 	}
@@ -88,7 +101,12 @@ func setup_api_client_server() {
 	serverMux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/ok", http.StatusPermanentRedirect)
 	})
-
+	error := http.StatusInternalServerError
+	serverMux.HandleFunc("/error", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(error)
+		w.Write([]byte("The 2nd try will work"))
+		error = http.StatusOK
+	})
 	api_client_server = &http.Server{
 		Addr:    "127.0.0.1:8080",
 		Handler: serverMux,
