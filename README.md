@@ -21,21 +21,23 @@ Have a look at the [examples directory](examples) for some use cases
 &nbsp;
 
 ## Provider configuration
-- `uri` (string, required): URI of the REST API endpoint. This serves as the base of all requests. Example: `https://myapi.env.local/api/v1`.
-- `insecure` (boolean, optional): When using https, this disables TLS verification of the host.
-- `username` (string, optional): When set, will use this username for BASIC auth to the API.
-- `password` (string, optional): When set, will use this password for BASIC auth to the API.
+- `uri` (string, required): URI of the REST API endpoint. This serves as the base of all requests. Example: `https://myapi.env.local/api/v1`. This can also be set with the environment variable `REST_API_URI`.
+- `insecure` (boolean, optional): When using https, this disables TLS verification of the host. This can also be set with the environment variable `REST_API_INSECURE`.
+- `username` (string, optional): When set, will use this username for BASIC auth to the API. This can also be set with the environment variable `REST_API_USERNAME`.
+- `password` (string, optional): When set, will use this password for BASIC auth to the API. This can also be set with the environment variable `REST_API_PASSWORD`.
 - `headers` (hash of strings, optional): A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.
-- `timeout` (integer, optional): When set, will cause requests taking longer than this time (in seconds) to be aborted. Default is `0` which means no timeout is set.
-- `id_attribute` (string, optional): Defaults to `id`. When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`. Lists are also supported, f.e. `attributes/items/0/id` in case of an object `{ \"attributes\": { \"items\": [{"id": 1234}] } }`.
-- `create_method` (string, optional): Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server.
-- `read_method` (string, optional): Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.
-- `update_method` (string, optional): Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.
-- `delete_method` (string, optional): Defaults to `DELETE`. The HTTP method used to DELETE objects of this type on the API server.
+- `use_cookies` (boolean, optional): Enable cookie jar to persist session. This can also be set with the environment variable `REST_API_USE_COOKIES`.
+- `timeout` (integer, optional): When set, will cause requests taking longer than this time (in seconds) to be aborted. Default is `0` which means no timeout is set. This can also be set with the environment variable `REST_API_TIMEOUT`.
+- `id_attribute` (string, optional): Defaults to `id`. When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`. Lists are also supported, f.e. `attributes/items/0/id` in case of an object `{ \"attributes\": { \"items\": [{"id": 1234}] } }`. This can also be set with the environment variable `REST_API_ID_ATTRIBUTE`.
+- `create_method` (string, optional): Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server. This can also be set with the environment variable `REST_API_CREATE_METHOD`.
+- `read_method` (string, optional): Defaults to `GET`. The HTTP method used to READ objects of this type on the API server. This can also be set with the environment variable `REST_API_READ_METHOD`.
+- `update_method` (string, optional): Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server. This can also be set with the environment variable `REST_API_UPDATE_METHOD`.
+- `delete_method` (string, optional): Defaults to `DELETE`. The HTTP method used to DELETE objects of this type on the API server. This can also be set with the environment variable `REST_API_DELETE_METHOD`.
 - `copy_keys` (array of strings, optional): When set, any `PUT` to the API for an object will copy these keys from the data the provider has gathered about the object. This is useful if internal API information must also be provided with updates, such as the revision of the object.
-- `write_returns_object` (boolean, optional): Set this when the API returns the object created on all write operations (`POST`, `PUT`). This is used by the provider to refresh internal data structures.
-- `create_returns_object` (boolean, optional): Set this when the API returns the object created only on creation operations (`POST`). This is used by the provider to refresh internal data structures.
-- `debug` (boolean, optional): Enabling this will cause lots of debug information to be printed to STDOUT by the API client. This can be gathered by setting `TF_LOG=1` environment variable.
+- `write_returns_object` (boolean, optional): Set this when the API returns the object created on all write operations (`POST`, `PUT`). This is used by the provider to refresh internal data structures. This can also be set with the environment variable `REST_API_WRO`.
+- `create_returns_object` (boolean, optional): Set this when the API returns the object created only on creation operations (`POST`). This is used by the provider to refresh internal data structures. This can also be set with the environment variable `REST_API_CRO`.
+- `xssi_prefix` (boolean, optional): Trim the xssi prefix from response string, if present, before parsing. This can also be set with the environment variable `REST_API_XSSI_PREFIX`.
+- `debug` (boolean, optional): Enabling this will cause lots of debug information to be printed to STDOUT by the API client. This can be gathered by setting `TF_LOG=1` environment variable. This can also be set with the environment variable `REST_API_DEBUG`.
 
 &nbsp;
 
@@ -48,6 +50,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `id_attribute` (string, optional): Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation).
 - `object_id` (string, optional): Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
 - `data` (string, required): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information.
+- `force_new` (array of strings, optional): Any changes to these values will result in recreating the resource instead of updating.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
 This provider also exports the following parameters:
@@ -88,6 +91,7 @@ Pull requests are always welcome! Please be sure the following things are taken 
 * `go fmt` is run before pushing
 * Be sure to add a test case for new functionality (or explain why this cannot be done)
 * Run the `scripts/test.sh` script to be sure everything works
+* Ensure new attributes can also be set by environment variables
 
 #### Development environment requirements
 * [Golang](https://golang.org/dl/) is installed and `go` is in your path
