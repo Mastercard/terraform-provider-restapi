@@ -116,7 +116,8 @@ func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported [
 	}
 	log.Printf("resource_api_object.go: Import routine called. Object built:\n%s\n", obj.toString())
 
-	if err := obj.read_object(); err == nil {
+	err = obj.read_object()
+	if err == nil {
 		set_resource_state(obj, d)
 		/* Data that we set in the state above must be passed along
 		   as an item in the stack of imported data */
@@ -210,7 +211,8 @@ func resourceRestApiExists(d *schema.ResourceData, meta interface{}) (exists boo
 
 	/* Assume all errors indicate the object just doesn't exist.
 	This may not be a good assumption... */
-	if err := obj.read_object(); err == nil {
+	err = obj.read_object()
+	if err == nil {
 		exists = true
 	}
 	return exists, err
