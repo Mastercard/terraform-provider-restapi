@@ -58,21 +58,25 @@ func Provider() terraform.ResourceProvider {
 			},
 			"create_method": &schema.Schema{
 				Type:        schema.TypeString,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_CREATE_METHOD", nil),
 				Description: "Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server.",
 				Optional:    true,
 			},
 			"read_method": &schema.Schema{
 				Type:        schema.TypeString,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_READ_METHOD", nil),
 				Description: "Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.",
 				Optional:    true,
 			},
 			"update_method": &schema.Schema{
 				Type:        schema.TypeString,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_UPDATE_METHOD", nil),
 				Description: "Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.",
 				Optional:    true,
 			},
 			"destroy_method": &schema.Schema{
 				Type:        schema.TypeString,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_DESTROY_METHOD", nil),
 				Description: "Defaults to `DELETE`. The HTTP method used to DELETE objects of this type on the API server.",
 				Optional:    true,
 			},
@@ -80,7 +84,6 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
 				Description: "When set, any PUT to the API for an object will copy these keys from the data the provider has gathered about the object. This is useful if internal API information must also be provided with updates, such as the revision of the object.",
 			},
 			"write_returns_object": &schema.Schema{
