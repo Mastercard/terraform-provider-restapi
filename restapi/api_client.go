@@ -41,7 +41,6 @@ type api_client struct {
 	username              string
 	password              string
 	headers               map[string]string
-	redirects             int
 	use_cookie            bool
 	timeout               int
 	id_attribute          string
@@ -122,7 +121,6 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		create_returns_object: opt.create_returns_object,
 		xssi_prefix:           opt.xssi_prefix,
 		debug:                 opt.debug,
-		redirects:             5,
 	}
 
 	if opt.debug {
@@ -153,8 +151,7 @@ func (obj *api_client) toString() string {
 }
 
 /* Helper function that handles sending/receiving and handling
-   of HTTP data in and out.
-   TODO: Handle redirects */
+   of HTTP data in and out. */
 func (client *api_client) send_request(method string, path string, data string) (string, error) {
 	full_uri := client.uri + path
 	var req *http.Request
@@ -214,45 +211,38 @@ func (client *api_client) send_request(method string, path string, data string) 
 		log.Printf("%s\n", body)
 	}
 
-	for num_redirects := client.redirects; num_redirects >= 0; num_redirects-- {
-		resp, err := client.http_client.Do(req)
+	resp, err := client.http_client.Do(req)
 
-		if err != nil {
-			//log.Printf("api_client.go: Error detected: %s\n", err)
-			return "", err
-		}
+	if err != nil {
+		//log.Printf("api_client.go: Error detected: %s\n", err)
+		return "", err
+	}
 
-		if client.debug {
-			log.Printf("api_client.go: Response code: %d\n", resp.StatusCode)
-			log.Printf("api_client.go: Response headers:\n")
-			for name, headers := range resp.Header {
-				for _, h := range headers {
-					log.Printf("api_client.go:   %v: %v", name, h)
-				}
+	if client.debug {
+		log.Printf("api_client.go: Response code: %d\n", resp.StatusCode)
+		log.Printf("api_client.go: Response headers:\n")
+		for name, headers := range resp.Header {
+			for _, h := range headers {
+				log.Printf("api_client.go:   %v: %v", name, h)
 			}
 		}
+	}
 
-		bodyBytes, err2 := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+	bodyBytes, err2 := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 
-		if err2 != nil {
-			return "", err2
-		}
-		body := strings.TrimPrefix(string(bodyBytes), client.xssi_prefix)
+	if err2 != nil {
+		return "", err2
+	}
+	body := strings.TrimPrefix(string(bodyBytes), client.xssi_prefix)
+	if client.debug {
+		log.Printf("api_client.go: BODY:\n%s\n", body)
+	}
 
-		if resp.StatusCode == 301 || resp.StatusCode == 302 {
-			//Redirecting... decrement num_redirects and proceed to the next loop
-			//uri = URI.parse(rsp['Location'])
-		} else if resp.StatusCode == 404 || resp.StatusCode < 200 || resp.StatusCode >= 303 {
-			return "", errors.New(fmt.Sprintf("Unexpected response code '%d': %s", resp.StatusCode, body))
-		} else {
-			if client.debug {
-				log.Printf("api_client.go: BODY:\n%s\n", body)
-			}
-			return body, nil
-		}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return body, errors.New(fmt.Sprintf("Unexpected response code '%d': %s", resp.StatusCode, body))
+	}
 
-	} //End loop through redirect attempts
+	return body, nil
 
-	return "", errors.New("Error - too many redirects!")
 }
