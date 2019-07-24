@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -119,10 +120,14 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 	}
 
 	if debug {
-		log.Printf("common.go:GetObjectAtKey:  %s - exists", part)
+		log.Printf("common.go:GetObjectAtKey:  %s - exists (%v)", part, hash[part])
 	}
 
-	return hash[part], nil
+	if _, ok := hash[part].(float64); ok {
+		return strconv.FormatFloat(hash[part].(float64), 'f', -1, 64), nil
+	} else {
+		return hash[part], nil
+	}
 }
 
 /* Handy helper to just dump the keys of a map into a slice */
