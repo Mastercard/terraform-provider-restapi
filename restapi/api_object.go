@@ -282,13 +282,13 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 	search_path := obj.search_path
 	if "" != query_string {
 		if obj.debug {
-			log.Printf("datasource_api_object.go: Adding query string '%s'", query_string)
+			log.Printf("api_object.go: Adding query string '%s'", query_string)
 		}
 		search_path = fmt.Sprintf("%s?%s", obj.search_path, query_string)
 	}
 
 	if obj.debug {
-		log.Printf("datasource_api_object.go: Calling API on path '%s'", search_path)
+		log.Printf("api_object.go: Calling API on path '%s'", search_path)
 	}
 	res_str, err := obj.api_client.send_request(obj.api_client.read_method, search_path, "")
 	if err != nil {
@@ -299,7 +299,7 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 	   Parse it seeking JSON data
 	*/
 	if obj.debug {
-		log.Printf("datasource_api_object.go: Response received... parsing")
+		log.Printf("api_object.go: Response received... parsing")
 	}
 	var result interface{}
 	err = json.Unmarshal([]byte(res_str), &result)
@@ -311,27 +311,27 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 		var tmp interface{}
 
 		if obj.debug {
-			log.Printf("datasource_api_object.go: Locating '%s' in the results", results_key)
+			log.Printf("api_object.go: Locating '%s' in the results", results_key)
 		}
 
 		/* First verify the data we got back is a hash */
 		if _, ok = result.(map[string]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", search_path, results_key)
+			return fmt.Errorf("api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", search_path, results_key)
 		}
 
 		tmp, err = GetObjectAtKey(result.(map[string]interface{}), results_key, obj.debug)
 		if err != nil {
-			return fmt.Errorf("datasource_api_object.go: Error finding results_key: %s", err)
+			return fmt.Errorf("api_object.go: Error finding results_key: %s", err)
 		}
 		if data_array, ok = tmp.([]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", results_key, reflect.TypeOf(tmp))
+			return fmt.Errorf("api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", results_key, reflect.TypeOf(tmp))
 		}
 	} else {
 		if obj.debug {
-			log.Printf("datasource_api_object.go: results_key is not set - coaxing data to array of interfaces")
+			log.Printf("api_object.go: results_key is not set - coaxing data to array of interfaces")
 		}
 		if data_array, ok = result.([]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", search_path, reflect.TypeOf(result))
+			return fmt.Errorf("api_object.go: The results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", search_path, reflect.TypeOf(result))
 		}
 	}
 
@@ -340,12 +340,12 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 		var hash map[string]interface{}
 
 		if hash, ok = item.(map[string]interface{}); !ok {
-			return fmt.Errorf("datasource_api_object.go: The elements being searched for data are not a map of key value pairs.")
+			return fmt.Errorf("api_object.go: The elements being searched for data are not a map of key value pairs.")
 		}
 
 		if obj.debug {
-			log.Printf("datasource_api_object.go: Examining %v", hash)
-			log.Printf("datasource_api_object.go:   Comparing '%s' to the value in '%s'", search_value, search_key)
+			log.Printf("api_object.go: Examining %v", hash)
+			log.Printf("api_object.go:   Comparing '%s' to the value in '%s'", search_value, search_key)
 		}
 
 		tmp, err := GetStringAtKey(hash, search_key, obj.debug)
@@ -361,7 +361,7 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 			}
 
 			if obj.debug {
-				log.Printf("datasource_api_object.go:   Found ID '%s'", obj.id)
+				log.Printf("api_object.go:   Found ID '%s'", obj.id)
 			}
 
 			/* But there is no id attribute??? */
