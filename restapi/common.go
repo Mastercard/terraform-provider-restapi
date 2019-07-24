@@ -30,12 +30,13 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 
 	/* JSON supports strings, numbers, objects and arrays. Allow a string OR number here */
 	t := fmt.Sprintf("%T", res)
-	if t != "string" && t != "float64" {
+	if t == "string" {
+		return res.(string), nil
+	} else if t == "float64" {
+                return strconv.FormatFloat(res.(float64), 'f', -1, 64), nil
+	} else {
 		return "", fmt.Errorf("Object at path '%s' is not a JSON string or number (float64). The go fmt package says it is '%T'", path, res)
 	}
-
-	/* Since it might be a number, coax it to a string with fmt */
-	return fmt.Sprintf("%v", res), nil
 }
 
 /* Handy helper that will dig through a map and find something
@@ -123,11 +124,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 		log.Printf("common.go:GetObjectAtKey:  %s - exists (%v)", part, hash[part])
 	}
 
-	if _, ok := hash[part].(float64); ok {
-		return strconv.FormatFloat(hash[part].(float64), 'f', -1, 64), nil
-	} else {
-		return hash[part], nil
-	}
+	return hash[part], nil
 }
 
 /* Handy helper to just dump the keys of a map into a slice */
