@@ -55,7 +55,8 @@ func TestGetStringAtKey(t *testing.T) {
       "rootFoo": "bar",
       "top": {
         "foo": "bar",
-        "number": 1,
+        "number": 1234567890,
+        "float": 1.23456789,
         "middle": {
           "bottom": {
             "foo": "bar"
@@ -103,8 +104,15 @@ func TestGetStringAtKey(t *testing.T) {
 	res, err = GetStringAtKey(test_obj, "top/number", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'top/number' from JSON payload: %s", err)
-	} else if "1" != res {
-		t.Fatalf("Error: Expected '1', but got %s", res)
+	} else if "1234567890" != res {
+		t.Fatalf("Error: Expected '1234567890', but got %s", res)
+	}
+
+	res, err = GetStringAtKey(test_obj, "top/float", debug)
+	if err != nil {
+		t.Fatalf("Error extracting 'top/float' from JSON payload: %s", err)
+	} else if "1.23456789" != res {
+		t.Fatalf("Error: Expected '1.23456789', but got %s", res)
 	}
 }
 
