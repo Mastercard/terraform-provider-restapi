@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"log"
 	"reflect"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type apiObjectOpts struct {
@@ -36,8 +37,9 @@ type api_object struct {
 	id_attribute string
 
 	/* Set internally */
-	data     map[string]interface{} /* Data as managed by the user */
-	api_data map[string]interface{} /* Data as available from the API */
+	data         map[string]interface{} /* Data as managed by the user */
+	api_data     map[string]interface{} /* Data as available from the API */
+	api_response string
 }
 
 // Make an api_object to manage a RESTful object in an API
@@ -151,6 +153,9 @@ func (obj *api_object) update_state(state string) error {
 	if err != nil {
 		return err
 	}
+
+	/* Store response body for parsing via jsondecode() */
+	obj.api_response = state
 
 	/* A usable ID was not passed (in constructor or here),
 	   so we have to guess what it is from the data structure */
