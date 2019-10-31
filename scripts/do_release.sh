@@ -5,6 +5,7 @@ ARCHs=("386" "amd64")
 
 export REST_API_URI="http://127.0.0.1:8082"
 export GOPATH="$HOME/go"
+export CGO_ENABLED=0
 
 #Get into the right directory
 cd $(dirname $0)
