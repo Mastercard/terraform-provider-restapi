@@ -14,10 +14,11 @@ package restapi
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	"github.com/hashicorp/terraform/helper/resource"
 	"os"
 	"testing"
+
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	"github.com/hashicorp/terraform/helper/resource"
 )
 
 // example.Widget represents a concrete Go type that represents an API resource
@@ -39,7 +40,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 		copy_keys:             make([]string, 0),
 		write_returns_object:  false,
 		create_returns_object: false,
-		debug: debug,
+		debug:                 debug,
 	}
 	client, err := NewAPIClient(opt)
 	if err != nil {
@@ -61,6 +62,24 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("restapi_object.Foo", "id", "1234"),
 					resource.TestCheckResourceAttr("restapi_object.Foo", "api_data.first", "Foo"),
 					resource.TestCheckResourceAttr("restapi_object.Foo", "api_data.last", "Bar"),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "api_response", "{\"first\":\"Foo\",\"id\":\"1234\",\"last\":\"Bar\"}"),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "create_response", "{\"first\":\"Foo\",\"id\":\"1234\",\"last\":\"Bar\"}"),
+				),
+			},
+			/* Try updating the object and check create_response is unmodified */
+			{
+				Config: generate_test_resource(
+					"Foo",
+					`{ "id": "1234", "first": "Updated", "last": "Value" }`,
+					make(map[string]interface{}),
+				),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("restapi_object.Foo", "1234", client),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "id", "1234"),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "api_data.first", "Updated"),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "api_data.last", "Value"),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "api_response", "{\"first\":\"Updated\",\"id\":\"1234\",\"last\":\"Value\"}"),
+					resource.TestCheckResourceAttr("restapi_object.Foo", "create_response", "{\"first\":\"Foo\",\"id\":\"1234\",\"last\":\"Bar\"}"),
 				),
 			},
 			/* Make a complex object with id_attribute as a child of another key

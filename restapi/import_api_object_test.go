@@ -1,10 +1,11 @@
 package restapi
 
 import (
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	"github.com/hashicorp/terraform/helper/resource"
 	"os"
 	"testing"
+
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	"github.com/hashicorp/terraform/helper/resource"
 )
 
 func TestAccRestApiObject_importBasic(t *testing.T) {
@@ -25,7 +26,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 		copy_keys:             make([]string, 0),
 		write_returns_object:  false,
 		create_returns_object: false,
-		debug: debug,
+		debug:                 debug,
 	}
 	client, err := NewAPIClient(opt)
 	if err != nil {
@@ -45,12 +46,13 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:            "restapi_object.Foo",
-				ImportState:             true,
-				ImportStateId:           "1234",
-				ImportStateIdPrefix:     "/api/objects/",
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"debug", "data"},
+				ResourceName:        "restapi_object.Foo",
+				ImportState:         true,
+				ImportStateId:       "1234",
+				ImportStateIdPrefix: "/api/objects/",
+				ImportStateVerify:   true,
+				/* create_response isn't populated during import (we don't know the API response from creation) */
+				ImportStateVerifyIgnore: []string{"debug", "data", "create_response"},
 			},
 		},
 	})
