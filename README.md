@@ -76,6 +76,7 @@ By default data isn't considered as sensitive. If you want to hide `data's` valu
 This provider also exports the following parameters:
 - `id`: The native ID of the API object as the API server recognizes it.
 - `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
+- `api_response`: Contains the raw JSON response read back from the API server. Can be parsed with [`jsondecode`](https://www.terraform.io/docs/configuration/functions/jsondecode.html) to allow access to deeply nested data.
 
 &nbsp;
 

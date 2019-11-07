@@ -51,6 +51,11 @@ func dataSourceRestApi() *schema.Resource {
 				Description: "After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).",
 				Computed:    true,
 			},
+			"api_response": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "The raw body of the HTTP response from the last read of the object.",
+				Computed:    true,
+			},
 		}, /* End schema */
 
 	}
