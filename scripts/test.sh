@@ -4,7 +4,8 @@ cd $(dirname $0)
 
 export GOOS=""
 export GOARCH=""
-export GOPATH="$HOME/go"
+
+[[ -z "${GOPATH}" ]] && export GOPATH=$HOME/go
 
 echo "Synchronizing dependencies..."
 cd ../
