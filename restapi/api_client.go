@@ -107,7 +107,8 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 	}
 
 	rateLimit := rate.Limit(opt.rate_limit)
-	bucketSize := int(math.Round(opt.rate_limit))
+	bucketSize := int(math.Max(math.Round(opt.rate_limit), 1))
+	log.Printf("limit: %f bucket: %d", opt.rate_limit, bucketSize)
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
 	client := api_client{
@@ -222,11 +223,13 @@ func (client *api_client) send_request(method string, path string, data string) 
 		log.Printf("%s\n", body)
 	}
 
-	// Rate limiting
-	if client.debug {
-		log.Printf("Waiting for rate limit availability\n")
+	if client.rate_limiter != nil {
+		// Rate limiting
+		if client.debug {
+			log.Printf("Waiting for rate limit availability\n")
+		}
+		_ = client.rate_limiter.Wait(context.Background())
 	}
-	_ = client.rate_limiter.Wait(context.Background())
 
 	resp, err := client.http_client.Do(req)
 
