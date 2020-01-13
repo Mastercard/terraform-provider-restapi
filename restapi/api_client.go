@@ -98,6 +98,7 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 	/* Disable TLS verification if requested */
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: opt.insecure},
+		Proxy:           http.ProxyFromEnvironment,
 	}
 
 	var cookieJar http.CookieJar

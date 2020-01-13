@@ -2,11 +2,12 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
 /* After any operation that returns API data, we'll stuff
@@ -18,6 +19,7 @@ func set_resource_state(obj *api_object, d *schema.ResourceData) {
 		api_data[k] = fmt.Sprintf("%v", v)
 	}
 	d.Set("api_data", api_data)
+	d.Set("api_response", obj.api_response)
 }
 
 /* Using GetObjectAtKey, this function verifies the resulting
@@ -33,7 +35,7 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 	if t == "string" {
 		return res.(string), nil
 	} else if t == "float64" {
-                return strconv.FormatFloat(res.(float64), 'f', -1, 64), nil
+		return strconv.FormatFloat(res.(float64), 'f', -1, 64), nil
 	} else {
 		return "", fmt.Errorf("Object at path '%s' is not a JSON string or number (float64). The go fmt package says it is '%T'", path, res)
 	}

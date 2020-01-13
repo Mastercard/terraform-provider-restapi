@@ -2,10 +2,11 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
 func resourceRestApi() *schema.Resource {
@@ -76,6 +77,16 @@ func resourceRestApi() *schema.Resource {
 				Description: "After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).",
 				Computed:    true,
 			},
+			"api_response": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "The raw body of the HTTP response from the last read of the object.",
+				Computed:    true,
+			},
+			"create_response": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "The raw body of the HTTP response returned when creating the object.",
+				Computed:    true,
+			},
 			"force_new": &schema.Schema{
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
@@ -139,6 +150,8 @@ func resourceRestApiCreate(d *schema.ResourceData, meta interface{}) error {
 		/* Setting terraform ID tells terraform the object was created or it exists */
 		d.SetId(obj.id)
 		set_resource_state(obj, d)
+		/* Only set during create for APIs that don't return sensitive data on subsequent retrieval */
+		d.Set("create_response", obj.api_response)
 	}
 	return err
 }
