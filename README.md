@@ -78,6 +78,13 @@ This provider also exports the following parameters:
 - `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
 - `api_response`: Contains the raw JSON response read back from the API server. Can be parsed with [`jsondecode`](https://www.terraform.io/docs/configuration/functions/jsondecode.html) to allow access to deeply nested data.
 
+## Importing existing resources
+This provider supports importing existing resources into the terraform state. Import is done according to the various provider/resource configuation settings to contact the API server and obtain data. That is: if a custom read method, path, or id attribute is defined, the provider will honor those settings to pull data in.
+
+To import data:
+`terraform import restapi.Name <ID>`
+
+See a concrete example [here](examples/dummy_users_with_fakeserver.tf)
 &nbsp;
 
 ## Installation
