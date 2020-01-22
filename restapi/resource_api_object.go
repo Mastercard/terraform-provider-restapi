@@ -106,10 +106,10 @@ func resourceRestApi() *schema.Resource {
 func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported []*schema.ResourceData, err error) {
 	input := d.Id()
 
-	hasTrailingSlash := strings.LastIndex(input, "/") == len(input)
+	hasTrailingSlash := strings.LastIndex(input, "/") == len(input)-1
 	var n int
 	if (hasTrailingSlash) {
-		n = strings.LastIndex(input[0:len(input)-1], "/")
+		n = strings.LastIndex(input[0 : len(input) - 1], "/")
 	} else {
 		n = strings.LastIndex(input, "/")
 	}
@@ -123,9 +123,9 @@ func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported [
 
 	var id string
 	if (hasTrailingSlash) {
-		id = input[n+1 : len(input)-1]
+		id = input[n + 1 : len(input) - 1]
 	} else {
-		id = input[n+1 : len(input)]
+		id = input[n + 1 : len(input)]
 	}
 
 	d.Set("data", fmt.Sprintf(`{ "id": "%s" }`, id))
