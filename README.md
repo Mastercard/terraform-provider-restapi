@@ -82,7 +82,7 @@ This provider also exports the following parameters:
 This provider supports importing existing resources into the terraform state. Import is done according to the various provider/resource configuation settings to contact the API server and obtain data. That is: if a custom read method, path, or id attribute is defined, the provider will honor those settings to pull data in.
 
 To import data:
-`terraform import restapi.Name <ID>`
+`terraform import restapi.Name /path/to/resource`
 
 See a concrete example [here](examples/dummy_users_with_fakeserver.tf)
 &nbsp;

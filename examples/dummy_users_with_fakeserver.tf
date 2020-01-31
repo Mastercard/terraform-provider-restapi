@@ -23,7 +23,7 @@ data "restapi_object" "John" {
 }
 
 # You can import the existing Dave Roe resource by executing:
-# terraform import restapi_object.Dave 4433
+# terraform import restapi_object.Dave /api/objects/4433
 # ... and then manage it here, too!
 # The import will pull in Dave Roe, but the subsequent terraform apply will change the record to "Dave Boe"
 resource "restapi_object" "Dave" {
