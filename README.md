@@ -37,6 +37,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `write_returns_object` (boolean, optional): Set this when the API returns the object created on all write operations (`POST`, `PUT`). This is used by the provider to refresh internal data structures. This can also be set with the environment variable `REST_API_WRO`.
 - `create_returns_object` (boolean, optional): Set this when the API returns the object created only on creation operations (`POST`). This is used by the provider to refresh internal data structures. This can also be set with the environment variable `REST_API_CRO`.
 - `xssi_prefix` (boolean, optional): Trim the xssi prefix from response string, if present, before parsing. This can also be set with the environment variable `REST_API_XSSI_PREFIX`.
+- `rate_limit` (float, optional): Set this to limit the number of requests per second made to the API.
 - `debug` (boolean, optional): Enabling this will cause lots of debug information to be printed to STDOUT by the API client. This can be gathered by setting `TF_LOG=1` environment variable. This can also be set with the environment variable `REST_API_DEBUG`.
 
 &nbsp;

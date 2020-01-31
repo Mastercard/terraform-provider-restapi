@@ -29,7 +29,8 @@ func TestAPIClient(t *testing.T) {
 		copy_keys:             make([]string, 0),
 		write_returns_object:  false,
 		create_returns_object: false,
-		debug: debug,
+		rate_limit:            1,
+		debug:                 debug,
 	}
 	client, _ := NewAPIClient(opt)
 
@@ -65,6 +66,20 @@ func TestAPIClient(t *testing.T) {
 	_, err = client.send_request("GET", "/slow", "")
 	if err == nil {
 		t.Fatalf("client_test.go: Timeout did not trigger on slow request")
+	}
+
+	if debug {
+		log.Printf("api_client_test.go: Testing rate limited OK request\n")
+	}
+	startTime := time.Now().Unix()
+
+	for i := 0; i < 4; i++ {
+		client.send_request("GET", "/ok", "")
+	}
+
+	duration := time.Now().Unix() - startTime
+	if duration < 3 {
+		t.Fatalf("client_test.go: requests not delayed\n")
 	}
 
 	if debug {

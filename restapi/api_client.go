@@ -2,15 +2,19 @@ package restapi
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 type apiClientOpt struct {
@@ -31,6 +35,7 @@ type apiClientOpt struct {
 	create_returns_object bool
 	xssi_prefix           string
 	use_cookies           bool
+	rate_limit            float64
 	debug                 bool
 }
 
@@ -52,6 +57,7 @@ type api_client struct {
 	write_returns_object  bool
 	create_returns_object bool
 	xssi_prefix           string
+	rate_limiter          *rate.Limiter
 	debug                 bool
 }
 
@@ -101,12 +107,18 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		cookieJar, _ = cookiejar.New(nil)
 	}
 
+	rateLimit := rate.Limit(opt.rate_limit)
+	bucketSize := int(math.Max(math.Round(opt.rate_limit), 1))
+	log.Printf("limit: %f bucket: %d", opt.rate_limit, bucketSize)
+	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
+
 	client := api_client{
 		http_client: &http.Client{
 			Timeout:   time.Second * time.Duration(opt.timeout),
 			Transport: tr,
 			Jar:       cookieJar,
 		},
+		rate_limiter:          rateLimiter,
 		uri:                   opt.uri,
 		insecure:              opt.insecure,
 		username:              opt.username,
@@ -210,6 +222,14 @@ func (client *api_client) send_request(method string, path string, data string) 
 			body = string(data)
 		}
 		log.Printf("%s\n", body)
+	}
+
+	if client.rate_limiter != nil {
+		// Rate limiting
+		if client.debug {
+			log.Printf("Waiting for rate limit availability\n")
+		}
+		_ = client.rate_limiter.Wait(context.Background())
 	}
 
 	resp, err := client.http_client.Do(req)
