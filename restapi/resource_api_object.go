@@ -105,7 +105,15 @@ func resourceRestApi() *schema.Resource {
    from the API */
 func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported []*schema.ResourceData, err error) {
 	input := d.Id()
-	n := strings.LastIndex(input, "/")
+
+	hasTrailingSlash := strings.LastIndex(input, "/") == len(input)-1
+	var n int
+	if (hasTrailingSlash) {
+		n = strings.LastIndex(input[0 : len(input) - 1], "/")
+	} else {
+		n = strings.LastIndex(input, "/")
+	}
+
 	if n == -1 {
 		return imported, fmt.Errorf("Invalid path to import api_object '%s'. Must be /<full path from server root>/<object id>", input)
 	}
@@ -113,7 +121,13 @@ func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported [
 	path := input[0:n]
 	d.Set("path", path)
 
-	id := input[n+1 : len(input)]
+	var id string
+	if (hasTrailingSlash) {
+		id = input[n + 1 : len(input) - 1]
+	} else {
+		id = input[n + 1 : len(input)]
+	}
+
 	d.Set("data", fmt.Sprintf(`{ "id": "%s" }`, id))
 	d.SetId(id)
 

@@ -17,7 +17,7 @@
 			"revisionTime": "2019-04-12T11:37:27Z"
 		},
 		{
-			"checksumSHA1": "l/n8xKSFhL5eWDsVE52JwUDl78A=",
+			"checksumSHA1": "Ffhtm8iHH7l2ynVVOIGJE3eiuLA=",
 			"origin": "github.com/hashicorp/terraform/vendor/github.com/apparentlymart/go-textseg/textseg",
 			"path": "github.com/apparentlymart/go-textseg/textseg",
 			"revision": "1c95b21c6cfffc50cb6b3c3c23b2257d28b61a9c",
@@ -534,7 +534,7 @@
 			"revisionTime": "2019-04-12T11:37:27Z"
 		},
 		{
-			"checksumSHA1": "teZHH2MsmI96MNuuP9ieTnes4J8=",
+			"checksumSHA1": "2ydZqQU4ao+N/unf12jVRCimKsQ=",
 			"origin": "github.com/hashicorp/terraform/vendor/github.com/hashicorp/hcl2/hcl/hclsyntax",
 			"path": "github.com/hashicorp/hcl2/hcl/hclsyntax",
 			"revision": "1c95b21c6cfffc50cb6b3c3c23b2257d28b61a9c",
@@ -1034,7 +1034,7 @@
 			"revisionTime": "2019-04-12T11:37:27Z"
 		},
 		{
-			"checksumSHA1": "IK8Sgkc7FuI8iTjDZ63Jh+ZS66Y=",
+			"checksumSHA1": "yeqdMHNrpUPwTUF7cKQ8B7SBT1w=",
 			"origin": "github.com/hashicorp/terraform/vendor/github.com/ulikunitz/xz",
 			"path": "github.com/ulikunitz/xz",
 			"revision": "1c95b21c6cfffc50cb6b3c3c23b2257d28b61a9c",
@@ -1244,7 +1244,7 @@
 			"revisionTime": "2019-04-12T11:37:27Z"
 		},
 		{
-			"checksumSHA1": "sEnY0M5iGRsoXHsjHqFVLPc+OQs=",
+			"checksumSHA1": "3IuYjR6Fs39lJcU4N9KJFvjJx2I=",
 			"origin": "github.com/hashicorp/terraform/vendor/golang.org/x/sys/unix",
 			"path": "golang.org/x/sys/unix",
 			"revision": "1c95b21c6cfffc50cb6b3c3c23b2257d28b61a9c",
@@ -1265,14 +1265,14 @@
 			"revisionTime": "2019-04-12T11:37:27Z"
 		},
 		{
-			"checksumSHA1": "UwLPI4qEs8cBU0CNw+/99/F1rN0=",
+			"checksumSHA1": "Qw4qdlZHCnBurAPPrSt+EKPIngM=",
 			"origin": "github.com/hashicorp/terraform/vendor/golang.org/x/text/unicode/bidi",
 			"path": "golang.org/x/text/unicode/bidi",
 			"revision": "1c95b21c6cfffc50cb6b3c3c23b2257d28b61a9c",
 			"revisionTime": "2019-04-12T11:37:27Z"
 		},
 		{
-			"checksumSHA1": "hLP6GY9wPeMoDoLado5xKAQtXDA=",
+			"checksumSHA1": "gra64bhQn4joYQMtrvihqTwqkM0=",
 			"origin": "github.com/hashicorp/terraform/vendor/golang.org/x/text/unicode/norm",
 			"path": "golang.org/x/text/unicode/norm",
 			"revision": "1c95b21c6cfffc50cb6b3c3c23b2257d28b61a9c",
