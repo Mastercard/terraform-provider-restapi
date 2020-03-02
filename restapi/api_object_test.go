@@ -218,8 +218,8 @@ func TestAPIObject(t *testing.T) {
 		}
 		testing_objects["pet"].delete_object()
 		err = testing_objects["pet"].read_object()
-		if err == nil {
-			t.Fatalf("api_object_test.go: 'pet' object deleted, but 404 not returned when getting it.\n")
+		if err != nil {
+			t.Fatalf("api_object_test.go: 'pet' object deleted, but an error was returned when reading the object (expected the provider to cope with this!\n")
 		}
 	})
 

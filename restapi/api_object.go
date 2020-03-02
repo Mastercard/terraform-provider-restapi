@@ -231,6 +231,11 @@ func (obj *api_object) read_object() error {
 
 	res_str, err := obj.api_client.send_request(obj.api_client.read_method, strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
 	if err != nil {
+		if strings.Contains(err.Error(), "Unexpected response code '404'") {
+			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.get_path)
+			obj.id = ""
+			return nil
+		}
 		return err
 	}
 
