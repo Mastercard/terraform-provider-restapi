@@ -13,28 +13,38 @@ import (
 )
 
 type apiObjectOpts struct {
-	path         string
-	get_path     string
-	post_path    string
-	put_path     string
-	delete_path  string
-	search_path  string
-	debug        bool
-	id           string
-	id_attribute string
-	data         string
+	path          string
+	get_path      string
+	post_path     string
+	put_path      string
+	update_method string
+	delete_path   string
+	search_path   string
+	debug         bool
+	read_search   bool
+	search_key    string
+	search_value  string
+	results_key   string
+	id            string
+	id_attribute  string
+	data          string
 }
 
 type api_object struct {
-	api_client   *api_client
-	get_path     string
-	post_path    string
-	put_path     string
-	delete_path  string
-	search_path  string
-	debug        bool
-	id           string
-	id_attribute string
+	api_client    *api_client
+	get_path      string
+	post_path     string
+	put_path      string
+	update_method string
+	delete_path   string
+	search_path   string
+	debug         bool
+	read_search   bool
+	search_key    string
+	search_value  string
+	results_key   string
+	id            string
+	id_attribute  string
 
 	/* Set internally */
 	data         map[string]interface{} /* Data as managed by the user */
@@ -74,17 +84,22 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 	}
 
 	obj := api_object{
-		api_client:   i_client,
-		get_path:     opts.get_path,
-		post_path:    opts.post_path,
-		put_path:     opts.put_path,
-		delete_path:  opts.delete_path,
-		search_path:  opts.search_path,
-		debug:        opts.debug,
-		id:           opts.id,
-		id_attribute: opts.id_attribute,
-		data:         make(map[string]interface{}),
-		api_data:     make(map[string]interface{}),
+		api_client:    i_client,
+		get_path:      opts.get_path,
+		post_path:     opts.post_path,
+		put_path:      opts.put_path,
+		update_method: opts.update_method,
+		delete_path:   opts.delete_path,
+		search_path:   opts.search_path,
+		debug:         opts.debug,
+		read_search:   opts.read_search,
+		search_key:    opts.search_key,
+		search_value:  opts.search_value,
+		results_key:   opts.results_key,
+		id:            opts.id,
+		id_attribute:  opts.id_attribute,
+		data:          make(map[string]interface{}),
+		api_data:      make(map[string]interface{}),
 	}
 
 	if opts.data != "" {
@@ -131,6 +146,10 @@ func (obj *api_object) toString() string {
 	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.put_path))
 	buffer.WriteString(fmt.Sprintf("delete_path: %s\n", obj.delete_path))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
+	buffer.WriteString(fmt.Sprintf("read_search: %t\n", obj.read_search))
+	buffer.WriteString(fmt.Sprintf("search_key: %s\n", obj.search_key))
+	buffer.WriteString(fmt.Sprintf("search_value: %s\n", obj.search_value))
+	buffer.WriteString(fmt.Sprintf("results_key: %s\n", obj.results_key))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.api_data)))
 	return buffer.String()
@@ -239,7 +258,17 @@ func (obj *api_object) read_object() error {
 		return err
 	}
 
-	err = obj.update_state(res_str)
+	if obj.read_search {
+		obj.search_path = strings.Replace(obj.get_path, "{id}", obj.id, -1)
+		res_str_fltr, err := obj.filter_object(res_str, obj.search_key, obj.search_value, obj.results_key)
+		if err != nil {
+			obj.id = ""
+			return nil
+		}
+		err = obj.update_state(res_str_fltr)
+	} else {
+		err = obj.update_state(res_str)
+	}
 	return err
 }
 
@@ -387,4 +416,71 @@ func (obj *api_object) find_object(query_string string, search_key string, searc
 	}
 
 	return nil
+}
+
+func (obj *api_object) filter_object(data string, search_key string, search_value string, results_key string) (string, error)  {
+	var data_array []interface{}
+	var ok bool
+	/*
+	   Parse it seeking JSON data
+	*/
+	var result interface{}
+	err := json.Unmarshal([]byte(data), &result)
+	if err != nil {
+		return "", err
+	}
+
+	if "" != results_key {
+		var tmp interface{}
+
+		if obj.debug {
+			log.Printf("api_object.go: Locating '%s' in the results", results_key)
+		}
+
+		/* First verify the data we got back is a hash */
+		if _, ok = result.(map[string]interface{}); !ok {
+			return "", fmt.Errorf("api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", obj.search_path, results_key)
+		}
+
+		tmp, err = GetObjectAtKey(result.(map[string]interface{}), results_key, obj.debug)
+		if err != nil {
+			return "", fmt.Errorf("api_object.go: Error finding results_key: %s", err)
+		}
+		if data_array, ok = tmp.([]interface{}); !ok {
+			return "", fmt.Errorf("api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", results_key, reflect.TypeOf(tmp))
+		}
+	} else {
+		if obj.debug {
+			log.Printf("api_object.go: results_key is not set - coaxing data to array of interfaces")
+		}
+		if data_array, ok = result.([]interface{}); !ok {
+			return "", fmt.Errorf("api_object.go: The results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", obj.search_path, reflect.TypeOf(result))
+		}
+	}
+
+	/* Loop through all of the results seeking the specific record */
+	for _, item := range data_array {
+		var hash map[string]interface{}
+
+		if hash, ok = item.(map[string]interface{}); !ok {
+			return "", fmt.Errorf("api_object.go: The elements being searched for data are not a map of key value pairs.")
+		}
+
+		if obj.debug {
+			log.Printf("api_object.go: Examining %v", hash)
+			log.Printf("api_object.go:   Comparing '%s' to the value in '%s'", search_value, search_key)
+		}
+
+		tmp, err := GetStringAtKey(hash, search_key, obj.debug)
+		if err != nil {
+			return "", (fmt.Errorf("Failed to get the value of '%s' in the results array at '%s': %s", search_key, results_key, err))
+		}
+
+		/* We found our record */
+		if tmp == search_value {
+			b, _ := json.Marshal(hash)
+			return string(b), nil
+		}
+	}
+	return "", nil
 }

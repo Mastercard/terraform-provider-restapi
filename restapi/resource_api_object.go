@@ -71,6 +71,27 @@ func resourceRestApi() *schema.Resource {
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
 				Optional:    true,
 			},
+			"read_search": &schema.Schema{
+				Type:        schema.TypeBool,
+				Description: "Enables usage of `search_key` and `search_value` or `results_key` on `read_path` only.",
+				Optional:    true,
+				Default:     false,
+			},
+			"search_key": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
+				Optional:    true,
+			},
+			"search_value": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.",
+				Optional:    true,
+			},
+			"results_key": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.",
+				Optional:    true,
+			},
 			"api_data": &schema.Schema{
 				Type:        schema.TypeMap,
 				Elem:        &schema.Schema{Type: schema.TypeString},
@@ -296,7 +317,16 @@ func buildApiObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	if v, ok := d.GetOk("destroy_path"); ok {
 		opts.delete_path = v.(string)
 	}
-
+	if v, ok := d.GetOk("search_key"); ok {
+		opts.search_key = v.(string)
+	}
+	if v, ok := d.GetOk("search_value"); ok {
+		opts.search_value = v.(string)
+	}
+	if v, ok := d.GetOk("results_key"); ok {
+		opts.results_key = v.(string)
+	}
+	opts.read_search = d.Get("read_search").(bool)
 	opts.data = d.Get("data").(string)
 	opts.debug = d.Get("debug").(bool)
 
