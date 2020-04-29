@@ -5,6 +5,9 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 
 	"github.com/hashicorp/terraform/helper/schema"
 )
@@ -12,6 +15,15 @@ import (
 func resourceRestApi() *schema.Resource {
 	// Consider data sensitive if env variables is set to true.
 	is_data_sensitive, _ := strconv.ParseBool(GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
+	is_data_md5 := func(val interface{}) string {
+					data := md5.Sum([]byte(val.(string)))
+					m := map[string]string{
+					    "value": hex.EncodeToString(data[:]),
+					}
+					strval, _ := json.Marshal(m)
+
+					return string(strval)
+				}
 
 	return &schema.Resource{
 		Create: resourceRestApiCreate,
@@ -63,8 +75,16 @@ func resourceRestApi() *schema.Resource {
 			"data": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "Valid JSON data that this provider will manage with the API server.",
-				Required:    true,
+				Optional:    true,
 				Sensitive:   is_data_sensitive,
+				ConflictsWith: []string{"data_md5hash"},
+			},
+			"data_md5hash": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Valid JSON data that this provider will manage with the API server stored in md5 hash.",
+				Optional:    true,
+				StateFunc:   is_data_md5,
+				ConflictsWith: []string{"data"},
 			},
 			"debug": &schema.Schema{
 				Type:        schema.TypeBool,
@@ -76,6 +96,12 @@ func resourceRestApi() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).",
 				Computed:    true,
+			},
+			"update_api_data": &schema.Schema{
+				Type:        schema.TypeBool,
+				Description: "After data from the API server is read, update api_data and api_response in the state.",
+				Optional:    true,
+				Default:     true,
 			},
 			"api_response": &schema.Schema{
 				Type:        schema.TypeString,
@@ -182,7 +208,9 @@ func resourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 		/* Setting terraform ID tells terraform the object was created or it exists */
 		log.Printf("resource_api_object.go: Read resource. Returned id is '%s'\n", obj.id)
 		d.SetId(obj.id)
-		set_resource_state(obj, d)
+		if d.Get("update_api_data").(bool) {
+			set_resource_state(obj, d)
+		}
 	}
 	return err
 }
@@ -207,7 +235,9 @@ func resourceRestApiUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	err = obj.update_object()
 	if err == nil {
-		set_resource_state(obj, d)
+		if d.Get("update_api_data").(bool) {
+			set_resource_state(obj, d)
+		}
 	}
 	return err
 }
@@ -296,8 +326,13 @@ func buildApiObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	if v, ok := d.GetOk("destroy_path"); ok {
 		opts.delete_path = v.(string)
 	}
+	if v, ok := d.GetOk("data"); ok {
+		opts.data = v.(string)
+	}
+	if v, ok := d.GetOk("data_md5hash"); ok {
+		opts.data = v.(string)
+	}
 
-	opts.data = d.Get("data").(string)
 	opts.debug = d.Get("debug").(bool)
 
 	return opts, nil

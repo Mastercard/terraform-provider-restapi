@@ -50,7 +50,8 @@ Have a look at the [examples directory](examples) for some use cases
 - `destroy_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `id_attribute` (string, optional): Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation).
 - `object_id` (string, optional): Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
-- `data` (string, required): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information.
+- `data` (string, optional): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information. Cannot be used with - `data_md5hash`.
+- `data_md5hash` (string, optional): Valid JSON data that this provider will manage with the API server stored in md5 hash. Cannot be used with - `data`.
 - `force_new` (array of strings, optional): Any changes to these values will result in recreating the resource instead of updating.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
