@@ -13,30 +13,36 @@ import (
 )
 
 type apiObjectOpts struct {
-	path          string
-	get_path      string
-	post_path     string
-	put_path      string
-	update_method string
-	delete_path   string
-	search_path   string
-	debug         bool
-	id            string
-	id_attribute  string
-	data          string
+	path           string
+	get_path       string
+	post_path      string
+	put_path       string
+	create_method  string
+	read_method    string
+	update_method  string
+	destroy_method string
+	delete_path    string
+	search_path    string
+	debug          bool
+	id             string
+	id_attribute   string
+	data           string
 }
 
 type api_object struct {
-	api_client    *api_client
-	get_path      string
-	post_path     string
-	put_path      string
-	update_method string
-	delete_path   string
-	search_path   string
-	debug         bool
-	id            string
-	id_attribute  string
+	api_client     *api_client
+	get_path       string
+	post_path      string
+	put_path       string
+	create_method  string
+	read_method    string
+	update_method  string
+	destroy_method string
+	delete_path    string
+	search_path    string
+	debug          bool
+	id             string
+	id_attribute   string
 
 	/* Set internally */
 	data         map[string]interface{} /* Data as managed by the user */
@@ -59,8 +65,17 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 		opts.id_attribute = i_client.id_attribute
 	}
 
+	if opts.create_method == "" {
+		opts.create_method = i_client.create_method
+	}
+	if opts.read_method == "" {
+		opts.read_method = i_client.read_method
+	}
 	if opts.update_method == "" {
 		opts.update_method = i_client.update_method
+	}
+	if opts.destroy_method == "" {
+		opts.destroy_method = i_client.destroy_method
 	}
 
 	if opts.post_path == "" {
@@ -80,18 +95,21 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 	}
 
 	obj := api_object{
-		api_client:    i_client,
-		get_path:      opts.get_path,
-		post_path:     opts.post_path,
-		put_path:      opts.put_path,
-		update_method: opts.update_method,
-		delete_path:   opts.delete_path,
-		search_path:   opts.search_path,
-		debug:         opts.debug,
-		id:            opts.id,
-		id_attribute:  opts.id_attribute,
-		data:          make(map[string]interface{}),
-		api_data:      make(map[string]interface{}),
+		api_client:     i_client,
+		get_path:       opts.get_path,
+		post_path:      opts.post_path,
+		put_path:       opts.put_path,
+		create_method:  opts.create_method,
+		read_method:    opts.read_method,
+		update_method:  opts.update_method,
+		destroy_method: opts.destroy_method,
+		delete_path:    opts.delete_path,
+		search_path:    opts.search_path,
+		debug:          opts.debug,
+		id:             opts.id,
+		id_attribute:   opts.id_attribute,
+		data:           make(map[string]interface{}),
+		api_data:       make(map[string]interface{}),
 	}
 
 	if opts.data != "" {
@@ -137,6 +155,10 @@ func (obj *api_object) toString() string {
 	buffer.WriteString(fmt.Sprintf("post_path: %s\n", obj.post_path))
 	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.put_path))
 	buffer.WriteString(fmt.Sprintf("delete_path: %s\n", obj.delete_path))
+	buffer.WriteString(fmt.Sprintf("create_method: %s\n", obj.create_method))
+	buffer.WriteString(fmt.Sprintf("read_method: %s\n", obj.read_method))
+	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.update_method))
+	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroy_method))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.api_data)))
@@ -204,7 +226,7 @@ func (obj *api_object) create_object() error {
 	}
 
 	b, _ := json.Marshal(obj.data)
-	res_str, err := obj.api_client.send_request(obj.api_client.create_method, strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
+	res_str, err := obj.api_client.send_request(obj.create_method, strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
 	if err != nil {
 		return err
 	}
@@ -236,7 +258,7 @@ func (obj *api_object) read_object() error {
 		return errors.New("Cannot read an object unless the ID has been set.")
 	}
 
-	res_str, err := obj.api_client.send_request(obj.api_client.read_method, strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
+	res_str, err := obj.api_client.send_request(obj.read_method, strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
 	if err != nil {
 		if strings.Contains(err.Error(), "Unexpected response code '404'") {
 			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.get_path)
@@ -281,7 +303,7 @@ func (obj *api_object) delete_object() error {
 		return nil
 	}
 
-	_, err := obj.api_client.send_request(obj.api_client.destroy_method, strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
+	_, err := obj.api_client.send_request(obj.destroy_method, strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
 	if err != nil {
 		return err
 	}
