@@ -90,7 +90,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	if err := obj.find_object(query_string, search_key, search_value, results_key); err != nil {
+	if _, err := obj.find_object(query_string, search_key, search_value, results_key); err != nil {
 		return err
 	}
 
