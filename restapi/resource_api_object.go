@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/nsf/jsondiff"
 )
 
 func resourceRestApi() *schema.Resource {
@@ -66,6 +67,14 @@ func resourceRestApi() *schema.Resource {
 				Required:    true,
 				Sensitive:   is_data_sensitive,
 			},
+			"state_keys": &schema.Schema{
+				Type: schema.TypeList,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Description: "A list of keys in the data structure that will be checked against the server's responses to detect drift. If the `data` field and the server's response for that field do not match, the provider will update the server. Like the `id_attribute`, this value can point to \"deep\" data by using /-delimited strings. It is recommended to set this to the top level keys of our `data` element.",
+				Required:    false,
+			},
 			"debug": &schema.Schema{
 				Type:        schema.TypeBool,
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
@@ -108,8 +117,8 @@ func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported [
 
 	hasTrailingSlash := strings.LastIndex(input, "/") == len(input)-1
 	var n int
-	if (hasTrailingSlash) {
-		n = strings.LastIndex(input[0 : len(input) - 1], "/")
+	if hasTrailingSlash {
+		n = strings.LastIndex(input[0:len(input)-1], "/")
 	} else {
 		n = strings.LastIndex(input, "/")
 	}
@@ -122,10 +131,10 @@ func resourceRestApiImport(d *schema.ResourceData, meta interface{}) (imported [
 	d.Set("path", path)
 
 	var id string
-	if (hasTrailingSlash) {
-		id = input[n + 1 : len(input) - 1]
+	if hasTrailingSlash {
+		id = input[n+1 : len(input)-1]
 	} else {
-		id = input[n + 1 : len(input)]
+		id = input[n+1 : len(input)]
 	}
 
 	d.Set("data", fmt.Sprintf(`{ "id": "%s" }`, id))
@@ -179,9 +188,25 @@ func resourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
 	err = obj.read_object()
 	if err == nil {
-		/* Setting terraform ID tells terraform the object was created or it exists */
 		log.Printf("resource_api_object.go: Read resource. Returned id is '%s'\n", obj.id)
-		d.SetId(obj.id)
+		id_to_set := obj.id
+
+/*
+		previous_response := d.Get("tracked_keys").(string)
+		if previous_response != "" {
+			log.Printf("resource_api_object.go: Existing tracked_keys exists in state - checking it against this read to determine if there were changes\n")
+			opts := jsondiff.DefaultConsoleOptions()
+			cmp, cmp_description := jsondiff.Compare([]byte(obj.api_response), []byte(previous_response), &opts)
+			log.Printf("resource_api_object.go: jsondiff output follows\n%s", cmp_description)
+			if cmp != jsondiff.FullMatch {
+				log.Printf("resource_api_object.go: Diff detected between previous and current JSON response\n")
+				id_to_set = ""
+			}
+		}
+*/
+
+		/* Setting terraform ID tells terraform the object was created or it exists */
+		d.SetId(id_to_set)
 		set_resource_state(obj, d)
 	}
 	return err

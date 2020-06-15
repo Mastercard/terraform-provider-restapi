@@ -162,3 +162,20 @@ func TestGetListStringAtKey(t *testing.T) {
 		t.Fatalf("Error: Expected '2', but got %s", res)
 	}
 }
+
+func TestGetTrackingJson(t *testing.T) {
+	test_json := `{ "foo":"bar", "a":"b" }`
+	res, err := GetTrackingJson(test_json, make([]string, 0))
+	if err != nil {
+		t.Fatalf("Error getting tracking JSON %s", err)
+	} else if res != test_json {
+		t.Fatalf("Expected output to be the same as input when an empty list of keys was passed")
+	}
+
+	res, err = GetTrackingJson(test_json, []string{"foo"})
+	if err != nil {
+		t.Fatalf("Error getting tracking JSON %s", err)
+	} else if res != `{"foo":"bar"}` {
+		t.Fatalf("Expected output to be `{ foo: bar }` but it was `%s`", res)
+	}
+}

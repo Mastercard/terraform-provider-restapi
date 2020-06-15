@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -146,4 +147,31 @@ func GetEnvOrDefault(k string, defaultvalue string) string {
 		return defaultvalue
 	}
 	return v
+}
+
+/* Handy helper that will return a new JSON string constructed
+of only the keys passed to this function
+*/
+func GetTrackingJson(input string, keys []string) (string, error) {
+	if len(keys) < 1 {
+		return input, nil
+	}
+
+	hash := make(map[string]string)
+	tmp := make(map[string]interface{})
+	err := json.Unmarshal([]byte(input), &tmp)
+	if err != nil {
+		return "", err
+	}
+
+	for _, k := range keys {
+		v, err := GetStringAtKey(tmp, k, false)
+		if err != nil {
+			return "", err
+		}
+		hash[k] = v
+	}
+
+	hash_bytes, err := json.Marshal(hash)
+	return string(hash_bytes), err
 }

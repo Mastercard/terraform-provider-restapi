@@ -1,0 +1,2 @@
+## New
+ - Cope with an object that was deleted server-side during state reading by unsetting state (will trigger a recreate during plan/apply). Thanks, @NamrathaG for the report!
