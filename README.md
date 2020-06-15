@@ -109,9 +109,8 @@ Pull requests are always welcome! Please be sure the following things are taken 
 * Ensure new attributes can also be set by environment variables
 
 #### Development environment requirements
-* [Golang](https://golang.org/dl/) is installed and `go` is in your path
+* [Golang](https://golang.org/dl/) v1.11 or newer is installed and `go` is in your path
 * [Terraform](https://www.terraform.io/downloads.html) is installed and `terraform` is in your path
-* Optional for packaging dependencies: [govendor](https://github.com/kardianos/govendor) is installed and `govendor` is in your path by running `govendor update github.com/hashicorp/terraform`
 
 To make development easy, you can use the Docker image [druggeri/tdk](https://hub.docker.com/r/druggeri/tdk) as a development environment:
 ```
