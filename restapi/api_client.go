@@ -46,7 +46,6 @@ type api_client struct {
 	username              string
 	password              string
 	headers               map[string]string
-	use_cookie            bool
 	timeout               int
 	id_attribute          string
 	create_method         string
