@@ -47,6 +47,10 @@ Have a look at the [examples directory](examples) for some use cases
 - `create_path` (string, optional): Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.
 - `read_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `update_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
+- `create_method` (string, optional): Defaults to `create_method` set on the provider. Allows per-resource override of `create_method` (see `create_method` provider config documentation).
+- `read_method` (string, optional): Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation).
+- `update_method` (string, optional): Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation).
+- `destroy_method` (string, optional): Defaults to `destroy_method` set on the provider. Allows per-resource override of `destroy_method` (see `destroy_method` provider config documentation).
 - `destroy_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `id_attribute` (string, optional): Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation).
 - `object_id` (string, optional): Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.

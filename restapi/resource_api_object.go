@@ -45,6 +45,26 @@ func resourceRestApi() *schema.Resource {
 				Description: "Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
 				Optional:    true,
 			},
+			"create_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `create_method` set on the provider. Allows per-resource override of `create_method` (see `create_method` provider config documentation)",
+				Optional:    true,
+			},
+			"read_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation)",
+				Optional:    true,
+			},
+			"update_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)",
+				Optional:    true,
+			},
+			"destroy_method": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "Defaults to `destroy_method` set on the provider. Allows per-resource override of `destroy_method` (see `destroy_method` provider config documentation)",
+				Optional:    true,
+			},
 			"destroy_path": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
@@ -292,6 +312,18 @@ func buildApiObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("update_path"); ok {
 		opts.put_path = v.(string)
+	}
+	if v, ok := d.GetOk("create_method"); ok {
+		opts.create_method = v.(string)
+	}
+	if v, ok := d.GetOk("read_method"); ok {
+		opts.read_method = v.(string)
+	}
+	if v, ok := d.GetOk("update_method"); ok {
+		opts.update_method = v.(string)
+	}
+	if v, ok := d.GetOk("destroy_method"); ok {
+		opts.destroy_method = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_path"); ok {
 		opts.delete_path = v.(string)
