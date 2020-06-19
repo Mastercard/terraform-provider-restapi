@@ -56,6 +56,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `object_id` (string, optional): Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
 - `data` (string, optional): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information. Cannot be used with - `data_md5hash`.
 - `data_md5hash` (string, optional): Valid JSON data that this provider will manage with the API server stored in md5 hash. Cannot be used with - `data`.
+- `update_api_data` (boolean, optional): Defaults to `true`. After data from the API server is read, update api_data and api_response in the state.
 - `force_new` (array of strings, optional): Any changes to these values will result in recreating the resource instead of updating.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 
