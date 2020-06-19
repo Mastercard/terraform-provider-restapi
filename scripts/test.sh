@@ -7,11 +7,7 @@ export GOARCH=""
 
 [[ -z "${GOPATH}" ]] && export GOPATH=$HOME/go
 
-echo "Synchronizing dependencies..."
-cd ../
-govendor sync
-
-cd restapi
+cd ../restapi
 
 echo "Running tests..."
 if ! go test;then

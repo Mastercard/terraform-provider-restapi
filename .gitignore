@@ -7,7 +7,7 @@ crash.log
 examples/terraform*
 **/github_api_token
 **/release_info.md
+fakeservercli/fakeservercli
 scripts/terraform-provider-restapi*
 scripts/fakeserver*
 tmp
-vendor/*/
