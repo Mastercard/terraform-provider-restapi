@@ -43,11 +43,6 @@ fi
 ARTIFACTS=()
 #for GOOS in darwin linux windows netbsd openbsd solaris;do
 
-echo "Synchronizing dependencies..."
-cd ../
-govendor sync
-cd -
-
 echo "Building..."
 for GOOS in "${OSs[@]}";do
   for GOARCH in "${ARCHs[@]}";do
