@@ -24,7 +24,7 @@ type apiObjectOpts struct {
 	delete_path    string
 	search_path    string
 	debug          bool
-  read_search    map[string]string
+	read_search    map[string]string
 	id             string
 	id_attribute   string
 	data           string
@@ -42,7 +42,7 @@ type api_object struct {
 	delete_path    string
 	search_path    string
 	debug          bool
-  read_search    map[string]string
+	read_search    map[string]string
 	id             string
 	id_attribute   string
 
@@ -108,7 +108,7 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 		delete_path:    opts.delete_path,
 		search_path:    opts.search_path,
 		debug:          opts.debug,
-    read_search:    opts.read_search,
+		read_search:    opts.read_search,
 		id:             opts.id,
 		id_attribute:   opts.id_attribute,
 		data:           make(map[string]interface{}),
@@ -332,7 +332,6 @@ func (obj *api_object) delete_object() error {
 
 	return nil
 }
-
 
 func (obj *api_object) find_object(query_string string, search_key string, search_value string, results_key string) (map[string]interface{}, error) {
 	var obj_found map[string]interface{}
