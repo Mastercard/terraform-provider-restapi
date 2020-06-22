@@ -90,7 +90,7 @@ var client, err = NewAPIClient(&apiClientOpt{
 	copy_keys:             []string{"Thing"},
 	write_returns_object:  true,
 	create_returns_object: false,
-	debug: api_client_debug,
+	debug:                 api_client_debug,
 })
 
 func GenerateTestObjects(data_objects []string, t *testing.T, test_debug bool) (typed map[string]test_api_object, untyped map[string]map[string]interface{}) {
@@ -261,12 +261,17 @@ func TestAPIObject(t *testing.T) {
 		search_key := "Thing"
 		search_value := "dog"
 		results_key := ""
-		if err := object.find_object(query_string, search_key, search_value, results_key); err != nil {
+		tmp_obj, err := object.find_object(query_string, search_key, search_value, results_key)
+		if err != nil {
 			t.Fatalf("api_object_test.go: Failed to find api_object: %s", search_value)
 		}
 
 		if object.id != "5" {
-			t.Errorf("%s: expected %s but got %s", search_value, "5", object.id)
+			t.Errorf("%s: expected populated object from search to be %s but got %s", search_value, "5", object.id)
+		}
+
+		if tmp_obj["Id"] != "5" {
+			t.Errorf("%s: expected found object from search to be %s but got %s from %v", search_value, "5", tmp_obj["Id"], tmp_obj)
 		}
 	})
 
