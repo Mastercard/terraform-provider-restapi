@@ -1,5 +1,14 @@
 #!/bin/bash -e
 
+#Build the docs first
+cd $(dirname $0)/../
+tfpluginwebsite
+DIFFOUTPUT=`git diff docs`
+if [ -n "$DIFFOUTPUT" ];then
+  git commit -m 'Update docs before release' docs
+  git push
+fi
+
 OSs=("darwin" "linux" "windows")
 ARCHs=("386" "amd64")
 
