@@ -226,7 +226,7 @@ func (obj *api_object) create_object() error {
 	   with the id of whatever gets created, we have no way to know what
 	   the object's id will be. Abandon this attempt */
 	if obj.id == "" && !obj.api_client.write_returns_object && !obj.api_client.create_returns_object {
-		return errors.New("ERROR: Provided object does not have an id set and the client is not configured to read the object from a POST or PUT response. Without an id, the object cannot be managed.")
+		return errors.New("ERROR: Provided object does not have an id set and the client is not configured to read the object from a POST or PUT response. Please set write_returns_object to true, or include an id in the object's data.")
 	}
 
 	b, _ := json.Marshal(obj.data)
