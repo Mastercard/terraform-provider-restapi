@@ -37,10 +37,10 @@ type apiClientOpt struct {
 	use_cookies                  bool
 	rate_limit                   float64
 	use_oauth_client_credentials bool
-	oidc_client_id               string
-	oidc_client_secret           string
-	oidc_scopes                  []string
-	oidc_token_url               string
+	oauth_client_id              string
+	oauth_client_secret          string
+	oauth_scopes                 []string
+	oauth_token_url              string
 	debug                        bool
 }
 
@@ -144,10 +144,10 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 	if opt.use_oauth_client_credentials {
 
 		client.oauth_config = &clientcredentials.Config{
-			ClientID:     opt.oidc_client_id,
-			ClientSecret: opt.oidc_client_secret,
-			TokenURL:     opt.oidc_token_url,
-			Scopes:       opt.oidc_scopes,
+			ClientID:     opt.oauth_client_id,
+			ClientSecret: opt.oauth_client_secret,
+			TokenURL:     opt.oauth_token_url,
+			Scopes:       opt.oauth_scopes,
 		}
 
 	}

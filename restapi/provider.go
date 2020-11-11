@@ -218,10 +218,10 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 
 		oauth_config := v.([]interface{})[0].(map[string]interface{})
 
-		opt.oidc_client_id = oauth_config["oauth_client_id"].(string)
-		opt.oidc_client_secret = oauth_config["oauth_client_secret"].(string)
-		opt.oidc_token_url = oauth_config["oauth_token_endpoint"].(string)
-		opt.oidc_scopes = expandStringSet(oauth_config["oauth_scopes"].([]interface{}))
+		opt.oauth_client_id = oauth_config["oauth_client_id"].(string)
+		opt.oauth_client_secret = oauth_config["oauth_client_secret"].(string)
+		opt.oauth_token_url = oauth_config["oauth_token_endpoint"].(string)
+		opt.oauth_scopes = expandStringSet(oauth_config["oauth_scopes"].([]interface{}))
 	}
 
 	client, err := NewAPIClient(opt)

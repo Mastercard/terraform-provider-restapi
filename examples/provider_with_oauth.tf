@@ -4,9 +4,9 @@ provider "restapi" {
   write_returns_object = true
 
   oauth_client_credentials {
-      client_id = "example"
-      client_secret = "example"
-      token_endpoint = "https://exmaple.com/tokenendpoint"
-      scopes = ["openid"]
+      oauth_client_id = "example"
+      oauth_client_secret = "example"
+      oauth_token_endpoint = "https://exmaple.com/tokenendpoint"
+      oauth_scopes = ["openid"]
   }
 }
