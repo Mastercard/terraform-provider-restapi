@@ -37,10 +37,10 @@ type apiClientOpt struct {
 	use_cookies                  bool
 	rate_limit                   float64
 	use_oauth_client_credentials bool
-	client_id                    string
-	client_secret                string
-	scopes                       []string
-	token_url                    string
+	oidc_client_id               string
+	oidc_client_secret           string
+	oidc_scopes                  []string
+	oidc_token_url               string
 	debug                        bool
 }
 
@@ -63,6 +63,7 @@ type api_client struct {
 	xssi_prefix           string
 	rate_limiter          *rate.Limiter
 	debug                 bool
+	oauth_config          *clientcredentials.Config
 }
 
 // Make a new api client for RESTful calls
@@ -116,26 +117,12 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 	log.Printf("limit: %f bucket: %d", opt.rate_limit, bucketSize)
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
-	httpClient := &http.Client{}
-
-	if opt.use_oauth_client_credentials {
-
-		config := clientcredentials.Config{
-			ClientID:     opt.client_id,
-			ClientSecret: opt.client_secret,
-			TokenURL:     opt.token_url,
-			Scopes:       opt.scopes,
-		}
-
-		httpClient = config.Client(context.Background())
-	}
-
-	httpClient.Timeout = time.Second * time.Duration(opt.timeout)
-	httpClient.Transport = tr
-	httpClient.Jar = cookieJar
-
 	client := api_client{
-		http_client:           httpClient,
+		http_client: &http.Client{
+			Timeout:   time.Second * time.Duration(opt.timeout),
+			Transport: tr,
+			Jar:       cookieJar,
+		},
 		rate_limiter:          rateLimiter,
 		uri:                   opt.uri,
 		insecure:              opt.insecure,
@@ -152,6 +139,17 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		create_returns_object: opt.create_returns_object,
 		xssi_prefix:           opt.xssi_prefix,
 		debug:                 opt.debug,
+	}
+
+	if opt.use_oauth_client_credentials {
+
+		client.oauth_config = &clientcredentials.Config{
+			ClientID:     opt.oidc_client_id,
+			ClientSecret: opt.oidc_client_secret,
+			TokenURL:     opt.oidc_token_url,
+			Scopes:       opt.oidc_scopes,
+		}
+
 	}
 
 	if opt.debug {
@@ -219,6 +217,15 @@ func (client *api_client) send_request(method string, path string, data string) 
 		for n, v := range client.headers {
 			req.Header.Set(n, v)
 		}
+	}
+
+	if client.oauth_config != nil {
+		tokenSource := client.oauth_config.TokenSource(context.Background())
+		token, err := tokenSource.Token()
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
 
 	if client.username != "" && client.password != "" {

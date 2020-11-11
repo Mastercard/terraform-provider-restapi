@@ -119,29 +119,32 @@ func Provider() terraform.ResourceProvider {
 				Description: "Enabling this will cause lots of debug information to be printed to STDOUT by the API client.",
 			},
 			"oauth_client_credentials": {
-				Type:        schema.TypeMap,
+				Type:        schema.TypeList,
 				Optional:    true,
 				MaxItems:    1,
 				Description: "Configuration for oauth client credential flow",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"client_id": {
+						"oauth_client_id": {
 							Type:        schema.TypeString,
 							Description: "client id",
+							Required:    true,
 						},
-						"client_secret": {
-							Type:        schema.TypeSet,
+						"oauth_client_secret": {
+							Type:        schema.TypeString,
 							Description: "client secret",
+							Required:    true,
 						},
-						"token_endpoint": {
-							Type:        schema.TypeSet,
+						"oauth_token_endpoint": {
+							Type:        schema.TypeString,
 							Description: "oauth token endpoint",
+							Required:    true,
 						},
-						"scopes": {
+						"oauth_scopes": &schema.Schema{
 							Type:        schema.TypeList,
 							Elem:        &schema.Schema{Type: schema.TypeString},
 							Optional:    true,
-							Description: "string arra of scopes",
+							Description: "scopes",
 						},
 					},
 				},
@@ -212,12 +215,13 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	}
 	if v, ok := d.GetOk("oauth_client_credentials"); ok {
 		opt.use_oauth_client_credentials = true
-		oauth_config := v.(map[string]interface{})
 
-		opt.client_id = oauth_config["client_id"].(string)
-		opt.client_secret = oauth_config["client_secret"].(string)
-		opt.token_url = oauth_config["token_endpoint"].(string)
-		opt.scopes = expandStringSet(oauth_config["scopes"].([]interface{}))
+		oauth_config := v.([]interface{})[0].(map[string]interface{})
+
+		opt.oidc_client_id = oauth_config["oauth_client_id"].(string)
+		opt.oidc_client_secret = oauth_config["oauth_client_secret"].(string)
+		opt.oidc_token_url = oauth_config["oauth_token_endpoint"].(string)
+		opt.oidc_scopes = expandStringSet(oauth_config["oauth_scopes"].([]interface{}))
 	}
 
 	client, err := NewAPIClient(opt)
