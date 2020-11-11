@@ -14,28 +14,34 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/time/rate"
 )
 
 type apiClientOpt struct {
-	uri                   string
-	insecure              bool
-	username              string
-	password              string
-	headers               map[string]string
-	timeout               int
-	id_attribute          string
-	create_method         string
-	read_method           string
-	update_method         string
-	destroy_method        string
-	copy_keys             []string
-	write_returns_object  bool
-	create_returns_object bool
-	xssi_prefix           string
-	use_cookies           bool
-	rate_limit            float64
-	debug                 bool
+	uri                          string
+	insecure                     bool
+	username                     string
+	password                     string
+	headers                      map[string]string
+	timeout                      int
+	id_attribute                 string
+	create_method                string
+	read_method                  string
+	update_method                string
+	destroy_method               string
+	copy_keys                    []string
+	write_returns_object         bool
+	create_returns_object        bool
+	xssi_prefix                  string
+	use_cookies                  bool
+	rate_limit                   float64
+	use_oauth_client_credentials bool
+	client_id                    string
+	client_secret                string
+	scopes                       []string
+	token_url                    string
+	debug                        bool
 }
 
 type api_client struct {
@@ -110,12 +116,26 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 	log.Printf("limit: %f bucket: %d", opt.rate_limit, bucketSize)
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
+	httpClient := &http.Client{}
+
+	if opt.use_oauth_client_credentials {
+
+		config := clientcredentials.Config{
+			ClientID:     opt.client_id,
+			ClientSecret: opt.client_secret,
+			TokenURL:     opt.token_url,
+			Scopes:       opt.scopes,
+		}
+
+		httpClient = config.Client(context.Background())
+	}
+
+	httpClient.Timeout = time.Second * time.Duration(opt.timeout)
+	httpClient.Transport = tr
+	httpClient.Jar = cookieJar
+
 	client := api_client{
-		http_client: &http.Client{
-			Timeout:   time.Second * time.Duration(opt.timeout),
-			Transport: tr,
-			Jar:       cookieJar,
-		},
+		http_client:           httpClient,
 		rate_limiter:          rateLimiter,
 		uri:                   opt.uri,
 		insecure:              opt.insecure,

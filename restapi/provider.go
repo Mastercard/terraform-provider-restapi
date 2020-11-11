@@ -118,6 +118,34 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_DEBUG", nil),
 				Description: "Enabling this will cause lots of debug information to be printed to STDOUT by the API client.",
 			},
+			"oauth_client_credentials": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Configuration for oauth client credential flow",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"client_id": {
+							Type:        schema.TypeString,
+							Description: "client id",
+						},
+						"client_secret": {
+							Type:        schema.TypeSet,
+							Description: "client secret",
+						},
+						"token_endpoint": {
+							Type:        schema.TypeSet,
+							Description: "oauth token endpoint",
+						},
+						"scopes": {
+							Type:        schema.TypeList,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+							Optional:    true,
+							Description: "string arra of scopes",
+						},
+					},
+				},
+			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			/* Could only get terraform to recognize this resource if
@@ -178,6 +206,18 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
 		opt.destroy_method = v.(string)
+	}
+	if _, ok := d.GetOk("oauth_client_credentials"); ok {
+		opt.use_oauth_client_credentials = true
+	}
+	if v, ok := d.GetOk("oauth_client_credentials"); ok {
+		opt.use_oauth_client_credentials = true
+		oauth_config := v.(map[string]interface{})
+
+		opt.client_id = oauth_config["client_id"].(string)
+		opt.client_secret = oauth_config["client_secret"].(string)
+		opt.token_url = oauth_config["token_endpoint"].(string)
+		opt.scopes = expandStringSet(oauth_config["scopes"].([]interface{}))
 	}
 
 	client, err := NewAPIClient(opt)
