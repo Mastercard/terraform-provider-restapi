@@ -210,12 +210,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	if v, ok := d.GetOk("destroy_method"); ok {
 		opt.destroy_method = v.(string)
 	}
-	if _, ok := d.GetOk("oauth_client_credentials"); ok {
-		opt.use_oauth_client_credentials = true
-	}
 	if v, ok := d.GetOk("oauth_client_credentials"); ok {
-		opt.use_oauth_client_credentials = true
-
 		oauth_config := v.([]interface{})[0].(map[string]interface{})
 
 		opt.oauth_client_id = oauth_config["oauth_client_id"].(string)

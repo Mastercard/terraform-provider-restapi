@@ -19,29 +19,28 @@ import (
 )
 
 type apiClientOpt struct {
-	uri                          string
-	insecure                     bool
-	username                     string
-	password                     string
-	headers                      map[string]string
-	timeout                      int
-	id_attribute                 string
-	create_method                string
-	read_method                  string
-	update_method                string
-	destroy_method               string
-	copy_keys                    []string
-	write_returns_object         bool
-	create_returns_object        bool
-	xssi_prefix                  string
-	use_cookies                  bool
-	rate_limit                   float64
-	use_oauth_client_credentials bool
-	oauth_client_id              string
-	oauth_client_secret          string
-	oauth_scopes                 []string
-	oauth_token_url              string
-	debug                        bool
+	uri                   string
+	insecure              bool
+	username              string
+	password              string
+	headers               map[string]string
+	timeout               int
+	id_attribute          string
+	create_method         string
+	read_method           string
+	update_method         string
+	destroy_method        string
+	copy_keys             []string
+	write_returns_object  bool
+	create_returns_object bool
+	xssi_prefix           string
+	use_cookies           bool
+	rate_limit            float64
+	oauth_client_id       string
+	oauth_client_secret   string
+	oauth_scopes          []string
+	oauth_token_url       string
+	debug                 bool
 }
 
 type api_client struct {
@@ -141,15 +140,13 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		debug:                 opt.debug,
 	}
 
-	if opt.use_oauth_client_credentials {
-
+	if opt.oauth_client_id != "" && opt.oauth_client_secret != "" && opt.oauth_token_url != "" && len(opt.oauth_scopes) > 0 {
 		client.oauth_config = &clientcredentials.Config{
 			ClientID:     opt.oauth_client_id,
 			ClientSecret: opt.oauth_client_secret,
 			TokenURL:     opt.oauth_token_url,
 			Scopes:       opt.oauth_scopes,
 		}
-
 	}
 
 	if opt.debug {
