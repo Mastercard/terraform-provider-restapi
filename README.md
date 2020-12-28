@@ -22,6 +22,7 @@ Have a look at the [examples directory](examples) for some use cases
 
 &nbsp;
 
+## Provider Documentation
 This provider has only a few moving components, but LOTS of configurable parameters
 * [provider documentation](docs/index.md#restapi-provider)
 * [restapi_object resource documentation](docs/resources/object.md#resource-restapi_object)
