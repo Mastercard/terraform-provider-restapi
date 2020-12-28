@@ -39,6 +39,8 @@ Have a look at the [examples directory](examples) for some use cases
 - `create_returns_object` (boolean, optional): Set this when the API returns the object created only on creation operations (`POST`). This is used by the provider to refresh internal data structures. This can also be set with the environment variable `REST_API_CRO`.
 - `xssi_prefix` (boolean, optional): Trim the xssi prefix from response string, if present, before parsing. This can also be set with the environment variable `REST_API_XSSI_PREFIX`.
 - `rate_limit` (float, optional): Set this to limit the number of requests per second made to the API.
+- `cert_file` (string, optional): When set with the `key_file` parameter, the provider will load a client certificate for mTLS authentication.
+- `key_file` (string, optional): When set with the `cert_file` parameter, the provider will load a client certificate for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
 - `debug` (boolean, optional): Enabling this will cause lots of debug information to be printed to STDOUT by the API client. This can be gathered by setting `TF_LOG=1` environment variable. This can also be set with the environment variable `REST_API_DEBUG`.
 
 &nbsp;

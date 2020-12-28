@@ -40,6 +40,8 @@ type apiClientOpt struct {
 	oauth_client_secret   string
 	oauth_scopes          []string
 	oauth_token_url       string
+	cert_file             string
+	key_file              string
 	debug                 bool
 }
 
@@ -99,9 +101,21 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		opt.destroy_method = "DELETE"
 	}
 
-	/* Disable TLS verification if requested */
+	tlsConfig := &tls.Config{
+		/* Disable TLS verification if requested */
+		InsecureSkipVerify: opt.insecure,
+	}
+
+	if opt.cert_file != "" && opt.key_file != "" {
+		cert, err := tls.LoadX509KeyPair(opt.cert_file, opt.key_file)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: opt.insecure},
+		TLSClientConfig: tlsConfig,
 		Proxy:           http.ProxyFromEnvironment,
 	}
 
