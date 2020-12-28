@@ -36,11 +36,15 @@ This provider has only a few moving components, but LOTS of configurable paramet
 * By default, data isn't considered sensitive. If you want to hide the data this provider submits as well as the data returned by the API, you would need to set environment variable `API_DATA_IS_SENSITIVE=true`.
 * The `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`.
 
+&nbsp;
+
 ### Troubleshooting
 Because this provider is just a terraform-wrapped `cURL`, the API details and the go implementation of this client are often leaked to you.
 This means you, as the user, will have a bit more troubleshooting on your hands than would typically be required of a full-fledged provider if you experience issues.
 
 Here are some tips for troubleshooting that may be helpful...
+
+&nbsp;
 
 #### Debug log
 **Rely heavily on the debug log.** The debug log, enabled by setting the environment variable `TF_LOG=1` and enabling the `debug` parameter on the provider, is the best way to figure out what is happening.
