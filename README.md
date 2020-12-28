@@ -25,6 +25,7 @@ Have a look at the [examples directory](examples) for some use cases
 - `insecure` (boolean, optional): When using https, this disables TLS verification of the host. This can also be set with the environment variable `REST_API_INSECURE`.
 - `username` (string, optional): When set, will use this username for BASIC auth to the API. This can also be set with the environment variable `REST_API_USERNAME`.
 - `password` (string, optional): When set, will use this password for BASIC auth to the API. This can also be set with the environment variable `REST_API_PASSWORD`.
+- `oauth_client_credentials` (object, optional): When set, the client will request an accesstoken at the specified token endpoint and will use this token for authentication (see examples)
 - `headers` (hash of strings, optional): A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.
 - `use_cookies` (boolean, optional): Enable cookie jar to persist session. This can also be set with the environment variable `REST_API_USE_COOKIES`.
 - `timeout` (integer, optional): When set, will cause requests taking longer than this time (in seconds) to be aborted. Default is `0` which means no timeout is set. This can also be set with the environment variable `REST_API_TIMEOUT`.
