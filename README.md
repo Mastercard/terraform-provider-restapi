@@ -58,6 +58,8 @@ Have a look at the [examples directory](examples) for some use cases
 - `force_new` (array of strings, optional): Any changes to these values will result in recreating the resource instead of updating.
 - `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
 - `read_search` (map, optional): Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation).
+- `query_string` (string, optional): Query string to be included in path.
+
 
 This provider also exports the following parameters:
 - `id`: The ID of the object that is being managed.
