@@ -97,9 +97,6 @@ func NewAPIObject(i_client *api_client, opts *apiObjectOpts) (*api_object, error
 	if opts.search_path == "" {
 		opts.search_path = opts.path
 	}
-	if opts.query_string == "" {
-		opts.query_string = opts.query_string
-	}
 
 	obj := api_object{
 		api_client:     i_client,
