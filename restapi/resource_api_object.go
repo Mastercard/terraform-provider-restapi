@@ -96,9 +96,9 @@ func resourceRestApi() *schema.Resource {
 				Description: "Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
 				Optional:    true,
 			},
-			"path_query_string": &schema.Schema{
+			"query_string": &schema.Schema{
 				Type:        schema.TypeString,
-				Description: "query string to be included in the path",
+				Description: "Query string to be included in the path",
 				Optional:    true,
 			},
 			"api_data": &schema.Schema{
@@ -338,8 +338,8 @@ func buildApiObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	if v, ok := d.GetOk("destroy_path"); ok {
 		opts.delete_path = v.(string)
 	}
-	if v, ok := d.GetOk("path_query_string"); ok {
-		opts.path_query_string = v.(string)
+	if v, ok := d.GetOk("query_string"); ok {
+		opts.query_string = v.(string)
 	}
 
 	read_search := expandReadSearch(d.Get("read_search").(map[string]interface{}))
