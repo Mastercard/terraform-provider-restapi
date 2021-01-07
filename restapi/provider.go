@@ -118,6 +118,49 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_DEBUG", nil),
 				Description: "Enabling this will cause lots of debug information to be printed to STDOUT by the API client.",
 			},
+			"oauth_client_credentials": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Configuration for oauth client credential flow",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"oauth_client_id": {
+							Type:        schema.TypeString,
+							Description: "client id",
+							Required:    true,
+						},
+						"oauth_client_secret": {
+							Type:        schema.TypeString,
+							Description: "client secret",
+							Required:    true,
+						},
+						"oauth_token_endpoint": {
+							Type:        schema.TypeString,
+							Description: "oauth token endpoint",
+							Required:    true,
+						},
+						"oauth_scopes": &schema.Schema{
+							Type:        schema.TypeList,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+							Optional:    true,
+							Description: "scopes",
+						},
+					},
+				},
+			},
+			"cert_file": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_CERT_FILE", nil),
+				Description: "When set with the key_file parameter, the provider will load a client certificate for mTLS authentication.",
+			},
+			"key_file": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_KEY_FILE", nil),
+				Description: "When set with the cert_file parameter, the provider will load a client certificate for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.",
+			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			/* Could only get terraform to recognize this resource if
@@ -178,6 +221,20 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
 		opt.destroy_method = v.(string)
+	}
+	if v, ok := d.GetOk("oauth_client_credentials"); ok {
+		oauth_config := v.([]interface{})[0].(map[string]interface{})
+
+		opt.oauth_client_id = oauth_config["oauth_client_id"].(string)
+		opt.oauth_client_secret = oauth_config["oauth_client_secret"].(string)
+		opt.oauth_token_url = oauth_config["oauth_token_endpoint"].(string)
+		opt.oauth_scopes = expandStringSet(oauth_config["oauth_scopes"].([]interface{}))
+	}
+	if v, ok := d.GetOk("cert_file"); ok {
+		opt.cert_file = v.(string)
+	}
+	if v, ok := d.GetOk("key_file"); ok {
+		opt.key_file = v.(string)
 	}
 
 	client, err := NewAPIClient(opt)
