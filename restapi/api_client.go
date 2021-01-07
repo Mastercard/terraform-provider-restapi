@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/time/rate"
 )
 
@@ -35,6 +36,12 @@ type apiClientOpt struct {
 	xssi_prefix           string
 	use_cookies           bool
 	rate_limit            float64
+	oauth_client_id       string
+	oauth_client_secret   string
+	oauth_scopes          []string
+	oauth_token_url       string
+	cert_file             string
+	key_file              string
 	debug                 bool
 }
 
@@ -57,6 +64,7 @@ type api_client struct {
 	xssi_prefix           string
 	rate_limiter          *rate.Limiter
 	debug                 bool
+	oauth_config          *clientcredentials.Config
 }
 
 // Make a new api client for RESTful calls
@@ -93,9 +101,21 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		opt.destroy_method = "DELETE"
 	}
 
-	/* Disable TLS verification if requested */
+	tlsConfig := &tls.Config{
+		/* Disable TLS verification if requested */
+		InsecureSkipVerify: opt.insecure,
+	}
+
+	if opt.cert_file != "" && opt.key_file != "" {
+		cert, err := tls.LoadX509KeyPair(opt.cert_file, opt.key_file)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: opt.insecure},
+		TLSClientConfig: tlsConfig,
 		Proxy:           http.ProxyFromEnvironment,
 	}
 
@@ -132,6 +152,15 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		create_returns_object: opt.create_returns_object,
 		xssi_prefix:           opt.xssi_prefix,
 		debug:                 opt.debug,
+	}
+
+	if opt.oauth_client_id != "" && opt.oauth_client_secret != "" && opt.oauth_token_url != "" && len(opt.oauth_scopes) > 0 {
+		client.oauth_config = &clientcredentials.Config{
+			ClientID:     opt.oauth_client_id,
+			ClientSecret: opt.oauth_client_secret,
+			TokenURL:     opt.oauth_token_url,
+			Scopes:       opt.oauth_scopes,
+		}
 	}
 
 	if opt.debug {
@@ -199,6 +228,15 @@ func (client *api_client) send_request(method string, path string, data string) 
 		for n, v := range client.headers {
 			req.Header.Set(n, v)
 		}
+	}
+
+	if client.oauth_config != nil {
+		tokenSource := client.oauth_config.TokenSource(context.Background())
+		token, err := tokenSource.Token()
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
 
 	if client.username != "" && client.password != "" {

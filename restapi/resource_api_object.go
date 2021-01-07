@@ -106,16 +106,19 @@ func resourceRestApi() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).",
 				Computed:    true,
+				Sensitive:   is_data_sensitive,
 			},
 			"api_response": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "The raw body of the HTTP response from the last read of the object.",
 				Computed:    true,
+				Sensitive:   is_data_sensitive,
 			},
 			"create_response": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "The raw body of the HTTP response returned when creating the object.",
 				Computed:    true,
+				Sensitive:   is_data_sensitive,
 			},
 			"force_new": &schema.Schema{
 				Type:        schema.TypeList,
