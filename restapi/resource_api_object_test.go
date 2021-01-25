@@ -24,23 +24,23 @@ import (
 // example.Widget represents a concrete Go type that represents an API resource
 func TestAccRestApiObject_Basic(t *testing.T) {
 	debug := false
-	api_server_objects := make(map[string]map[string]interface{})
+	apiServerObjects := make(map[string]map[string]interface{})
 
-	svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug, "")
+	svr := fakeserver.NewFakeServer(8082, apiServerObjects, true, debug, "")
 	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
 	opt := &apiClientOpt{
-		uri:                   "http://127.0.0.1:8082/",
-		insecure:              false,
-		username:              "",
-		password:              "",
-		headers:               make(map[string]string, 0),
-		timeout:               2,
-		id_attribute:          "id",
-		copy_keys:             make([]string, 0),
-		write_returns_object:  false,
-		create_returns_object: false,
-		debug:                 debug,
+		uri:                 "http://127.0.0.1:8082/",
+		insecure:            false,
+		username:            "",
+		password:            "",
+		headers:             make(map[string]string),
+		timeout:             2,
+		idAttribute:         "id",
+		copyKeys:            make([]string, 0),
+		writeReturnsObject:  false,
+		createReturnsObject: false,
+		debug:               debug,
 	}
 	client, err := NewAPIClient(opt)
 	if err != nil {
@@ -52,7 +52,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 		PreCheck:  func() { svr.StartInBackground() },
 		Steps: []resource.TestStep{
 			{
-				Config: generate_test_resource(
+				Config: generateTestResource(
 					"Foo",
 					`{ "id": "1234", "first": "Foo", "last": "Bar" }`,
 					make(map[string]interface{}),
@@ -68,7 +68,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 			},
 			/* Try updating the object and check create_response is unmodified */
 			{
-				Config: generate_test_resource(
+				Config: generateTestResource(
 					"Foo",
 					`{ "id": "1234", "first": "Updated", "last": "Value" }`,
 					make(map[string]interface{}),
@@ -86,7 +86,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 			   Note that we have to pass "id" just so fakeserver won't get angry at us
 			*/
 			{
-				Config: generate_test_resource(
+				Config: generateTestResource(
 					"Bar",
 					`{ "id": "4321", "attributes": { "id": "4321" }, "config": { "first": "Bar", "last": "Baz" } }`,
 					map[string]interface{}{
@@ -109,24 +109,24 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 /* This function generates a terraform JSON configuration from
    a name, JSON data and a list of params to set by coaxing it
    all to maps and then serializing to JSON */
-func generate_test_resource(name string, data string, params map[string]interface{}) string {
-	str_data, _ := json.Marshal(data)
+func generateTestResource(name string, data string, params map[string]interface{}) string {
+	strData, _ := json.Marshal(data)
 	config := []string{
 		`path = "/api/objects"`,
-		fmt.Sprintf("data = %s", str_data),
+		fmt.Sprintf("data = %s", strData),
 	}
 	for k, v := range params {
 		entry := fmt.Sprintf(`%s = "%v"`, k, v)
 		config = append(config, entry)
 	}
-	str_config := ""
+	strConfig := ""
 	for _, v := range config {
-		str_config = str_config + v + "\n"
+		strConfig = strConfig + v + "\n"
 	}
 
 	return fmt.Sprintf(`
 resource "restapi_object" "%s" {
 %s
 }
-`, name, str_config)
+`, name, strConfig)
 }

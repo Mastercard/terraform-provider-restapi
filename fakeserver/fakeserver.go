@@ -11,19 +11,21 @@ import (
 	"time"
 )
 
-type fakeserver struct {
+/*Fakeserver represents a HTTP server with objects to hold and return*/
+type Fakeserver struct {
 	server  *http.Server
 	objects map[string]map[string]interface{}
 	debug   bool
 	running bool
 }
 
-func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_start bool, i_debug bool, dir string) *fakeserver {
+/*NewFakeServer creates a HTTP server used for tests and debugging*/
+func NewFakeServer(iPort int, iObjects map[string]map[string]interface{}, iStart bool, iDebug bool, dir string) *Fakeserver {
 	serverMux := http.NewServeMux()
 
-	svr := &fakeserver{
-		debug:   i_debug,
-		objects: i_objects,
+	svr := &Fakeserver{
+		debug:   iDebug,
+		objects: iObjects,
 		running: false,
 	}
 
@@ -40,26 +42,27 @@ func NewFakeServer(i_port int, i_objects map[string]map[string]interface{}, i_st
 		}
 	}
 
-	serverMux.HandleFunc("/api/", svr.handle_api_object)
+	serverMux.HandleFunc("/api/", svr.handleAPIObject)
 
-	api_object_server := &http.Server{
-		Addr:    fmt.Sprintf("127.0.0.1:%d", i_port),
+	apiObjectServer := &http.Server{
+		Addr:    fmt.Sprintf("127.0.0.1:%d", iPort),
 		Handler: serverMux,
 	}
 
-	svr.server = api_object_server
+	svr.server = apiObjectServer
 
-	if i_start {
+	if iStart {
 		svr.StartInBackground()
 	}
 	if svr.debug {
-		log.Printf("fakeserver.go: Set up fakeserver: port=%d, debug=%t\n", i_port, svr.debug)
+		log.Printf("fakeserver.go: Set up fakeserver: port=%d, debug=%t\n", iPort, svr.debug)
 	}
 
 	return svr
 }
 
-func (svr *fakeserver) StartInBackground() {
+/*StartInBackground starts the HTTP server in the background*/
+func (svr *Fakeserver) StartInBackground() {
 	go svr.server.ListenAndServe()
 
 	/* Let the server start */
@@ -67,20 +70,23 @@ func (svr *fakeserver) StartInBackground() {
 	svr.running = true
 }
 
-func (svr *fakeserver) Shutdown() {
+/*Shutdown closes the server*/
+func (svr *Fakeserver) Shutdown() {
 	svr.server.Close()
 	svr.running = false
 }
 
-func (svr *fakeserver) Running() bool {
+/*Running returns whether the server is running*/
+func (svr *Fakeserver) Running() bool {
 	return svr.running
 }
 
-func (svr *fakeserver) GetServer() *http.Server {
+/*GetServer returns the server object itself*/
+func (svr *Fakeserver) GetServer() *http.Server {
 	return svr.server
 }
 
-func (svr *fakeserver) handle_api_object(w http.ResponseWriter, r *http.Request) {
+func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 	var obj map[string]interface{}
 	var id string
 	var ok bool
@@ -182,46 +188,39 @@ func (svr *fakeserver) handle_api_object(w http.ResponseWriter, r *http.Request)
 			log.Fatalf("\nBEGIN passed data:\n%s\nEND passed data.", string(b))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
-		} else {
-			/* In the case of POST above, id is not yet known - set it here */
-			if id == "" {
-				if val, ok := obj["id"]; ok {
-					id = fmt.Sprintf("%v", val)
-				} else if val, ok := obj["Id"]; ok {
-					id = fmt.Sprintf("%v", val)
-				} else if val, ok := obj["ID"]; ok {
-					id = fmt.Sprintf("%v", val)
-				} else {
-					if svr.debug {
-						log.Printf("fakeserver.go: Bad request - POST to /api/objects without id field")
-					}
-					http.Error(w, "POST sent with no id field in the data. Cannot persist this!", http.StatusBadRequest)
-					return
+		}
+		/* In the case of POST above, id is not yet known - set it here */
+		if id == "" {
+			if val, ok := obj["id"]; ok {
+				id = fmt.Sprintf("%v", val)
+			} else if val, ok := obj["Id"]; ok {
+				id = fmt.Sprintf("%v", val)
+			} else if val, ok := obj["ID"]; ok {
+				id = fmt.Sprintf("%v", val)
+			} else {
+				if svr.debug {
+					log.Printf("fakeserver.go: Bad request - POST to /api/objects without id field")
 				}
+				http.Error(w, "POST sent with no id field in the data. Cannot persist this!", http.StatusBadRequest)
+				return
 			}
-
-			/* Overwrite our stored test object */
-			if svr.debug {
-				log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, obj)
-			}
-			svr.objects[id] = obj
-
-			/* Coax the data we were sent back to JSON and send it to the user */
-			b, _ := json.Marshal(obj)
-			w.Write(b)
-			return
 		}
-	} else {
-		/* No data was sent... must be just a retrieval */
+
+		/* Overwrite our stored test object */
 		if svr.debug {
-			log.Printf("fakeserver.go: Returning object.\n")
+			log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, obj)
 		}
+		svr.objects[id] = obj
+
+		/* Coax the data we were sent back to JSON and send it to the user */
 		b, _ := json.Marshal(obj)
 		w.Write(b)
 		return
 	}
-
-	/* All cases by now should have already returned... something wasn't handled */
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-	return
+	/* No data was sent... must be just a retrieval */
+	if svr.debug {
+		log.Printf("fakeserver.go: Returning object.\n")
+	}
+	b, _ = json.Marshal(obj)
+	w.Write(b)
 }

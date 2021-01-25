@@ -19,56 +19,56 @@ import (
 )
 
 type apiClientOpt struct {
-	uri                   string
-	insecure              bool
-	username              string
-	password              string
-	headers               map[string]string
-	timeout               int
-	id_attribute          string
-	create_method         string
-	read_method           string
-	update_method         string
-	destroy_method        string
-	copy_keys             []string
-	write_returns_object  bool
-	create_returns_object bool
-	xssi_prefix           string
-	use_cookies           bool
-	rate_limit            float64
-	oauth_client_id       string
-	oauth_client_secret   string
-	oauth_scopes          []string
-	oauth_token_url       string
-	cert_file             string
-	key_file              string
-	debug                 bool
+	uri                 string
+	insecure            bool
+	username            string
+	password            string
+	headers             map[string]string
+	timeout             int
+	idAttribute         string
+	createMethod        string
+	readMethod          string
+	updateMethod        string
+	destroyMethod       string
+	copyKeys            []string
+	writeReturnsObject  bool
+	createReturnsObject bool
+	xssiPrefix          string
+	useCookies          bool
+	rateLimit           float64
+	oauthClientID       string
+	oauthClientSecret   string
+	oauthScopes         []string
+	oauthTokenURL       string
+	certFile            string
+	keyFile             string
+	debug               bool
 }
 
-type api_client struct {
-	http_client           *http.Client
-	uri                   string
-	insecure              bool
-	username              string
-	password              string
-	headers               map[string]string
-	timeout               int
-	id_attribute          string
-	create_method         string
-	read_method           string
-	update_method         string
-	destroy_method        string
-	copy_keys             []string
-	write_returns_object  bool
-	create_returns_object bool
-	xssi_prefix           string
-	rate_limiter          *rate.Limiter
-	debug                 bool
-	oauth_config          *clientcredentials.Config
+/*APIClient is a HTTP client with additional controlling fields*/
+type APIClient struct {
+	httpClient          *http.Client
+	uri                 string
+	insecure            bool
+	username            string
+	password            string
+	headers             map[string]string
+	idAttribute         string
+	createMethod        string
+	readMethod          string
+	updateMethod        string
+	destroyMethod       string
+	copyKeys            []string
+	writeReturnsObject  bool
+	createReturnsObject bool
+	xssiPrefix          string
+	rateLimiter         *rate.Limiter
+	debug               bool
+	oauthConfig         *clientcredentials.Config
 }
 
-// Make a new api client for RESTful calls
-func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
+//NewAPIClient makes a new api client for RESTful calls
+func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 	if opt.debug {
 		log.Printf("api_client.go: Constructing debug api_client\n")
 	}
@@ -78,8 +78,8 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 	}
 
 	/* Sane default */
-	if opt.id_attribute == "" {
-		opt.id_attribute = "id"
+	if opt.idAttribute == "" {
+		opt.idAttribute = "id"
 	}
 
 	/* Remove any trailing slashes since we will append
@@ -88,17 +88,17 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		opt.uri = opt.uri[:len(opt.uri)-1]
 	}
 
-	if opt.create_method == "" {
-		opt.create_method = "POST"
+	if opt.createMethod == "" {
+		opt.createMethod = "POST"
 	}
-	if opt.read_method == "" {
-		opt.read_method = "GET"
+	if opt.readMethod == "" {
+		opt.readMethod = "GET"
 	}
-	if opt.update_method == "" {
-		opt.update_method = "PUT"
+	if opt.updateMethod == "" {
+		opt.updateMethod = "PUT"
 	}
-	if opt.destroy_method == "" {
-		opt.destroy_method = "DELETE"
+	if opt.destroyMethod == "" {
+		opt.destroyMethod = "DELETE"
 	}
 
 	tlsConfig := &tls.Config{
@@ -106,8 +106,8 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		InsecureSkipVerify: opt.insecure,
 	}
 
-	if opt.cert_file != "" && opt.key_file != "" {
-		cert, err := tls.LoadX509KeyPair(opt.cert_file, opt.key_file)
+	if opt.certFile != "" && opt.keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(opt.certFile, opt.keyFile)
 		if err != nil {
 			return nil, err
 		}
@@ -121,45 +121,45 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 
 	var cookieJar http.CookieJar
 
-	if opt.use_cookies {
+	if opt.useCookies {
 		cookieJar, _ = cookiejar.New(nil)
 	}
 
-	rateLimit := rate.Limit(opt.rate_limit)
-	bucketSize := int(math.Max(math.Round(opt.rate_limit), 1))
-	log.Printf("limit: %f bucket: %d", opt.rate_limit, bucketSize)
+	rateLimit := rate.Limit(opt.rateLimit)
+	bucketSize := int(math.Max(math.Round(opt.rateLimit), 1))
+	log.Printf("limit: %f bucket: %d", opt.rateLimit, bucketSize)
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
-	client := api_client{
-		http_client: &http.Client{
+	client := APIClient{
+		httpClient: &http.Client{
 			Timeout:   time.Second * time.Duration(opt.timeout),
 			Transport: tr,
 			Jar:       cookieJar,
 		},
-		rate_limiter:          rateLimiter,
-		uri:                   opt.uri,
-		insecure:              opt.insecure,
-		username:              opt.username,
-		password:              opt.password,
-		headers:               opt.headers,
-		id_attribute:          opt.id_attribute,
-		create_method:         opt.create_method,
-		read_method:           opt.read_method,
-		update_method:         opt.update_method,
-		destroy_method:        opt.destroy_method,
-		copy_keys:             opt.copy_keys,
-		write_returns_object:  opt.write_returns_object,
-		create_returns_object: opt.create_returns_object,
-		xssi_prefix:           opt.xssi_prefix,
-		debug:                 opt.debug,
+		rateLimiter:         rateLimiter,
+		uri:                 opt.uri,
+		insecure:            opt.insecure,
+		username:            opt.username,
+		password:            opt.password,
+		headers:             opt.headers,
+		idAttribute:         opt.idAttribute,
+		createMethod:        opt.createMethod,
+		readMethod:          opt.readMethod,
+		updateMethod:        opt.updateMethod,
+		destroyMethod:       opt.destroyMethod,
+		copyKeys:            opt.copyKeys,
+		writeReturnsObject:  opt.writeReturnsObject,
+		createReturnsObject: opt.createReturnsObject,
+		xssiPrefix:          opt.xssiPrefix,
+		debug:               opt.debug,
 	}
 
-	if opt.oauth_client_id != "" && opt.oauth_client_secret != "" && opt.oauth_token_url != "" {
-		client.oauth_config = &clientcredentials.Config{
-			ClientID:     opt.oauth_client_id,
-			ClientSecret: opt.oauth_client_secret,
-			TokenURL:     opt.oauth_token_url,
-			Scopes:       opt.oauth_scopes,
+	if opt.oauthClientID != "" && opt.oauthClientSecret != "" && opt.oauthTokenURL != "" {
+		client.oauthConfig = &clientcredentials.Config{
+			ClientID:     opt.oauthClientID,
+			ClientSecret: opt.oauthClientSecret,
+			TokenURL:     opt.oauthTokenURL,
+			Scopes:       opt.oauthScopes,
 		}
 	}
 
@@ -171,20 +171,20 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 
 // Convert the important bits about this object to string representation
 // This is useful for debugging.
-func (obj *api_client) toString() string {
+func (client *APIClient) toString() string {
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("uri: %s\n", obj.uri))
-	buffer.WriteString(fmt.Sprintf("insecure: %t\n", obj.insecure))
-	buffer.WriteString(fmt.Sprintf("username: %s\n", obj.username))
-	buffer.WriteString(fmt.Sprintf("password: %s\n", obj.password))
-	buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", obj.id_attribute))
-	buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", obj.write_returns_object))
-	buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", obj.create_returns_object))
-	buffer.WriteString(fmt.Sprintf("headers:\n"))
-	for k, v := range obj.headers {
+	buffer.WriteString(fmt.Sprintf("uri: %s\n", client.uri))
+	buffer.WriteString(fmt.Sprintf("insecure: %t\n", client.insecure))
+	buffer.WriteString(fmt.Sprintf("username: %s\n", client.username))
+	buffer.WriteString(fmt.Sprintf("password: %s\n", client.password))
+	buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", client.idAttribute))
+	buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", client.writeReturnsObject))
+	buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", client.createReturnsObject))
+	buffer.WriteString("headers:\n")
+	for k, v := range client.headers {
 		buffer.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
 	}
-	for _, n := range obj.copy_keys {
+	for _, n := range client.copyKeys {
 		buffer.WriteString(fmt.Sprintf("  %s", n))
 	}
 	return buffer.String()
@@ -192,21 +192,21 @@ func (obj *api_client) toString() string {
 
 /* Helper function that handles sending/receiving and handling
    of HTTP data in and out. */
-func (client *api_client) send_request(method string, path string, data string) (string, error) {
-	full_uri := client.uri + path
+func (client *APIClient) sendRequest(method string, path string, data string) (string, error) {
+	fullURI := client.uri + path
 	var req *http.Request
 	var err error
 
 	if client.debug {
-		log.Printf("api_client.go: method='%s', path='%s', full uri (derived)='%s', data='%s'\n", method, path, full_uri, data)
+		log.Printf("api_client.go: method='%s', path='%s', full uri (derived)='%s', data='%s'\n", method, path, fullURI, data)
 	}
 
 	buffer := bytes.NewBuffer([]byte(data))
 
 	if data == "" {
-		req, err = http.NewRequest(method, full_uri, nil)
+		req, err = http.NewRequest(method, fullURI, nil)
 	} else {
-		req, err = http.NewRequest(method, full_uri, buffer)
+		req, err = http.NewRequest(method, fullURI, buffer)
 
 		/* Default of application/json, but allow headers array to overwrite later */
 		if err == nil {
@@ -230,8 +230,8 @@ func (client *api_client) send_request(method string, path string, data string) 
 		}
 	}
 
-	if client.oauth_config != nil {
-		tokenSource := client.oauth_config.TokenSource(context.Background())
+	if client.oauthConfig != nil {
+		tokenSource := client.oauthConfig.TokenSource(context.Background())
 		token, err := tokenSource.Token()
 		if err != nil {
 			return "", err
@@ -260,15 +260,15 @@ func (client *api_client) send_request(method string, path string, data string) 
 		log.Printf("%s\n", body)
 	}
 
-	if client.rate_limiter != nil {
+	if client.rateLimiter != nil {
 		// Rate limiting
 		if client.debug {
 			log.Printf("Waiting for rate limit availability\n")
 		}
-		_ = client.rate_limiter.Wait(context.Background())
+		_ = client.rateLimiter.Wait(context.Background())
 	}
 
-	resp, err := client.http_client.Do(req)
+	resp, err := client.httpClient.Do(req)
 
 	if err != nil {
 		//log.Printf("api_client.go: Error detected: %s\n", err)
@@ -291,13 +291,13 @@ func (client *api_client) send_request(method string, path string, data string) 
 	if err2 != nil {
 		return "", err2
 	}
-	body := strings.TrimPrefix(string(bodyBytes), client.xssi_prefix)
+	body := strings.TrimPrefix(string(bodyBytes), client.xssiPrefix)
 	if client.debug {
 		log.Printf("api_client.go: BODY:\n%s\n", body)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return body, errors.New(fmt.Sprintf("Unexpected response code '%d': %s", resp.StatusCode, body))
+		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
 	}
 
 	return body, nil

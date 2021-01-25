@@ -1,71 +1,72 @@
 package restapi
 
 import (
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
+
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
-func dataSourceRestApi() *schema.Resource {
+func dataSourceRestAPI() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceRestApiRead,
+		Read: dataSourceRestAPIRead,
 
 		Schema: map[string]*schema.Schema{
-			"path": &schema.Schema{
+			"path": {
 				Type:        schema.TypeString,
 				Description: "The API path on top of the base URL set in the provider that represents objects of this type on the API server.",
 				Required:    true,
 			},
-			"search_path": &schema.Schema{
+			"search_path": {
 				Type:        schema.TypeString,
 				Description: "The API path on top of the base URL set in the provider that represents the location to search for objects of this type on the API server. If not set, defaults to the value of path.",
 				Optional:    true,
 			},
-			"query_string": &schema.Schema{
+			"query_string": {
 				Type:        schema.TypeString,
 				Description: "An optional query string to send when performing the search.",
 				Optional:    true,
 			},
-			"read_query_string": &schema.Schema{
-				Type:         schema.TypeString, 
-				/* Setting to "not-set" helps differentiate between the cases where 
-				read_query_string is explicitly set to zero-value for string ("") and 
+			"read_query_string": {
+				Type: schema.TypeString,
+				/* Setting to "not-set" helps differentiate between the cases where
+				read_query_string is explicitly set to zero-value for string ("") and
 				when read_query_string is not set at all in the configuration. */
-				Default:      "not-set",  
-				Description:  "Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.",
-			    Optional:     true,
+				Default:     "not-set",
+				Description: "Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.",
+				Optional:    true,
 			},
-			"search_key": &schema.Schema{
+			"search_key": {
 				Type:        schema.TypeString,
 				Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
 				Required:    true,
 			},
-			"search_value": &schema.Schema{
+			"search_value": {
 				Type:        schema.TypeString,
 				Description: "The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.",
 				Required:    true,
 			},
-			"results_key": &schema.Schema{
+			"results_key": {
 				Type:        schema.TypeString,
 				Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.",
 				Optional:    true,
 			},
-			"id_attribute": &schema.Schema{
+			"id_attribute": {
 				Type:        schema.TypeString,
 				Description: "Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)",
 				Optional:    true,
 			},
-			"debug": &schema.Schema{
+			"debug": {
 				Type:        schema.TypeBool,
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
 				Optional:    true,
 			},
-			"api_data": &schema.Schema{
+			"api_data": {
 				Type:        schema.TypeMap,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).",
 				Computed:    true,
 			},
-			"api_response": &schema.Schema{
+			"api_response": {
 				Type:        schema.TypeString,
 				Description: "The raw body of the HTTP response from the last read of the object.",
 				Computed:    true,
@@ -75,36 +76,36 @@ func dataSourceRestApi() *schema.Resource {
 	}
 }
 
-func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	path := d.Get("path").(string)
-	search_path := d.Get("search_path").(string)
-	query_string := d.Get("query_string").(string)
+	searchPath := d.Get("search_path").(string)
+	queryString := d.Get("query_string").(string)
 	debug := d.Get("debug").(bool)
-	client := meta.(*api_client)
+	client := meta.(*APIClient)
 	if debug {
 		log.Printf("datasource_api_object.go: Data routine called.")
 	}
 
-	read_query_string := d.Get("read_query_string").(string)
-	if read_query_string == "not-set" {
-		read_query_string = query_string
+	readQueryString := d.Get("read_query_string").(string)
+	if readQueryString == "not-set" {
+		readQueryString = queryString
 	}
 
-	search_key := d.Get("search_key").(string)
-	search_value := d.Get("search_value").(string)
-	results_key := d.Get("results_key").(string)
-	id_attribute := d.Get("id_attribute").(string)
+	searchKey := d.Get("search_key").(string)
+	searchValue := d.Get("search_value").(string)
+	resultsKey := d.Get("results_key").(string)
+	idAttribute := d.Get("id_attribute").(string)
 
 	if debug {
-		log.Printf("datasource_api_object.go:\npath: %s\nsearch_path: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, search_path, query_string, search_key, search_value, results_key, id_attribute)
+		log.Printf("datasource_api_object.go:\npath: %s\nsearch_path: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, searchPath, queryString, searchKey, searchValue, resultsKey, idAttribute)
 	}
 
 	opts := &apiObjectOpts{
-		path:         path,
-		search_path:  search_path,
-		debug:        debug,
-		query_string: read_query_string,
-		id_attribute: id_attribute,
+		path:        path,
+		searchPath:  searchPath,
+		debug:       debug,
+		queryString: readQueryString,
+		idAttribute: idAttribute,
 	}
 
 	obj, err := NewAPIObject(client, opts)
@@ -112,7 +113,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	if _, err := obj.find_object(query_string, search_key, search_value, results_key); err != nil {
+	if _, err := obj.findObject(queryString, searchKey, searchValue, resultsKey); err != nil {
 		return err
 	}
 
@@ -123,12 +124,12 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(obj.id)
 
-	err = obj.read_object()
+	err = obj.readObject()
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
 		log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.id)
 		d.SetId(obj.id)
-		set_resource_state(obj, d)
+		setResourceState(obj, d)
 	}
 	return err
 }
