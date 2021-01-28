@@ -25,6 +25,7 @@ description: |-
 - **id** (String, Optional) The ID of this resource.
 - **id_attribute** (String, Optional) Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)
 - **query_string** (String, Optional) An optional query string to send when performing the search.
+- **read_query_string** (String, Optional) Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.
 - **results_key** (String, Optional) When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.
 
 ### Read-only

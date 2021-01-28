@@ -20,6 +20,15 @@ func dataSourceRestApi() *schema.Resource {
 				Description: "An optional query string to send when performing the search.",
 				Optional:    true,
 			},
+			"read_query_string": &schema.Schema{
+				Type:         schema.TypeString, 
+				/* Setting to "not-set" helps differentiate between the cases where 
+				read_query_string is explicitly set to zero-value for string ("") and 
+				when read_query_string is not set at all in the configuration. */
+				Default:      "not-set",  
+				Description:  "Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.",
+			    Optional:     true,
+			},
 			"search_key": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
@@ -70,6 +79,11 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("datasource_api_object.go: Data routine called.")
 	}
 
+	read_query_string := d.Get("read_query_string").(string)
+	if read_query_string == "not-set" {
+		read_query_string = query_string
+	}
+
 	search_key := d.Get("search_key").(string)
 	search_value := d.Get("search_value").(string)
 	results_key := d.Get("results_key").(string)
@@ -82,6 +96,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 	opts := &apiObjectOpts{
 		path:         path,
 		debug:        debug,
+		query_string: read_query_string,
 		id_attribute: id_attribute,
 	}
 
