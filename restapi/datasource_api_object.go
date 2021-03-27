@@ -15,6 +15,11 @@ func dataSourceRestApi() *schema.Resource {
 				Description: "The API path on top of the base URL set in the provider that represents objects of this type on the API server.",
 				Required:    true,
 			},
+			"search_path": &schema.Schema{
+				Type:        schema.TypeString,
+				Description: "The API path on top of the base URL set in the provider that represents the location to search for objects of this type on the API server. If not set, defaults to the value of path.",
+				Optional:    true,
+			},
 			"query_string": &schema.Schema{
 				Type:        schema.TypeString,
 				Description: "An optional query string to send when performing the search.",
@@ -63,6 +68,7 @@ func dataSourceRestApi() *schema.Resource {
 
 func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 	path := d.Get("path").(string)
+	search_path := d.Get("search_path").(string)
 	query_string := d.Get("query_string").(string)
 	debug := d.Get("debug").(bool)
 	client := meta.(*api_client)
@@ -76,11 +82,12 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
 	id_attribute := d.Get("id_attribute").(string)
 
 	if debug {
-		log.Printf("datasource_api_object.go:\npath: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, query_string, search_key, search_value, results_key, id_attribute)
+		log.Printf("datasource_api_object.go:\npath: %s\nsearch_path: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, search_path, query_string, search_key, search_value, results_key, id_attribute)
 	}
 
 	opts := &apiObjectOpts{
 		path:         path,
+		search_path:  search_path,
 		debug:        debug,
 		id_attribute: id_attribute,
 	}
