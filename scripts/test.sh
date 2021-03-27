@@ -10,7 +10,7 @@ export GOARCH=""
 cd ../restapi
 
 echo "Running tests..."
-if ! go test;then
+if ! go test "$@";then
   echo "Failed testing. Aborting."
   exit 1
 fi
