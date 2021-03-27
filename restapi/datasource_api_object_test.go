@@ -16,7 +16,7 @@ import (
 )
 
 func TestAccRestapiobject_Basic(t *testing.T) {
-	debug := true
+	debug := false
 	api_server_objects := make(map[string]map[string]interface{})
 
 	svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug, "")
