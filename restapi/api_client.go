@@ -154,7 +154,7 @@ func NewAPIClient(opt *apiClientOpt) (*api_client, error) {
 		debug:                 opt.debug,
 	}
 
-	if opt.oauth_client_id != "" && opt.oauth_client_secret != "" && opt.oauth_token_url != "" && len(opt.oauth_scopes) > 0 {
+	if opt.oauth_client_id != "" && opt.oauth_client_secret != "" && opt.oauth_token_url != "" {
 		client.oauth_config = &clientcredentials.Config{
 			ClientID:     opt.oauth_client_id,
 			ClientSecret: opt.oauth_client_secret,
