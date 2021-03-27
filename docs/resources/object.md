@@ -29,13 +29,12 @@ description: |-
 - **id** (String, Optional) The ID of this resource.
 - **id_attribute** (String, Optional) Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)
 - **object_id** (String, Optional) Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
+- **query_string** (String, Optional) Query string to be included in the path
 - **read_method** (String, Optional) Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation)
 - **read_path** (String, Optional) Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - **read_search** (Map of String, Optional) Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)
 - **update_method** (String, Optional) Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)
 - **update_path** (String, Optional) Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
-- **query_string** (String, Optional): Query string to be included in path.
-
 
 ### Read-only
 

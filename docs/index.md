@@ -33,6 +33,7 @@ description: |-
 - **password** (String, Optional) When set, will use this password for BASIC auth to the API.
 - **rate_limit** (Number, Optional) Set this to limit the number of requests per second made to the API.
 - **read_method** (String, Optional) Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.
+- **test_path** (String, Optional) If set, the provider will issue a read_method request to this path after instantiation requiring a 200 OK response before proceeding. This is useful if your API provides a no-op endpoint that can signal if this provider is configured correctly. Response data will be ignored.
 - **timeout** (Number, Optional) When set, will cause requests taking longer than this time (in seconds) to be aborted.
 - **update_method** (String, Optional) Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.
 - **use_cookies** (Boolean, Optional) Enable cookie jar to persist session.
