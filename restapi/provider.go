@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -111,6 +112,12 @@ func Provider() terraform.ResourceProvider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_RATE_LIMIT", math.MaxFloat64),
 				Description: "Set this to limit the number of requests per second made to the API.",
+			},
+			"test_path": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_TEST_PATH", nil),
+				Description: "If set, the provider will issue a read_method request to this path after instantiation requiring a 200 OK response before proceeding. This is useful if your API provides a no-op endpoint that can signal if this provider is configured correctly. Response data will be ignored.",
 			},
 			"debug": &schema.Schema{
 				Type:        schema.TypeBool,
@@ -238,5 +245,13 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	}
 
 	client, err := NewAPIClient(opt)
+
+	if v, ok := d.GetOk("test_path"); ok {
+		test_path := v.(string)
+		_, err := client.send_request(client.read_method, test_path, "")
+		if err != nil {
+			return client, fmt.Errorf("A test request to %v after setting up the provider did not return an OK response. Is your configuration correct? %v", test_path, err)
+		}
+	}
 	return client, err
 }
