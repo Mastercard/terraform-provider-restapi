@@ -127,6 +127,22 @@ func (svr *fakeserver) handle_api_object(w http.ResponseWriter, r *http.Request)
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
+	} else if path == "/api/object_list" && r.Method == "GET" {
+		/* Provide a URL similar to /api/objects that will also show the number of results
+		   as if a search was performed (which just returns all objects */
+		tmp := make([]map[string]interface{}, 0)
+		result := map[string]interface{}{
+			"results": true,
+			"pages":   1,
+			"page":    1,
+			"list":    &tmp,
+		}
+		for _, hash := range svr.objects {
+			tmp = append(tmp, hash)
+		}
+		b, _ := json.Marshal(result)
+		w.Write(b)
+		return
 	} else if path != "/api/objects" {
 		/* How did something get to this handler with the wrong number of args??? */
 		if svr.debug {
