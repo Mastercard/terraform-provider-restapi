@@ -42,32 +42,53 @@ if [[ -z "$github_api_token" || -z "$owner" || -z "$repo" || -z "$tag" ]];then
   exit 1
 fi
 
+if [[ -z "$GPG_PRIVATE_KEY" || -z "$PASSPHRASE" ]];then
+  echo "ERROR: GPG_PRIVATE_KEY or PASSPHRASE env variable is not set"
+  exit 1
+fi
+
 if [[ "$tag" != v* ]];then
   tag="v$tag"
 fi
+
+version=$(echo $tag | cut -c 2-)
 
 ./test.sh
 
 #Build for all architectures we want
 ARTIFACTS=()
-#for GOOS in darwin linux windows netbsd openbsd solaris;do
 
 echo "Building..."
 for GOOS in "${OSs[@]}";do
   for GOARCH in "${ARCHs[@]}";do
     export GOOS GOARCH
 
-    TF_OUT_FILE="terraform-provider-restapi_$tag-$GOOS-$GOARCH"
-    echo "  $TF_OUT_FILE"
+    ZIP_FILE="terraform-provider-restapi_${version}_${GOOS}_${GOARCH}.zip"
+    TF_OUT_FILE="terraform-provider-restapi_$tag"
+    echo "  $GOOS - $GOARCH: $TF_OUT_FILE"
     go build -o "$TF_OUT_FILE" ../
-    ARTIFACTS+=("$TF_OUT_FILE")
+    zip "$ZIP_FILE" "$TF_OUT_FILE"
+    rm -f "$TF_OUT_FILE"
+    ARTIFACTS+=("$ZIP_FILE")
 
-    FS_OUT_FILE="fakeserver-$tag-$GOOS-$GOARCH"
+    FS_OUT_FILE="fakeserver_$tag-$GOOS-$GOARCH"
     echo "  $FS_OUT_FILE"
     go build -o "$FS_OUT_FILE" ../fakeservercli
     ARTIFACTS+=("$FS_OUT_FILE")
   done
 done
+
+shasum -a 256 *.zip > "terraform-provider-restapi_${version}_SHA256SUMS"
+ARTIFACTS+=("terraform-provider-restapi_${version}_SHA256SUMS")
+
+#### Signing
+export GNUPGHOME=tmpgpg
+rm -rf tmpgpg
+mkdir tmpgpg
+echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+gpg --pinentry-mode=loopback --passphrase "$PASSPHRASE" --detach-sign "terraform-provider-restapi_${version}_SHA256SUMS"
+ARTIFACTS+=("terraform-provider-restapi_${version}_SHA256SUMS")
 
 #Create the release so we can add our files
 ./create-github-release.sh github_api_token=$github_api_token owner=$owner repo=$repo tag=$tag draft=false
@@ -78,9 +99,4 @@ for FILE in "${ARTIFACTS[@]}";do
 done
 
 echo "Cleaning up..."
-rm -f release_info.md
-for GOOS in "${OSs[@]}";do
-  for GOARCH in "${ARCHs[@]}";do
-    rm -f "terraform-provider-restapi_$tag-$GOOS-$GOARCH" "fakeserver-$tag-$GOOS-$GOARCH"
-  done
-done
+rm -f release_info.md terraform-provider-restapi_*.zip fakeserver-* *SHA256SUMS*
