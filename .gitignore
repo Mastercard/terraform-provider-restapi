@@ -11,3 +11,4 @@ fakeservercli/fakeservercli
 scripts/terraform-provider-restapi*
 scripts/fakeserver*
 tmp
+tmpgpg
