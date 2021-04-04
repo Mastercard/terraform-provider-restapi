@@ -9,31 +9,32 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	"github.com/hashicorp/terraform/helper/resource"
 	"os"
 	"testing"
+
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	"github.com/hashicorp/terraform/helper/resource"
 )
 
 func TestAccRestapiobject_Basic(t *testing.T) {
 	debug := false
-	api_server_objects := make(map[string]map[string]interface{})
+	apiServerObjects := make(map[string]map[string]interface{})
 
-	svr := fakeserver.NewFakeServer(8082, api_server_objects, true, debug, "")
+	svr := fakeserver.NewFakeServer(8082, apiServerObjects, true, debug, "")
 	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
 	opt := &apiClientOpt{
-		uri:                   "http://127.0.0.1:8082/",
-		insecure:              false,
-		username:              "",
-		password:              "",
-		headers:               make(map[string]string, 0),
-		timeout:               2,
-		id_attribute:          "id",
-		copy_keys:             make([]string, 0),
-		write_returns_object:  false,
-		create_returns_object: false,
-		debug:                 debug,
+		uri:                 "http://127.0.0.1:8082/",
+		insecure:            false,
+		username:            "",
+		password:            "",
+		headers:             make(map[string]string),
+		timeout:             2,
+		idAttribute:         "id",
+		copyKeys:            make([]string, 0),
+		writeReturnsObject:  false,
+		createReturnsObject: false,
+		debug:               debug,
 	}
 	client, err := NewAPIClient(opt)
 	if err != nil {
@@ -41,7 +42,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 	}
 
 	/* Send a simple object */
-	client.send_request("POST", "/api/objects", `
+	client.sendRequest("POST", "/api/objects", `
     {
       "id": "1234",
       "first": "Foo",
@@ -51,7 +52,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
       }
     }
   `)
-	client.send_request("POST", "/api/objects", `
+	client.sendRequest("POST", "/api/objects", `
     {
       "id": "4321",
       "first": "Foo",
@@ -61,7 +62,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
       }
     }
   `)
-	client.send_request("POST", "/api/objects", `
+	client.sendRequest("POST", "/api/objects", `
     {
       "id": "5678",
       "first": "Nested",

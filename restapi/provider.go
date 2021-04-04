@@ -8,118 +8,121 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
+/*Provider implements the REST API provider*/
 func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
-			"uri": &schema.Schema{
+			"uri": {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_URI", nil),
 				Description: "URI of the REST API endpoint. This serves as the base of all requests.",
 			},
-			"insecure": &schema.Schema{
+			"insecure": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_INSECURE", nil),
 				Description: "When using https, this disables TLS verification of the host.",
 			},
-			"username": &schema.Schema{
+			"username": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_USERNAME", nil),
 				Description: "When set, will use this username for BASIC auth to the API.",
 			},
-			"password": &schema.Schema{
+			"password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
 				Description: "When set, will use this password for BASIC auth to the API.",
 			},
-			"headers": &schema.Schema{
+			"headers": {
 				Type:        schema.TypeMap,
 				Elem:        schema.TypeString,
 				Optional:    true,
 				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.",
 			},
-			"use_cookies": &schema.Schema{
+			"use_cookies": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_USE_COOKIES", nil),
 				Description: "Enable cookie jar to persist session.",
 			},
-			"timeout": &schema.Schema{
+			"timeout": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_TIMEOUT", 0),
 				Description: "When set, will cause requests taking longer than this time (in seconds) to be aborted.",
 			},
-			"id_attribute": &schema.Schema{
+			"id_attribute": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_ATTRIBUTE", nil),
 				Description: "When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`",
 			},
-			"create_method": &schema.Schema{
+			"create_method": {
 				Type:        schema.TypeString,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_CREATE_METHOD", nil),
 				Description: "Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server.",
 				Optional:    true,
 			},
-			"read_method": &schema.Schema{
+			"read_method": {
 				Type:        schema.TypeString,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_READ_METHOD", nil),
 				Description: "Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.",
 				Optional:    true,
 			},
-			"update_method": &schema.Schema{
+			"update_method": {
 				Type:        schema.TypeString,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_UPDATE_METHOD", nil),
 				Description: "Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.",
 				Optional:    true,
 			},
-			"destroy_method": &schema.Schema{
+			"destroy_method": {
 				Type:        schema.TypeString,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_DESTROY_METHOD", nil),
 				Description: "Defaults to `DELETE`. The HTTP method used to DELETE objects of this type on the API server.",
 				Optional:    true,
 			},
-			"copy_keys": &schema.Schema{
-				Type:        schema.TypeList,
-				Elem:        &schema.Schema{Type: schema.TypeString},
+			"copy_keys": {
+				Type: schema.TypeList,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
 				Optional:    true,
 				Description: "When set, any PUT to the API for an object will copy these keys from the data the provider has gathered about the object. This is useful if internal API information must also be provided with updates, such as the revision of the object.",
 			},
-			"write_returns_object": &schema.Schema{
+			"write_returns_object": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_WRO", nil),
 				Description: "Set this when the API returns the object created on all write operations (POST, PUT). This is used by the provider to refresh internal data structures.",
 			},
-			"create_returns_object": &schema.Schema{
+			"create_returns_object": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_CRO", nil),
 				Description: "Set this when the API returns the object created only on creation operations (POST). This is used by the provider to refresh internal data structures.",
 			},
-			"xssi_prefix": &schema.Schema{
+			"xssi_prefix": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_XSSI_PREFIX", nil),
 				Description: "Trim the xssi prefix from response string, if present, before parsing.",
 			},
-			"rate_limit": &schema.Schema{
+			"rate_limit": {
 				Type:        schema.TypeFloat,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_RATE_LIMIT", math.MaxFloat64),
 				Description: "Set this to limit the number of requests per second made to the API.",
 			},
-			"test_path": &schema.Schema{
+			"test_path": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_TEST_PATH", nil),
 				Description: "If set, the provider will issue a read_method request to this path after instantiation requiring a 200 OK response before proceeding. This is useful if your API provides a no-op endpoint that can signal if this provider is configured correctly. Response data will be ignored.",
 			},
-			"debug": &schema.Schema{
+			"debug": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_DEBUG", nil),
@@ -147,7 +150,7 @@ func Provider() terraform.ResourceProvider {
 							Description: "oauth token endpoint",
 							Required:    true,
 						},
-						"oauth_scopes": &schema.Schema{
+						"oauth_scopes": {
 							Type:        schema.TypeList,
 							Elem:        &schema.Schema{Type: schema.TypeString},
 							Optional:    true,
@@ -156,13 +159,13 @@ func Provider() terraform.ResourceProvider {
 					},
 				},
 			},
-			"cert_file": &schema.Schema{
+			"cert_file": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_CERT_FILE", nil),
 				Description: "When set with the key_file parameter, the provider will load a client certificate for mTLS authentication.",
 			},
-			"key_file": &schema.Schema{
+			"key_file": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_KEY_FILE", nil),
@@ -173,10 +176,10 @@ func Provider() terraform.ResourceProvider {
 			/* Could only get terraform to recognize this resource if
 			         the name began with the provider's name and had at least
 				 one underscore. This is not documented anywhere I could find */
-			"restapi_object": resourceRestApi(),
+			"restapi_object": resourceRestAPI(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"restapi_object": dataSourceRestApi(),
+			"restapi_object": dataSourceRestAPI(),
 		},
 		ConfigureFunc: configureProvider,
 	}
@@ -186,71 +189,71 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 
 	/* As "data-safe" as terraform says it is, you'd think
 	   it would have already coaxed this to a slice FOR me */
-	copy_keys := make([]string, 0)
-	if i_copy_keys := d.Get("copy_keys"); i_copy_keys != nil {
-		for _, v := range i_copy_keys.([]interface{}) {
-			copy_keys = append(copy_keys, v.(string))
+	copyKeys := make([]string, 0)
+	if iCopyKeys := d.Get("copy_keys"); iCopyKeys != nil {
+		for _, v := range iCopyKeys.([]interface{}) {
+			copyKeys = append(copyKeys, v.(string))
 		}
 	}
 
 	headers := make(map[string]string)
-	if i_headers := d.Get("headers"); i_headers != nil {
-		for k, v := range i_headers.(map[string]interface{}) {
+	if iHeaders := d.Get("headers"); iHeaders != nil {
+		for k, v := range iHeaders.(map[string]interface{}) {
 			headers[k] = v.(string)
 		}
 	}
 
 	opt := &apiClientOpt{
-		uri:                   d.Get("uri").(string),
-		insecure:              d.Get("insecure").(bool),
-		username:              d.Get("username").(string),
-		password:              d.Get("password").(string),
-		headers:               headers,
-		use_cookies:           d.Get("use_cookies").(bool),
-		timeout:               d.Get("timeout").(int),
-		id_attribute:          d.Get("id_attribute").(string),
-		copy_keys:             copy_keys,
-		write_returns_object:  d.Get("write_returns_object").(bool),
-		create_returns_object: d.Get("create_returns_object").(bool),
-		xssi_prefix:           d.Get("xssi_prefix").(string),
-		rate_limit:            d.Get("rate_limit").(float64),
-		debug:                 d.Get("debug").(bool),
+		uri:                 d.Get("uri").(string),
+		insecure:            d.Get("insecure").(bool),
+		username:            d.Get("username").(string),
+		password:            d.Get("password").(string),
+		headers:             headers,
+		useCookies:          d.Get("use_cookies").(bool),
+		timeout:             d.Get("timeout").(int),
+		idAttribute:         d.Get("id_attribute").(string),
+		copyKeys:            copyKeys,
+		writeReturnsObject:  d.Get("write_returns_object").(bool),
+		createReturnsObject: d.Get("create_returns_object").(bool),
+		xssiPrefix:          d.Get("xssi_prefix").(string),
+		rateLimit:           d.Get("rate_limit").(float64),
+		debug:               d.Get("debug").(bool),
 	}
 
 	if v, ok := d.GetOk("create_method"); ok {
-		opt.create_method = v.(string)
+		opt.createMethod = v.(string)
 	}
 	if v, ok := d.GetOk("read_method"); ok {
-		opt.read_method = v.(string)
+		opt.readMethod = v.(string)
 	}
 	if v, ok := d.GetOk("update_method"); ok {
-		opt.update_method = v.(string)
+		opt.updateMethod = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
-		opt.destroy_method = v.(string)
+		opt.destroyMethod = v.(string)
 	}
 	if v, ok := d.GetOk("oauth_client_credentials"); ok {
-		oauth_config := v.([]interface{})[0].(map[string]interface{})
+		oauthConfig := v.([]interface{})[0].(map[string]interface{})
 
-		opt.oauth_client_id = oauth_config["oauth_client_id"].(string)
-		opt.oauth_client_secret = oauth_config["oauth_client_secret"].(string)
-		opt.oauth_token_url = oauth_config["oauth_token_endpoint"].(string)
-		opt.oauth_scopes = expandStringSet(oauth_config["oauth_scopes"].([]interface{}))
+		opt.oauthClientID = oauthConfig["oauth_client_id"].(string)
+		opt.oauthClientSecret = oauthConfig["oauth_client_secret"].(string)
+		opt.oauthTokenURL = oauthConfig["oauth_token_endpoint"].(string)
+		opt.oauthScopes = expandStringSet(oauthConfig["oauth_scopes"].([]interface{}))
 	}
 	if v, ok := d.GetOk("cert_file"); ok {
-		opt.cert_file = v.(string)
+		opt.certFile = v.(string)
 	}
 	if v, ok := d.GetOk("key_file"); ok {
-		opt.key_file = v.(string)
+		opt.keyFile = v.(string)
 	}
 
 	client, err := NewAPIClient(opt)
 
 	if v, ok := d.GetOk("test_path"); ok {
-		test_path := v.(string)
-		_, err := client.send_request(client.read_method, test_path, "")
+		testPath := v.(string)
+		_, err := client.sendRequest(client.readMethod, testPath, "")
 		if err != nil {
-			return client, fmt.Errorf("A test request to %v after setting up the provider did not return an OK response. Is your configuration correct? %v", test_path, err)
+			return client, fmt.Errorf("a test request to %v after setting up the provider did not return an OK response - is your configuration correct? %v", testPath, err)
 		}
 	}
 	return client, err

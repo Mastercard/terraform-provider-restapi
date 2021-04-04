@@ -53,9 +53,9 @@ func TestResourceProvider_RequireBasic(t *testing.T) {
 
 func TestResourceProvider_RequireTestPath(t *testing.T) {
 	debug := false
-	api_server_objects := make(map[string]map[string]interface{})
+	apiServerObjects := make(map[string]map[string]interface{})
 
-	svr := fakeserver.NewFakeServer(8085, api_server_objects, true, debug, "")
+	svr := fakeserver.NewFakeServer(8085, apiServerObjects, true, debug, "")
 	svr.StartInBackground()
 
 	rp := Provider()

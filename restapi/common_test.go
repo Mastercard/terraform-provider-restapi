@@ -3,13 +3,14 @@ package restapi
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/terraform"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/terraform/helper/resource"
+	"github.com/hashicorp/terraform/terraform"
 )
 
-func testAccCheckRestapiObjectExists(n string, id string, client *api_client) resource.TestCheckFunc {
+func testAccCheckRestapiObjectExists(n string, id string, client *APIClient) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -27,18 +28,18 @@ func testAccCheckRestapiObjectExists(n string, id string, client *api_client) re
 		/* Make a throw-away API object to read from the API */
 		path := "/api/objects"
 		opts := &apiObjectOpts{
-			path:         path,
-			id:           id,
-			id_attribute: "id",
-			data:         "{}",
-			debug:        true,
+			path:        path,
+			id:          id,
+			idAttribute: "id",
+			data:        "{}",
+			debug:       true,
 		}
 		obj, err := NewAPIObject(client, opts)
 		if err != nil {
 			return err
 		}
 
-		err = obj.read_object()
+		err = obj.readObject()
 		if err != nil {
 			return err
 		}
@@ -49,7 +50,7 @@ func testAccCheckRestapiObjectExists(n string, id string, client *api_client) re
 
 func TestGetStringAtKey(t *testing.T) {
 	debug := false
-	test_obj := make(map[string]interface{})
+	testObj := make(map[string]interface{})
 	err := json.Unmarshal([]byte(`
     {
       "rootFoo": "bar",
@@ -68,57 +69,57 @@ func TestGetStringAtKey(t *testing.T) {
         ]
       }
     }
-  `), &test_obj)
+  `), &testObj)
 	if nil != err {
 		t.Fatalf("Error unmarshalling JSON: %s", err)
 	}
 
 	var res string
 
-	res, err = GetStringAtKey(test_obj, "rootFoo", debug)
+	res, err = GetStringAtKey(testObj, "rootFoo", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'rootFoo' from JSON payload: %s", err)
-	} else if "bar" != res {
+	} else if res != "bar" {
 		t.Fatalf("Error: Expected 'bar', but got %s", res)
 	}
 
-	res, err = GetStringAtKey(test_obj, "top/foo", debug)
+	res, err = GetStringAtKey(testObj, "top/foo", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'top/foo' from JSON payload: %s", err)
-	} else if "bar" != res {
+	} else if res != "bar" {
 		t.Fatalf("Error: Expected 'bar', but got %s", res)
 	}
 
-	res, err = GetStringAtKey(test_obj, "top/middle/bottom/foo", debug)
+	res, err = GetStringAtKey(testObj, "top/middle/bottom/foo", debug)
 	if err != nil {
 		t.Fatalf("Error extracting top/foo from JSON payload: %s", err)
-	} else if "bar" != res {
+	} else if res != "bar" {
 		t.Fatalf("Error: Expected 'bar', but got %s", res)
 	}
 
-	_, err = GetStringAtKey(test_obj, "top/middle/junk", debug)
+	_, err = GetStringAtKey(testObj, "top/middle/junk", debug)
 	if err == nil {
 		t.Fatalf("Error expected when trying to extract 'top/middle/junk' from payload")
 	}
 
-	res, err = GetStringAtKey(test_obj, "top/number", debug)
+	res, err = GetStringAtKey(testObj, "top/number", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'top/number' from JSON payload: %s", err)
-	} else if "1234567890" != res {
+	} else if res != "1234567890" {
 		t.Fatalf("Error: Expected '1234567890', but got %s", res)
 	}
 
-	res, err = GetStringAtKey(test_obj, "top/float", debug)
+	res, err = GetStringAtKey(testObj, "top/float", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'top/float' from JSON payload: %s", err)
-	} else if "1.23456789" != res {
+	} else if res != "1.23456789" {
 		t.Fatalf("Error: Expected '1.23456789', but got %s", res)
 	}
 }
 
 func TestGetListStringAtKey(t *testing.T) {
 	debug := false
-	test_obj := make(map[string]interface{})
+	testObj := make(map[string]interface{})
 	err := json.Unmarshal([]byte(`
     {
       "rootFoo": "bar",
@@ -134,31 +135,31 @@ func TestGetListStringAtKey(t *testing.T) {
         }
       ]
     }
-  `), &test_obj)
+  `), &testObj)
 	if nil != err {
 		t.Fatalf("Error unmarshalling JSON: %s", err)
 	}
 
 	var res string
 
-	res, err = GetStringAtKey(test_obj, "items/0/resource/id", debug)
+	res, err = GetStringAtKey(testObj, "items/0/resource/id", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'resource' from JSON payload: %s", err)
-	} else if "123" != res {
+	} else if res != "123" {
 		t.Fatalf("Error: Expected '123', but got %s", res)
 	}
 
-	res, err = GetStringAtKey(test_obj, "items/0/test/1/id", debug)
+	res, err = GetStringAtKey(testObj, "items/0/test/1/id", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'resource' from JSON payload: %s", err)
-	} else if "1337" != res {
+	} else if res != "1337" {
 		t.Fatalf("Error: Expected '1337', but got %s", res)
 	}
 
-	res, err = GetStringAtKey(test_obj, "items/0/list_numbers/1", debug)
+	res, err = GetStringAtKey(testObj, "items/0/list_numbers/1", debug)
 	if err != nil {
 		t.Fatalf("Error extracting 'resource' from JSON payload: %s", err)
-	} else if "2" != res {
+	} else if res != "2" {
 		t.Fatalf("Error: Expected '2', but got %s", res)
 	}
 }

@@ -13,17 +13,17 @@ import (
 /* After any operation that returns API data, we'll stuff
    all the k,v pairs into the api_data map so users can
    consume the values elsewhere if they'd like */
-func set_resource_state(obj *api_object, d *schema.ResourceData) {
-	api_data := make(map[string]string)
-	for k, v := range obj.api_data {
-		api_data[k] = fmt.Sprintf("%v", v)
+func setResourceState(obj *APIObject, d *schema.ResourceData) {
+	apiData := make(map[string]string)
+	for k, v := range obj.apiData {
+		apiData[k] = fmt.Sprintf("%v", v)
 	}
-	d.Set("api_data", api_data)
-	d.Set("api_response", obj.api_response)
+	d.Set("api_data", apiData)
+	d.Set("api_response", obj.apiResponse)
 }
 
-/* Using GetObjectAtKey, this function verifies the resulting
-   object is either a JSON string or Number and returns it as a string */
+/*GetStringAtKey uses GetObjectAtKey to verify the resulting
+  object is either a JSON string or Number and returns it as a string */
 func GetStringAtKey(data map[string]interface{}, path string, debug bool) (string, error) {
 	res, err := GetObjectAtKey(data, path, debug)
 	if err != nil {
@@ -37,11 +37,11 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 	} else if t == "float64" {
 		return strconv.FormatFloat(res.(float64), 'f', -1, 64), nil
 	} else {
-		return "", fmt.Errorf("Object at path '%s' is not a JSON string or number (float64). The go fmt package says it is '%T'", path, res)
+		return "", fmt.Errorf("object at path '%s' is not a JSON string or number (float64) - the go fmt package says it is '%T'", path, res)
 	}
 }
 
-/* Handy helper that will dig through a map and find something
+/*GetObjectAtKey is a handy helper that will dig through a map and find something
  at the defined key. The returned data is not type checked
  Example:
  Given:
@@ -74,7 +74,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 		part, parts = parts[0], parts[1:]
 
 		/* Protect against double slashes by mistake */
-		if "" == part {
+		if part == "" {
 			continue
 		}
 
@@ -114,7 +114,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 	} /* End Loop through parts */
 
 	/* We have found the containing map of the value we want */
-	part, parts = parts[0], parts[1:] /* One last time */
+	part = parts[0] /* One last time */
 	if _, ok := hash[part]; !ok {
 		if debug {
 			log.Printf("common.go:GetObjectAtKey:  %s - MISSING (available: %s)", part, strings.Join(GetKeys(hash), ","))
@@ -129,7 +129,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 	return hash[part], nil
 }
 
-/* Handy helper to just dump the keys of a map into a slice */
+/*GetKeys is a handy helper to just dump the keys of a map into a slice */
 func GetKeys(hash map[string]interface{}) []string {
 	keys := make([]string, 0)
 	for k := range hash {
@@ -138,7 +138,7 @@ func GetKeys(hash map[string]interface{}) []string {
 	return keys
 }
 
-/* GetEnvOrDefault is a helper function that returns the value of the
+/*GetEnvOrDefault is a helper function that returns the value of the
 given environment variable, if one exists, or the default value */
 func GetEnvOrDefault(k string, defaultvalue string) string {
 	v := os.Getenv(k)
