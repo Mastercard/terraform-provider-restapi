@@ -18,13 +18,14 @@ provider "restapi" {
   debug                = true
   write_returns_object = true
 
-  headers {
+  headers = {
     X-Internal-Client = "abc123"
     Authorization = var.SECRET_TOKEN
   }
 }
 
 resource "restapi_object" "Foo2" {
+  alias = restapi.restapi_headers
   path = "/api/objects"
   data = "{ \"id\": \"55555\", \"first\": \"Foo\", \"last\": \"Bar\" }"
 }
