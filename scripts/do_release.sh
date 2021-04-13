@@ -1,7 +1,10 @@
 #!/bin/bash -e
 
 #Build the docs first
-cd $(dirname $0)/../
+cd $(dirname $0)
+WORK_DIR=$(pwd)
+cd ../
+
 tfpluginwebsite
 DIFFOUTPUT=`git diff docs`
 if [ -n "$DIFFOUTPUT" ];then
@@ -17,7 +20,7 @@ export REST_API_URI="http://127.0.0.1:8082"
 export CGO_ENABLED=0
 
 #Get into the right directory
-cd $(dirname $0)
+cd "$WORK_DIR"
 
 #Parse command line params
 CONFIG=$@
@@ -63,8 +66,13 @@ for GOOS in "${OSs[@]}";do
   for GOARCH in "${ARCHs[@]}";do
     export GOOS GOARCH
 
+    if [[ "$GOOS" = "windows" ]];then
+      EXTENSION=".exe"
+    else
+      EXTENSION=""
+    fi
     ZIP_FILE="terraform-provider-restapi_${version}_${GOOS}_${GOARCH}.zip"
-    TF_OUT_FILE="terraform-provider-restapi_$tag"
+    TF_OUT_FILE="terraform-provider-restapi_${tag}${EXTENSION}"
     echo "  $GOOS - $GOARCH: $TF_OUT_FILE"
     go build -o "$TF_OUT_FILE" ../
     zip "$ZIP_FILE" "$TF_OUT_FILE"
