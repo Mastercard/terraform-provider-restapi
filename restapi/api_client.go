@@ -164,7 +164,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 	}
 
 	if opt.debug {
-		log.Printf("api_client.go: Constructed object:\n%s", client.toString())
+		log.Printf("api_client.go: Constructed client:\n%s", client.toString())
 	}
 	return &client, nil
 }

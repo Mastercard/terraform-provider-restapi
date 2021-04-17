@@ -3,6 +3,7 @@ package restapi
 import (
 	"fmt"
 	"log"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -208,7 +209,12 @@ func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "error parsing data provided") {
+			log.Printf("resource_api_object.go: WARNING! The data passed from Terraform's state is invalid! %v", err)
+			log.Printf("resource_api_object.go: Continuing with partially constructed object...")
+		} else {
+			return err
+		}
 	}
 	log.Printf("resource_api_object.go: Read routine called. Object built:\n%s\n", obj.toString())
 
@@ -267,7 +273,12 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists bool, err error) {
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
-		return exists, err
+		if strings.Contains(err.Error(), "error parsing data provided") {
+			log.Printf("resource_api_object.go: WARNING! The data passed from Terraform's state is invalid! %v", err)
+			log.Printf("resource_api_object.go: Continuing with partially constructed object...")
+		} else {
+			return exists, err
+		}
 	}
 	log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
 
@@ -290,12 +301,18 @@ func makeAPIObject(d *schema.ResourceData, meta interface{}) (*APIObject, error)
 		return nil, err
 	}
 
-	obj, err := NewAPIObject(meta.(*APIClient), opts)
-	if err != nil {
-		return nil, err
+	caller := "unknown"
+	pc, _, _, ok := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	if ok && details != nil {
+		parts := strings.Split(details.Name(), ".")
+		caller = parts[len(parts)-1]
 	}
+	log.Printf("resource_rest_api.go: Constructing new APIObject in makeAPIObject (called by %s)", caller)
 
-	return obj, nil
+	obj, err := NewAPIObject(meta.(*APIClient), opts)
+
+	return obj, err
 }
 
 func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
@@ -316,9 +333,8 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 		opts.id = d.Id()
 	}
 
-	log.Printf("common.go: make_api_object routine called for id '%s'\n", opts.id)
+	log.Printf("resource_rest_api.go: buildAPIObjectOpts routine called for id '%s'\n", opts.id)
 
-	log.Printf("create_path: %s", d.Get("create_path"))
 	if v, ok := d.GetOk("create_path"); ok {
 		opts.postPath = v.(string)
 	}

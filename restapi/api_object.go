@@ -125,7 +125,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 
 		err := json.Unmarshal([]byte(opts.data), &obj.data)
 		if err != nil {
-			return nil, err
+			return &obj, fmt.Errorf("api_object.go: error parsing data provided: %v", err.Error())
 		}
 
 		/* Opportunistically set the object's ID if it is provided in the data.
@@ -141,7 +141,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 			} else if !obj.apiClient.writeReturnsObject && !obj.apiClient.createReturnsObject && obj.searchPath == "" {
 				/* If the id is not set and we cannot obtain it
 				   later, error out to be safe */
-				return nil, fmt.Errorf("provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response; without an id, the object cannot be managed", obj.idAttribute)
+				return &obj, fmt.Errorf("provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response; without an id, the object cannot be managed", obj.idAttribute)
 			}
 		}
 	}
