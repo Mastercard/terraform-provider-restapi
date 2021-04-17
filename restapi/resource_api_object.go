@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"runtime"
@@ -86,6 +87,17 @@ func resourceRestAPI() *schema.Resource {
 				Description: "Valid JSON data that this provider will manage with the API server.",
 				Required:    true,
 				Sensitive:   isDataSensitive,
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if v != "" {
+						data := make(map[string]interface{})
+						err := json.Unmarshal([]byte(v), &data)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("data attribute is invalid JSON: %v", err))
+						}
+					}
+					return warns, errs
+				},
 			},
 			"debug": {
 				Type:        schema.TypeBool,
