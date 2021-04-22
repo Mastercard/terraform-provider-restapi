@@ -25,7 +25,7 @@ provider "restapi" {
 }
 
 resource "restapi_object" "Foo2" {
-  alias = restapi.restapi_headers
+  provider = restapi.restapi_headers
   path = "/api/objects"
   data = "{ \"id\": \"55555\", \"first\": \"Foo\", \"last\": \"Bar\" }"
 }
