@@ -22,6 +22,8 @@ description: |-
 
 - **create_method** (String, Optional) Defaults to `create_method` set on the provider. Allows per-resource override of `create_method` (see `create_method` provider config documentation)
 - **create_path** (String, Optional) Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.
+- **create_ready_key** (String, Optional) The key to observe during resource creation. As long as its value is not equal to `create_ready_value` the resource is considered as pending. Similar to other configurable keys, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.
+- **create_ready_value** (String, Optional) The value at `create_ready_key` indicating that a resource has been successfully created.
 - **debug** (Boolean, Optional) Whether to emit verbose debug output while working with the API object on the server.
 - **destroy_method** (String, Optional) Defaults to `destroy_method` set on the provider. Allows per-resource override of `destroy_method` (see `destroy_method` provider config documentation)
 - **destroy_path** (String, Optional) Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.

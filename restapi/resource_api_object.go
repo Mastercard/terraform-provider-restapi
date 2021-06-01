@@ -7,7 +7,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
@@ -104,6 +106,16 @@ func resourceRestAPI() *schema.Resource {
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
 				Optional:    true,
 			},
+			"create_ready_key": {
+				Type:        schema.TypeString,
+				Description: "The key to observe during resource creation. As long as its value is not equal to `create_ready_value` the resource is considered as pending. Similar to other configurable keys, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
+				Optional:    true,
+			},
+			"create_ready_value": {
+				Type:        schema.TypeString,
+				Description: "The value at `create_ready_key` indicating that a resource has been successfully created.",
+				Optional:    true,
+			},
 			"read_search": {
 				Type:        schema.TypeMap,
 				Description: "Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
@@ -144,6 +156,9 @@ func resourceRestAPI() *schema.Resource {
 			},
 		}, /* End schema */
 
+		Timeouts: &schema.ResourceTimeout{
+			Create: schema.DefaultTimeout(10 * time.Minute),
+		},
 	}
 }
 
@@ -208,6 +223,34 @@ func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("resource_api_object.go: Create routine called. Object built:\n%s\n", obj.toString())
 
 	err = obj.createObject()
+	if err != nil {
+		return nil
+	}
+
+	err = resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+		if obj.createReadyKey == "" || obj.createReadyValue == "" {
+			return nil
+		}
+
+		err = obj.readObject()
+		if err != nil {
+			return resource.NonRetryableError(err)
+		} else if obj.id == "" {
+			return resource.NonRetryableError(fmt.Errorf("cannot evaluate readiness unless the ID has been set"))
+		}
+
+		readyValue, err := GetObjectAtKey(obj.apiData, obj.createReadyKey, obj.debug)
+		if err != nil {
+			return resource.NonRetryableError(err)
+		}
+
+		if fmt.Sprint(readyValue) == obj.createReadyValue {
+			/* Resource is ready and we can exit the retry loop */
+			return nil
+		} else {
+			return resource.RetryableError(fmt.Errorf("resource not yet ready - current value: %s", readyValue))
+		}
+	})
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
 		d.SetId(obj.id)
@@ -374,6 +417,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	if v, ok := d.GetOk("query_string"); ok {
 		opts.queryString = v.(string)
 	}
+
+	opts.createReadyKey = d.Get("create_ready_key").(string)
+	opts.createReadyValue = d.Get("create_ready_value").(string)
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
 	opts.readSearch = readSearch

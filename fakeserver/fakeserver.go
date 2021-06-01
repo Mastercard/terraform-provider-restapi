@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -174,6 +175,15 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	/* Simulating asynchronous endpoint */
+	if _, ok := obj["count_down"]; ok && r.Method == "GET" {
+		i, _ := strconv.Atoi(obj["count_down"].(string))
+		if i > 0 {
+			obj["count_down"] = strconv.Itoa(i - 1)
+		}
+	}
+
 	/* if data was sent, parse the data */
 	if string(b) != "" {
 		if svr.debug {

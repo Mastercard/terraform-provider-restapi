@@ -12,41 +12,45 @@ import (
 )
 
 type apiObjectOpts struct {
-	path          string
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
-	data          string
+	path             string
+	getPath          string
+	postPath         string
+	putPath          string
+	createMethod     string
+	readMethod       string
+	updateMethod     string
+	destroyMethod    string
+	deletePath       string
+	searchPath       string
+	queryString      string
+	debug            bool
+	createReadyKey   string
+	createReadyValue string
+	readSearch       map[string]string
+	id               string
+	idAttribute      string
+	data             string
 }
 
 /*APIObject is the state holding struct for a restapi_object resource*/
 type APIObject struct {
-	apiClient     *APIClient
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
+	apiClient        *APIClient
+	getPath          string
+	postPath         string
+	putPath          string
+	createMethod     string
+	readMethod       string
+	updateMethod     string
+	destroyMethod    string
+	deletePath       string
+	searchPath       string
+	queryString      string
+	debug            bool
+	createReadyKey   string
+	createReadyValue string
+	readSearch       map[string]string
+	id               string
+	idAttribute      string
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
@@ -99,23 +103,25 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		getPath:       opts.getPath,
-		postPath:      opts.postPath,
-		putPath:       opts.putPath,
-		createMethod:  opts.createMethod,
-		readMethod:    opts.readMethod,
-		updateMethod:  opts.updateMethod,
-		destroyMethod: opts.destroyMethod,
-		deletePath:    opts.deletePath,
-		searchPath:    opts.searchPath,
-		queryString:   opts.queryString,
-		debug:         opts.debug,
-		readSearch:    opts.readSearch,
-		id:            opts.id,
-		idAttribute:   opts.idAttribute,
-		data:          make(map[string]interface{}),
-		apiData:       make(map[string]interface{}),
+		apiClient:        iClient,
+		getPath:          opts.getPath,
+		postPath:         opts.postPath,
+		putPath:          opts.putPath,
+		createMethod:     opts.createMethod,
+		readMethod:       opts.readMethod,
+		updateMethod:     opts.updateMethod,
+		destroyMethod:    opts.destroyMethod,
+		deletePath:       opts.deletePath,
+		searchPath:       opts.searchPath,
+		queryString:      opts.queryString,
+		debug:            opts.debug,
+		createReadyKey:   opts.createReadyKey,
+		createReadyValue: opts.createReadyValue,
+		readSearch:       opts.readSearch,
+		id:               opts.id,
+		idAttribute:      opts.idAttribute,
+		data:             make(map[string]interface{}),
+		apiData:          make(map[string]interface{}),
 	}
 
 	if opts.data != "" {
@@ -167,6 +173,8 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
 	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
+	buffer.WriteString(fmt.Sprintf("create_ready_key: %s\n", obj.createReadyKey))
+	buffer.WriteString(fmt.Sprintf("create_ready_value: %s\n", obj.createReadyValue))
 	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.apiData)))
@@ -285,7 +293,7 @@ func (obj *APIObject) readObject() error {
 
 	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), "")
 	if err != nil {
-		if strings.Contains(err.Error(), "Unexpected response code '404'") {
+		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)
 			obj.id = ""
 			return nil
