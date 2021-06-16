@@ -13,6 +13,7 @@ import (
 	"net/http/cookiejar"
 	"strings"
 	"time"
+    "encoding/json"
 
 	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/time/rate"
@@ -298,6 +299,13 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
+	}
+
+	if body == "" {
+		mapD := map[string]string{"response": ""}
+		body2, _ := json.Marshal(mapD)
+    	body := string(body2)
+		return body, nil
 	}
 
 	return body, nil
