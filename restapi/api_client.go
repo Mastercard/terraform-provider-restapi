@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"time"
 
@@ -40,6 +41,7 @@ type apiClientOpt struct {
 	oauthClientSecret   string
 	oauthScopes         []string
 	oauthTokenURL       string
+	oauthEndpointParams url.Values
 	certFile            string
 	keyFile             string
 	debug               bool
@@ -156,10 +158,11 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 
 	if opt.oauthClientID != "" && opt.oauthClientSecret != "" && opt.oauthTokenURL != "" {
 		client.oauthConfig = &clientcredentials.Config{
-			ClientID:     opt.oauthClientID,
-			ClientSecret: opt.oauthClientSecret,
-			TokenURL:     opt.oauthTokenURL,
-			Scopes:       opt.oauthScopes,
+			ClientID:     		opt.oauthClientID,
+			ClientSecret: 		opt.oauthClientSecret,
+			TokenURL:     		opt.oauthTokenURL,
+			Scopes:       		opt.oauthScopes,
+			EndpointParams:		opt.oauthEndpointParams,
 		}
 	}
 
