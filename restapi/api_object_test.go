@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
@@ -219,8 +220,11 @@ func TestAPIObject(t *testing.T) {
 		}
 		testingObjects["pet"].deleteObject()
 		err = testingObjects["pet"].readObject()
-		if err != nil {
-			t.Fatalf("api_object_test.go: 'pet' object deleted, but an error was returned when reading the object (expected the provider to cope with this!\n")
+		if err == nil {
+			t.Fatalf("api_object_test.go: 'pet' object deleted, but a subsequent read did not return an error!\n")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Fatalf("api_object_test.go: 'pet' object deleted, but the resulting error was not a 404 during read! What came back was: %v\n", err)
 		}
 	})
 
