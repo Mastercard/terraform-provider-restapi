@@ -1,4 +1,4 @@
-name: release
+name: GPG Info
 on: workflow_dispatch
 jobs:
   goreleaser:
@@ -16,6 +16,11 @@ jobs:
         name: Get default key info
         run: |
           echo "GPG fingerprint: $GPG_FINGERPRINT"
+          echo ""
+          echo "ASCII armor export:"
           gpg --armor --export $GPG_FINGERPRINT
+          echo ""
+          echo "ASCII armor export + base64:"
+          gpg --armor --export $GPG_FINGERPRINT | openssl enc -a
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
