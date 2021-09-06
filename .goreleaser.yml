@@ -64,11 +64,8 @@ signs:
       - "{{ .Env.GPG_FINGERPRINT }}"
       - "--output"
       - "${signature}"
-      - "--passphrase-fd"
-      - "0"
       - "--detach-sign"
       - "${artifact}"
-    stdin_file: /tmp/.gpg_passphrase
 release:
   draft: false
 changelog:
