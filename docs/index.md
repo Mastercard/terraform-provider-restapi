@@ -52,4 +52,5 @@ Required:
 
 Optional:
 
+- **endpoint_params** (Map of List of String, Optional) Additional key/values to pass to the underlying Oauth client library (as EndpointParams)
 - **oauth_scopes** (List of String, Optional) scopes
