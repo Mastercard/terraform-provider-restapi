@@ -3,6 +3,7 @@ package restapi
 import (
 	"fmt"
 	"math"
+	"net/url"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
@@ -156,6 +157,15 @@ func Provider() terraform.ResourceProvider {
 							Optional:    true,
 							Description: "scopes",
 						},
+						"endpoint_params": {
+							Type:        schema.TypeMap,
+							Optional:    true,
+							Description: "Additional key/values to pass to the underlying Oauth client library (as EndpointParams)",
+							Elem: &schema.Schema{
+								Type: schema.TypeList,
+								Elem: &schema.Schema{Type: schema.TypeString},
+							},
+						},
 					},
 				},
 			},
@@ -239,6 +249,17 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		opt.oauthClientSecret = oauthConfig["oauth_client_secret"].(string)
 		opt.oauthTokenURL = oauthConfig["oauth_token_endpoint"].(string)
 		opt.oauthScopes = expandStringSet(oauthConfig["oauth_scopes"].([]interface{}))
+
+		if tmp, ok := oauthConfig["endpoint_params"]; ok {
+			m := tmp.(map[string][]string)
+			setVals := url.Values{}
+			for k, vals := range m {
+				for _, val := range vals {
+					setVals.Add(k, val)
+				}
+			}
+			opt.oauthEndpointParams = setVals
+		}
 	}
 	if v, ok := d.GetOk("cert_file"); ok {
 		opt.certFile = v.(string)

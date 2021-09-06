@@ -315,9 +315,9 @@ func (obj *APIObject) readObject() error {
 		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateState(string(objFoundString))
-	} else {
-		return obj.updateState(resultString)
 	}
+
+	return obj.updateState(resultString)
 }
 
 func (obj *APIObject) updateObject() error {
