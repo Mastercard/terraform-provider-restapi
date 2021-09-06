@@ -17,14 +17,6 @@ jobs:
         with:
           go-version: 1.15
 
-      - name: Install and configure GoReleaser
-        env:
-          GORELEASER_VERSION: '0.161.1'
-        run: |
-          curl -sL -o goreleaser_amd64.deb "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_amd64.deb"
-          sudo dpkg -i goreleaser_amd64.deb
-          rm -f goreleaser_amd64.deb
-
       - name: Import GPG key
         id: import_gpg
         env:
@@ -48,9 +40,12 @@ jobs:
           echo RELOADAGENT | gpg-connect-agent
           printf '%s' "$GPG_PASSPHRASE" > /tmp/.gpg_passphrase
 
-      - name: Create release
+      - name: Run GoReleaser
+	uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --parallelism 2 --rm-dist --timeout 1h --release-notes .release_info.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
-        run: |
-          goreleaser release --parallelism 2 --rm-dist --timeout 1h --release-notes .release_info.md
