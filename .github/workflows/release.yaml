@@ -41,7 +41,7 @@ jobs:
           printf '%s' "$GPG_PASSPHRASE" > /tmp/.gpg_passphrase
 
       - name: Run GoReleaser
-	uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v2
         with:
           distribution: goreleaser
           version: latest
