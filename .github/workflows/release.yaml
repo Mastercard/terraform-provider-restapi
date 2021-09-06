@@ -5,47 +5,34 @@ on:
       - 'v*'
 jobs:
   goreleaser:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
+      -
+        name: Checkout
+        uses: actions/checkout@v2.3.4
+      -
+        name: Unshallow
+        run: git fetch --prune --unshallow
+      -
+        name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.15
-
-      - name: Import GPG key
+          go-version: 1.14
+      -
+        name: Import GPG key
         id: import_gpg
+        uses: hashicorp/ghaction-import-gpg@v2.1.0
         env:
+          # These secrets will need to be configured for the repository:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          mkdir -p ~/.gnupg
-          chmod 0700 ~/.gnupg
-          cat << EOF > ~/.gnupg/gpg.conf
-          use-agent
-          pinentry-mode loopback
-          EOF
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --allow-secret-key-import --import
-          gpg --keyid-format LONG --list-secret-keys
-          cat << EOF > ~/.gnupg/gpg-agent.conf
-          default-cache-ttl 7200
-          max-cache-ttl 31536000
-          allow-loopback-pinentry
-          allow-preset-passphrase
-          EOF
-          echo RELOADAGENT | gpg-connect-agent
-          printf '%s' "$GPG_PASSPHRASE" > /tmp/.gpg_passphrase
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+          PASSPHRASE: ${{ secrets.PASSPHRASE }}
+      -
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2.7.0
         with:
-          distribution: goreleaser
           version: latest
           args: release --parallelism 2 --rm-dist --timeout 1h --release-notes .release_info.md
         env:
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          # GitHub sets this automatically
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
