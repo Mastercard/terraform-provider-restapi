@@ -12,3 +12,4 @@ scripts/fakeserver*
 tmp
 tmpgpg
 dist
+.idea
