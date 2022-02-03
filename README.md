@@ -24,9 +24,9 @@ Have a look at the [examples directory](examples) for some use cases
 
 ## Provider Documentation
 This provider has only a few moving components, but LOTS of configurable parameters
-* [provider documentation](docs/index.md#restapi-provider)
-* [restapi_object resource documentation](docs/resources/object.md#resource-restapi_object)
-* [restapi_object datasource documentation](docs/data-sources/object.md#data-source-restapi_object)
+* [provider documentation](https://registry.terraform.io/providers/Mastercard/restapi/latest/docs)
+* [restapi_object resource documentation](https://registry.terraform.io/providers/Mastercard/restapi/latest/docs/resources/object)
+* [restapi_object datasource documentation](https://registry.terraform.io/providers/Mastercard/restapi/latest/docs/data-sources/object)
 
 &nbsp;
 
