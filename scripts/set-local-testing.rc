@@ -1,0 +1,17 @@
+if [ ! -f README.md ];then
+  echo "Run this command from the root of the project directory"
+else
+  FILE="dev.tfrc"
+  CFG=`realpath $FILE`
+  ROOTDIR=`dirname $CFG`
+
+  echo "
+provider_installation {
+  dev_overrides {
+    \"Mastercard/restapi\" = \"$ROOTDIR\"
+  }
+}
+" > "$FILE"
+
+  export TF_CLI_CONFIG_FILE="$CFG"
+fi
