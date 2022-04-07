@@ -14,3 +14,4 @@ tmpgpg
 dist
 .idea
 .terraform.lock.hcl
+dev.tfrc
