@@ -251,10 +251,10 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		opt.oauthScopes = expandStringSet(oauthConfig["oauth_scopes"].([]interface{}))
 
 		if tmp, ok := oauthConfig["endpoint_params"]; ok {
-			m := tmp.(map[string][]string)
+			m := tmp.(map[string]interface{})
 			setVals := url.Values{}
 			for k, vals := range m {
-				for _, val := range vals {
+				for _, val := range vals.([]string) {
 					setVals.Add(k, val)
 				}
 			}
