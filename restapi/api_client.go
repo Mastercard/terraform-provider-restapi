@@ -44,6 +44,8 @@ type apiClientOpt struct {
 	oauthEndpointParams url.Values
 	certFile            string
 	keyFile             string
+	certString          string
+	keyString           string
 	debug               bool
 }
 
@@ -106,6 +108,14 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 	tlsConfig := &tls.Config{
 		/* Disable TLS verification if requested */
 		InsecureSkipVerify: opt.insecure,
+	}
+
+	if opt.certString != "" && opt.keyString != "" {
+		cert, err := tls.X509KeyPair([]byte(opt.certString), []byte(opt.keyString))
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
 	if opt.certFile != "" && opt.keyFile != "" {
