@@ -18,6 +18,7 @@ type apiObjectOpts struct {
 	putPath       string
 	createMethod  string
 	readMethod    string
+	readData      string
 	updateMethod  string
 	destroyMethod string
 	deletePath    string
@@ -38,6 +39,7 @@ type APIObject struct {
 	putPath       string
 	createMethod  string
 	readMethod    string
+	readData      string
 	updateMethod  string
 	destroyMethod string
 	deletePath    string
@@ -75,6 +77,9 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	if opts.readMethod == "" {
 		opts.readMethod = iClient.readMethod
 	}
+	if opts.readData == "" {
+		opts.readData = iClient.readData
+	}
 	if opts.updateMethod == "" {
 		opts.updateMethod = iClient.updateMethod
 	}
@@ -105,6 +110,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		putPath:       opts.putPath,
 		createMethod:  opts.createMethod,
 		readMethod:    opts.readMethod,
+		readData:      opts.readData,
 		updateMethod:  opts.updateMethod,
 		destroyMethod: opts.destroyMethod,
 		deletePath:    opts.deletePath,
@@ -164,6 +170,7 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("query_string: %s\n", obj.queryString))
 	buffer.WriteString(fmt.Sprintf("create_method: %s\n", obj.createMethod))
 	buffer.WriteString(fmt.Sprintf("read_method: %s\n", obj.readMethod))
+	buffer.WriteString(fmt.Sprintf("read_data: %s\n", obj.readData))
 	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
 	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
@@ -283,7 +290,7 @@ func (obj *APIObject) readObject() error {
 		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), "")
+	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), obj.readData)
 	if err != nil {
 		if strings.Contains(err.Error(), "Unexpected response code '404'") {
 			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)

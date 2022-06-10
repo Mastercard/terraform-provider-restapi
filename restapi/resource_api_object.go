@@ -142,6 +142,29 @@ func resourceRestAPI() *schema.Resource {
 				ForceNew:    true,
 				Description: "Any changes to these values will result in recreating the resource instead of updating.",
 			},
+			"read_data": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "Valid JSON data to pass during to read requests.",
+				Sensitive:   isDataSensitive,
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if v != "" {
+						data := make(map[string]interface{})
+						err := json.Unmarshal([]byte(v), &data)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("read_data attribute is invalid JSON: %v", err))
+						}
+					}
+					return warns, errs
+				},
+			},
+			"enforce_data": {
+				Type:        schema.TypeBool,
+				Description: "Whether to emit enforce values present at data, recreating/updating object if data changed.",
+				Optional:    true,
+			},
 		}, /* End schema */
 
 	}
@@ -299,6 +322,17 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 	err = obj.readObject()
 	if err == nil {
 		exists = true
+		if enforce, ok := d.GetOk("enforce_data"); ok && enforce.(bool) {
+			log.Printf("resource_api_object.go: Enforcing data attributes.\n")
+			for key, _ := range obj.data {
+				if obj.data[key] != obj.apiData[key] {
+					log.Printf("resource_api_object.go: key %s missmatch (%s vs %s), forcing re-creation.\n", key, obj.data[key], obj.apiData[key])
+					d.SetId("")
+					return false, nil
+				}
+			}
+		}
+
 	}
 	return exists, err
 }
@@ -373,6 +407,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("query_string"); ok {
 		opts.queryString = v.(string)
+	}
+	if v, ok := d.GetOk("read_data"); ok {
+		opts.readData = v.(string)
 	}
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
