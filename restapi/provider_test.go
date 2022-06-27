@@ -5,9 +5,8 @@ import (
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
 
-	"github.com/hashicorp/terraform/config"
-	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
 
 var testAccProvider terraform.ResourceProvider
@@ -32,20 +31,14 @@ func TestProvider_impl(t *testing.T) {
 
 func TestResourceProvider_RequireBasic(t *testing.T) {
 	rp := Provider()
-
 	raw := map[string]interface{}{}
-
-	rawConfig, err := config.NewRawConfig(raw)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
 
 	/*
 	   XXX: This is expected to work even though we are not
 	        explicitly declaring the required url parameter since
 	        the test suite is run with the ENV entry set.
 	*/
-	err = rp.Configure(terraform.NewResourceConfig(rawConfig))
+	err := rp.Configure(terraform.NewResourceConfigRaw(raw))
 	if err != nil {
 		t.Fatalf("Provider failed with error: %s", err)
 	}
@@ -53,23 +46,21 @@ func TestResourceProvider_RequireBasic(t *testing.T) {
 
 func TestResourceProvider_Oauth(t *testing.T) {
 	rp := Provider()
-
 	raw := map[string]interface{}{
 		"uri": "http://foo.bar/baz",
 		"oauth_client_credentials": map[string]interface{}{
 			"oauth_client_id": "test",
+/*
+	Commented out 2022-06-27. Although terraform allows the provider to define this as
+	array of strings, it panics during unmarshal on the terraform provider SDK
 			"oauth_client_credentials": map[string]interface{}{
 				"test": []string{
 					"value1",
 					"value2",
 				},
 			},
+*/
 		},
-	}
-
-	rawConfig, err := config.NewRawConfig(raw)
-	if err != nil {
-		t.Fatalf("err: %s", err)
 	}
 
 	/*
@@ -77,7 +68,7 @@ func TestResourceProvider_Oauth(t *testing.T) {
 	        explicitly declaring the required url parameter since
 	        the test suite is run with the ENV entry set.
 	*/
-	err = rp.Configure(terraform.NewResourceConfig(rawConfig))
+	err := rp.Configure(terraform.NewResourceConfigRaw(raw))
 	if err != nil {
 		t.Fatalf("Provider failed with error: %s", err)
 	}
@@ -96,15 +87,7 @@ func TestResourceProvider_RequireTestPath(t *testing.T) {
 		"test_path": "/api/objects",
 	}
 
-	rawConfig, err := config.NewRawConfig(raw)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	err = rp.Configure(terraform.NewResourceConfig(rawConfig))
-	if err != nil {
-		t.Fatalf("Explicit provider configuration failed with error: %s", err)
-	}
+	err := rp.Configure(terraform.NewResourceConfigRaw(raw))
 
 	/* Now test the inverse */
 	rp = Provider()
@@ -113,12 +96,7 @@ func TestResourceProvider_RequireTestPath(t *testing.T) {
 		"test_path": "/api/apaththatdoesnotexist",
 	}
 
-	rawConfig, err = config.NewRawConfig(raw)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	err = rp.Configure(terraform.NewResourceConfig(rawConfig))
+	err = rp.Configure(terraform.NewResourceConfigRaw(raw))
 	if err == nil {
 		t.Fatalf("Provider was expected to fail when visiting %v at %v but it did not!", raw["test_path"], raw["uri"])
 	}
