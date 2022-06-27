@@ -169,17 +169,29 @@ func Provider() terraform.ResourceProvider {
 					},
 				},
 			},
+			"cert_string": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_CERT_STRING", nil),
+				Description: "When set with the key_string parameter, the provider will load a client certificate as a string for mTLS authentication.",
+			},
+			"key_string": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_KEY_STRING", nil),
+				Description: "When set with the cert_string parameter, the provider will load a client certificate as a string for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.",
+			},
 			"cert_file": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_CERT_FILE", nil),
-				Description: "When set with the key_file parameter, the provider will load a client certificate for mTLS authentication.",
+				Description: "When set with the key_file parameter, the provider will load a client certificate as a file for mTLS authentication.",
 			},
 			"key_file": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_KEY_FILE", nil),
-				Description: "When set with the cert_file parameter, the provider will load a client certificate for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.",
+				Description: "When set with the cert_file parameter, the provider will load a client certificate as a file for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
@@ -266,6 +278,12 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	}
 	if v, ok := d.GetOk("key_file"); ok {
 		opt.keyFile = v.(string)
+	}
+	if v, ok := d.GetOk("cert_string"); ok {
+		opt.certString = v.(string)
+	}
+	if v, ok := d.GetOk("key_string"); ok {
+		opt.keyString = v.(string)
 	}
 
 	client, err := NewAPIClient(opt)
