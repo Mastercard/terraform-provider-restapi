@@ -285,7 +285,7 @@ func (obj *APIObject) readObject() error {
 
 	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), "")
 	if err != nil {
-		if strings.Contains(err.Error(), "Unexpected response code '404'") {
+		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)
 			obj.id = ""
 			return nil
