@@ -31,7 +31,7 @@ description: |-
 - **insecure** (Boolean, Optional) When using https, this disables TLS verification of the host.
 - **key_file** (String, Optional) When set with the cert_file parameter, the provider will load a client certificate as a file for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
 - **key_string** (String, Optional) When set with the cert_string parameter, the provider will load a client certificate as a string for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
-- **oauth_client_credentials** (Block List, Max: 1) (see [below for nested schema](#nestedblock--oauth_client_credentials))
+- **oauth_client_credentials** (Block List, Max: 1) Configuration for oauth client credential flow (see [below for nested schema](#nestedblock--oauth_client_credentials))
 - **password** (String, Optional) When set, will use this password for BASIC auth to the API.
 - **rate_limit** (Number, Optional) Set this to limit the number of requests per second made to the API.
 - **read_method** (String, Optional) Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.
