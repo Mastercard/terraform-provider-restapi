@@ -24,6 +24,7 @@ description: |-
 - **create_path** (String, Optional) Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.
 - **debug** (Boolean, Optional) Whether to emit verbose debug output while working with the API object on the server.
 - **destroy_method** (String, Optional) Defaults to `destroy_method` set on the provider. Allows per-resource override of `destroy_method` (see `destroy_method` provider config documentation)
+- **destroy_data** (String, Optional) Valid JSON data that this provider will send to the API server on DESTROY (DELETE) operations.
 - **destroy_path** (String, Optional) Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - **force_new** (List of String, Optional) Any changes to these values will result in recreating the resource instead of updating.
 - **id** (String, Optional) The ID of this resource.

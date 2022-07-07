@@ -276,6 +276,19 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
+	/* Delete it again with destroy_data and make sure a 404 follows */
+	t.Run("delete_object_with_destroy_data", func(t *testing.T) {
+		if testDebug {
+			log.Printf("api_object_test.go: Testing delete_object() with destroy_data")
+		}
+		testingObjects["pet"].destroyData = "{\"destroy\": \"true\"}"
+		testingObjects["pet"].deleteObject()
+		err = testingObjects["pet"].readObject()
+		if err != nil {
+			t.Fatalf("api_object_test.go: 'pet' object deleted, but an error was returned when reading the object (expected the provider to cope with this!\n")
+		}
+	})
+
 	if testDebug {
 		log.Println("api_object_test.go: Stopping HTTP server")
 	}

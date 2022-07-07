@@ -20,6 +20,7 @@ type apiObjectOpts struct {
 	readMethod    string
 	updateMethod  string
 	destroyMethod string
+	destroyData   string
 	deletePath    string
 	searchPath    string
 	queryString   string
@@ -40,6 +41,7 @@ type APIObject struct {
 	readMethod    string
 	updateMethod  string
 	destroyMethod string
+	destroyData   string
 	deletePath    string
 	searchPath    string
 	queryString   string
@@ -81,7 +83,9 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	if opts.destroyMethod == "" {
 		opts.destroyMethod = iClient.destroyMethod
 	}
-
+	if opts.destroyData == "" {
+		opts.destroyData = iClient.destroyData
+	}
 	if opts.postPath == "" {
 		opts.postPath = opts.path
 	}
@@ -107,6 +111,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		readMethod:    opts.readMethod,
 		updateMethod:  opts.updateMethod,
 		destroyMethod: opts.destroyMethod,
+		destroyData:   opts.destroyData,
 		deletePath:    opts.deletePath,
 		searchPath:    opts.searchPath,
 		queryString:   opts.queryString,
@@ -166,6 +171,7 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("read_method: %s\n", obj.readMethod))
 	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
 	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
+	buffer.WriteString(fmt.Sprintf("destroy_data: %s\n", obj.destroyData))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
 	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
@@ -368,7 +374,7 @@ func (obj *APIObject) deleteObject() error {
 		deletePath = fmt.Sprintf("%s?%s", obj.deletePath, obj.queryString)
 	}
 
-	_, err := obj.apiClient.sendRequest(obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.id, -1), "")
+	_, err := obj.apiClient.sendRequest(obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.id, -1), obj.destroyData)
 	if err != nil {
 		return err
 	}

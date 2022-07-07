@@ -142,6 +142,23 @@ func resourceRestAPI() *schema.Resource {
 				ForceNew:    true,
 				Description: "Any changes to these values will result in recreating the resource instead of updating.",
 			},
+			"destroy_data": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Valid JSON data to pass during to destroy requests.",
+				Sensitive:   isDataSensitive,
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if v != "" {
+						data := make(map[string]interface{})
+						err := json.Unmarshal([]byte(v), &data)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("destroy_data attribute is invalid JSON: %v", err))
+						}
+					}
+					return warns, errs
+				},
+			},
 		}, /* End schema */
 
 	}
@@ -367,6 +384,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
 		opts.destroyMethod = v.(string)
+	}
+	if v, ok := d.GetOk("destroy_data"); ok {
+		opts.destroyData = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_path"); ok {
 		opts.deletePath = v.(string)
