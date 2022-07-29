@@ -18,12 +18,12 @@ There are a few requirements about how the API must work for this provider to be
     * POST on `/api/v1/things` creates a new object
     * GET, PUT and DELETE on `/api/v1/things/{id}` manages an existing object
 
-Have a look at the [examples directory](examples) for some use cases
+Have a look at the [examples directory](examples) for some use cases.
 
 &nbsp;
 
 ## Provider Documentation
-This provider has only a few moving components, but LOTS of configurable parameters
+This provider has only a few moving components, but LOTS of configurable parameters:
 * [provider documentation](https://registry.terraform.io/providers/Mastercard/restapi/latest/docs)
 * [restapi_object resource documentation](https://registry.terraform.io/providers/Mastercard/restapi/latest/docs/resources/object)
 * [restapi_object datasource documentation](https://registry.terraform.io/providers/Mastercard/restapi/latest/docs/data-sources/object)
@@ -49,9 +49,9 @@ Here are some tips for troubleshooting that may be helpful...
 #### Debug log
 **Rely heavily on the debug log.** The debug log, enabled by setting the environment variable `TF_LOG=1` and enabling the `debug` parameter on the provider, is the best way to figure out what is happening.
 
-If an unexpected error occurs, enable debug log and review the output
+If an unexpected error occurs, enable debug log and review the output:
 * Does the API return an odd HTTP response code? This is common for bad requests to the API. Look closely at the HTTP request details.
-* Does an unexpected golang 'unmarshaling' error occur? Take a look at the debug log and see if anything other than a hash (for resources) or an array (for the datasource) is being returned. The provider cannot cope with cases where a JSON object is requested, but an array of JSON objects is returned, for example
+* Does an unexpected golang 'unmarshaling' error occur? Take a look at the debug log and see if anything other than a hash (for resources) or an array (for the datasource) is being returned. For example, the provider cannot cope with cases where a JSON object is requested, but an array of JSON objects is returned.
 
 &nbsp;
 
@@ -59,14 +59,14 @@ If an unexpected error occurs, enable debug log and review the output
 This provider supports importing existing resources into the terraform state. Import is done according to the various provider/resource configuation settings to contact the API server and obtain data. That is: if a custom read method, path, or id attribute is defined, the provider will honor those settings to pull data in.
 
 To import data:
-`terraform import restapi.Name /path/to/resource`
+`terraform import restapi.Name /path/to/resource`.
 
-See a concrete example [here](examples/dummy_users_with_fakeserver.tf)
+See a concrete example [here](examples/dummy_users_with_fakeserver.tf).
 
 &nbsp;
 
 ## Installation
-There are two standard methods of installing this provider detailed [in Terraform's documentation](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins). You can place the file in the directory of your .tf file in `terraform.d/plugins/{OS}_{ARCH}/` or place it in your home directory at `~/.terraform.d/plugins/{OS}_{ARCH}/`
+There are two standard methods of installing this provider detailed [in Terraform's documentation](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins). You can place the file in the directory of your .tf file in `terraform.d/plugins/{OS}_{ARCH}/` or place it in your home directory at `~/.terraform.d/plugins/{OS}_{ARCH}/`.
 
 The released binaries are named `terraform-provider-restapi_vX.Y.Z-{OS}-{ARCH}` so you know which binary to install. You *may* need to rename the binary you use during installation to just `terraform-provider-restapi_vX.Y.Z`.
 
@@ -81,7 +81,7 @@ Pull requests are always welcome! Please be sure the following things are taken 
 * Run the `scripts/test.sh` script to be sure everything works
 * Ensure new attributes can also be set by environment variables
 
-#### Development environment requirements
+#### Development environment requirements:
 * [Golang](https://golang.org/dl/) v1.11 or newer is installed and `go` is in your path
 * [Terraform](https://www.terraform.io/downloads.html) is installed and `terraform` is in your path
 
