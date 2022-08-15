@@ -35,6 +35,7 @@ description: |-
 - **read_path** (String, Optional) Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - **read_search** (Map of String, Optional) Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)
 - **update_method** (String, Optional) Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)
+- **update_data** (String, Optional) Valid JSON data that this provider will send to the API server on UPDATE (PUT) operations. Allows override of `data` on UPDATE (PUT) operations.
 - **update_path** (String, Optional) Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 
 ### Read-only

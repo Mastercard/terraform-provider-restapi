@@ -142,6 +142,23 @@ func resourceRestAPI() *schema.Resource {
 				ForceNew:    true,
 				Description: "Any changes to these values will result in recreating the resource instead of updating.",
 			},
+			"update_data": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Valid JSON data to pass during to update requests.",
+				Sensitive:   isDataSensitive,
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if v != "" {
+						data := make(map[string]interface{})
+						err := json.Unmarshal([]byte(v), &data)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("update_data attribute is invalid JSON: %v", err))
+						}
+					}
+					return warns, errs
+				},
+			},
 			"destroy_data": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -381,6 +398,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("update_method"); ok {
 		opts.updateMethod = v.(string)
+	}
+	if v, ok := d.GetOk("update_data"); ok {
+		opts.updateData = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
 		opts.destroyMethod = v.(string)
