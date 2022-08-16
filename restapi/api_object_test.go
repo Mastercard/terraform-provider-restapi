@@ -296,7 +296,7 @@ func TestAPIObject(t *testing.T) {
 		if testDebug {
 			log.Printf("api_object_test.go: Testing delete_object() with destroy_data")
 		}
-		testingObjects["pet"].destroyData = "{\"destroy\": \"true\"}"
+		testingObjects["pet"].destroyData["destroy"] = "true"
 		testingObjects["pet"].deleteObject()
 		err = testingObjects["pet"].readObject()
 		if err != nil {
