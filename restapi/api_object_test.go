@@ -212,6 +212,21 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
+	/* Update once more with update_data */
+	t.Run("update_object_with_update_data", func(t *testing.T) {
+		if testDebug {
+			log.Printf("api_object_test.go: Testing update_object() with update_data")
+		}
+		testingObjects["minimal"].updateData["Thing"] = "knife"
+		testingObjects["minimal"].updateObject()
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed in update_object() test: %s", err)
+		} else if testingObjects["minimal"].apiData["Thing"] != "knife" {
+			t.Fatalf("api_object_test.go: Failed to update 'Thing' field of 'minimal' object. Expected it to be '%s' but it is '%s'\nFull obj: %+v\n",
+				"knife", testingObjects["minimal"].apiData["Thing"], testingObjects["minimal"])
+		}
+	})
+
 	/* Delete one and make sure a 404 follows */
 	t.Run("delete_object", func(t *testing.T) {
 		if testDebug {
@@ -233,9 +248,9 @@ func TestAPIObject(t *testing.T) {
 		err = testingObjects["pet"].createObject()
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in create_object() test: %s", err)
-		} else if testingObjects["minimal"].apiData["Thing"] != "spoon" {
+		} else if testingObjects["minimal"].apiData["Thing"] != "knife" {
 			t.Fatalf("api_object_test.go: Failed to update 'Thing' field of 'minimal' object. Expected it to be '%s' but it is '%s'\nFull obj: %+v\n",
-				"spoon", testingObjects["minimal"].apiData["Thing"], testingObjects["minimal"])
+				"knife", testingObjects["minimal"].apiData["Thing"], testingObjects["minimal"])
 		}
 
 		/* verify it's there */
@@ -273,6 +288,19 @@ func TestAPIObject(t *testing.T) {
 
 		if tmpObj["Id"] != "5" {
 			t.Errorf("%s: expected found object from search to be %s but got %s from %v", searchValue, "5", tmpObj["Id"], tmpObj)
+		}
+	})
+
+	/* Delete it again with destroy_data and make sure a 404 follows */
+	t.Run("delete_object_with_destroy_data", func(t *testing.T) {
+		if testDebug {
+			log.Printf("api_object_test.go: Testing delete_object() with destroy_data")
+		}
+		testingObjects["pet"].destroyData["destroy"] = "true"
+		testingObjects["pet"].deleteObject()
+		err = testingObjects["pet"].readObject()
+		if err != nil {
+			t.Fatalf("api_object_test.go: 'pet' object deleted, but an error was returned when reading the object (expected the provider to cope with this!\n")
 		}
 	})
 
