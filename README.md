@@ -3,6 +3,16 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/burbon/terraform-provider-restapi)](https://goreportcard.com/report/github.com/burbon/terraform-provider-restapi)
 # Terraform provider for generic REST APIs
 
+## Maintenance Note
+This provider is largely feature-complete and in maintenance mode.
+* It's not dead - it's just slow moving and updates must be done very carefully
+* We encourage community participation with open issues for usage and remain welcoming of pull requests
+* Code updates happen sporadically throughout the year, driven primarily by security fixes and PRs
+* Because of the many API variations and flexibility of this provider, detailed per-API troubleshooting cannot be guaranteed
+
+&nbsp;
+
+## About This Provider
 This terraform provider allows you to interact with APIs that may not yet have a first-class provider available by implementing a "dumb" REST API client.
 
 This provider is essentially created to be a terraform-wrapped `cURL` client. Because of this, you need to know quite a bit about the API you are interacting with as opposed to full-featured terraform providers written with a specific API in mind.
