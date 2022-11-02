@@ -145,7 +145,7 @@ func resourceRestAPI() *schema.Resource {
 			"update_data": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Valid JSON data to pass during to update requests.",
+				Description: "Valid JSON object to pass during to update requests.",
 				Sensitive:   isDataSensitive,
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
@@ -162,7 +162,7 @@ func resourceRestAPI() *schema.Resource {
 			"destroy_data": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Valid JSON data to pass during to destroy requests.",
+				Description: "Valid JSON object to pass during to destroy requests.",
 				Sensitive:   isDataSensitive,
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
