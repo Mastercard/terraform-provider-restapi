@@ -84,7 +84,7 @@ func resourceRestAPI() *schema.Resource {
 			},
 			"data": {
 				Type:        schema.TypeString,
-				Description: "Valid JSON data that this provider will manage with the API server.",
+				Description: "Valid JSON object that this provider will manage with the API server.",
 				Required:    true,
 				Sensitive:   isDataSensitive,
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
