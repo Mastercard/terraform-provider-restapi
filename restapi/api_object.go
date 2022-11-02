@@ -53,12 +53,12 @@ type APIObject struct {
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
 	updateData  map[string]interface{} /* Update data as managed by the user */
-	destroyData map[string]interface{} /* Update data as managed by the user */
+	destroyData map[string]interface{} /* Destroy data as managed by the user */
 	apiData     map[string]interface{} /* Data as available from the API */
 	apiResponse string
 }
 
-//NewAPIObject makes an APIobject to manage a RESTful object in an API
+// NewAPIObject makes an APIobject to manage a RESTful object in an API
 func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	if opts.debug {
 		log.Printf("api_object.go: Constructing debug api_object\n")
@@ -208,9 +208,12 @@ func (obj *APIObject) toString() string {
 	return buffer.String()
 }
 
-/* Centralized function to ensure that our data as managed by
-   the api_object is updated with data that has come back from
-   the API */
+/*
+Centralized function to ensure that our data as managed by
+
+	the api_object is updated with data that has come back from
+	the API
+*/
 func (obj *APIObject) updateState(state string) error {
 	if obj.debug {
 		log.Printf("api_object.go: Updating API object state to '%s'\n", state)
