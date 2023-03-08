@@ -195,8 +195,8 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			/* Could only get terraform to recognize this resource if
-			         the name began with the provider's name and had at least
-				 one underscore. This is not documented anywhere I could find */
+			the name began with the provider's name and had at least
+			one underscore. This is not documented anywhere I could find */
 			"restapi_object": resourceRestAPI(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
