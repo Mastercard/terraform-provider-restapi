@@ -214,7 +214,7 @@ Centralized function to ensure that our data as managed by
 	the api_object is updated with data that has come back from
 	the API
 */
-func (obj *APIObject) updateState(state string) error {
+func (obj *APIObject) updateState(state string, results_key string) error {
 	if obj.debug {
 		log.Printf("api_object.go: Updating API object state to '%s'\n", state)
 	}
@@ -235,7 +235,7 @@ func (obj *APIObject) updateState(state string) error {
 	/* A usable ID was not passed (in constructor or here),
 	   so we have to guess what it is from the data structure */
 	if obj.id == "" {
-		val, err := GetStringAtKey(obj.apiData, obj.idAttribute, obj.debug)
+		val, err := GetStringAtKey(obj.apiData, results_key+"/"+obj.idAttribute, obj.debug)
 		if err != nil {
 			return fmt.Errorf("api_object.go: Error extracting ID from data element: %s", err)
 		}
@@ -292,7 +292,7 @@ func (obj *APIObject) createObject() error {
 			log.Printf("api_object.go: Parsing response from POST to update internal structures (write_returns_object=%t, create_returns_object=%t)...\n",
 				obj.apiClient.writeReturnsObject, obj.apiClient.createReturnsObject)
 		}
-		err = obj.updateState(resultString)
+		err = obj.updateState(resultString, obj.readSearch["results_key"])
 		/* Yet another failsafe. In case something terrible went wrong internally,
 		   bail out so the user at least knows that the ID did not get set. */
 		if obj.id == "" {
@@ -352,10 +352,10 @@ func (obj *APIObject) readObject() error {
 			return nil
 		}
 		objFoundString, _ := json.Marshal(objFound)
-		return obj.updateState(string(objFoundString))
+		return obj.updateState(string(objFoundString), obj.readSearch["results_key"])
 	}
 
-	return obj.updateState(resultString)
+	return obj.updateState(resultString, obj.readSearch["results_key"])
 }
 
 func (obj *APIObject) updateObject() error {
@@ -390,7 +390,7 @@ func (obj *APIObject) updateObject() error {
 		if obj.debug {
 			log.Printf("api_object.go: Parsing response from PUT to update internal structures (write_returns_object=true)...\n")
 		}
-		err = obj.updateState(resultString)
+		err = obj.updateState(resultString, obj.readSearch["results_key"])
 	} else {
 		if obj.debug {
 			log.Printf("api_object.go: Requesting updated object from API (write_returns_object=false)...\n")
