@@ -15,3 +15,5 @@ dist
 .idea
 .terraform.lock.hcl
 dev.tfrc
+__debug_bin
+.vscode/launch.json
