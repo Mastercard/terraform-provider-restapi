@@ -122,6 +122,7 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("datasource_api_object.go: Attempting to construct api_object to refresh data")
 	}
 
+	// attempt d.SetId() method to detect err with obj.readObject()?
 	d.SetId(obj.id)
 
 	err = obj.readObject()
