@@ -24,7 +24,7 @@ func main() {
 	}
 
 	if debugMode {
-		err := plugin.Debug(context.Background(), "terraform.netfoundry.io/openziti/restapi", opts)
+		err := plugin.Debug(context.Background(), "Mastercard/restapi", opts)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
