@@ -28,7 +28,6 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 		}
 
 		valActual := actualResource[key]
-
 		// If valRecorded was a map, assert both values are maps
 		if reflect.TypeOf(valRecorded).Kind() == reflect.Map {
 			subMapA, okA := valRecorded.(map[string]interface{})
@@ -36,11 +35,15 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 			if !okA || !okB {
 				modifiedResource[key] = valActual
 				hasChanges = true
+				continue
 			}
 			// Recursively compare
-			if modifiedSubResource, hasChange := getDelta(subMapA, subMapB, _descendIgnoreList(key, ignoreList)); hasChange {
+			deeperIgnoreList := _descendIgnoreList(key, ignoreList)
+			if modifiedSubResource, hasChange := getDelta(subMapA, subMapB, deeperIgnoreList); hasChange {
 				modifiedResource[key] = modifiedSubResource
 				hasChanges = true
+			} else {
+				modifiedResource[key] = valRecorded
 			}
 		} else if reflect.TypeOf(valRecorded).Kind() == reflect.Slice {
 			// Since we don't support ignoring differences in lists (besides ignoring the list as a
@@ -48,6 +51,8 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 			if ! reflect.DeepEqual(valRecorded, valActual) {
 				modifiedResource[key] = valActual
 				hasChanges = true
+			} else {
+				modifiedResource[key] = valRecorded
 			}
 		} else if valRecorded != valActual {
 				modifiedResource[key] = valActual

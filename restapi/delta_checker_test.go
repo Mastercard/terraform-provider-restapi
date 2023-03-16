@@ -3,7 +3,7 @@ package restapi
 import (
 	"testing"
 	"fmt"
-	// "log"
+	"reflect"
 )
 
 // Creating a type alias to save some typing in the test cases
@@ -23,7 +23,6 @@ var deltaTestCases = []deltaTestCase{
 	// Various cases where there are no changes
 	{
 		testCase:       "No change 1",
-		testId:         1,
 		o1:             MapAny{ "foo": "bar" },
 		o2:             MapAny{ "foo": "bar" },
 		ignoreList:     []string{},
@@ -32,7 +31,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "No change - nested object",
-		testId:         2,
 		o1:             MapAny{"foo":"bar", "inner": MapAny{"foo":"bar"} },
 		o2:             MapAny{"foo":"bar", "inner": MapAny{"foo":"bar"} },
 		ignoreList:     []string{},
@@ -41,7 +39,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "No change - has an array",
-		testId:         3,
 		o1:             MapAny{"foo":"bar", "list": []string{"foo", "bar"} },
 		o2:             MapAny{"foo":"bar", "list": []string{"foo", "bar"} },
 		ignoreList:     []string{},
@@ -50,7 +47,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "No change - more types",
-		testId:         4,
 		o1:             MapAny{"bool":true, "int": 4 },
 		o2:             MapAny{"bool":true, "int": 4 },
 		ignoreList:     []string{},
@@ -66,7 +62,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server changes the value of a field",
-		testId:         5,
 		o1:             MapAny{"foo":"bar"},
 		o2:             MapAny{"foo":"changed"},
 		ignoreList:     []string{},
@@ -75,7 +70,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server changes the value of a field (ignored)",
-		testId:         6,
 		o1:             MapAny{"foo":"bar"},
 		o2:             MapAny{"foo":"changed"},
 		ignoreList:     []string{ "foo" },
@@ -86,7 +80,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server adds a field",
-		testId:         7,
 		o1:             MapAny{"foo":"bar"},
 		o2:             MapAny{"foo":"bar", "new":"field"},
 		ignoreList:     []string{},
@@ -95,7 +88,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server adds a field (ignored)",
-		testId:         8,
 		o1:             MapAny{"foo":"bar"},
 		o2:             MapAny{"foo":"bar", "new":"field"},
 		ignoreList:     []string{ "new" },
@@ -106,7 +98,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server removes a field",
-		testId:         9,
 		o1:             MapAny{"foo":"bar", "id": "foobar"},
 		o2:             MapAny{"foo":"bar"},
 		ignoreList:     []string{},
@@ -115,7 +106,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server removes a field (ignored)",
-		testId:         10,
 		o1:             MapAny{"foo":"bar", "id": "foobar"},
 		o2:             MapAny{"foo":"bar"},
 		ignoreList:     []string{ "id" },
@@ -125,27 +115,57 @@ var deltaTestCases = []deltaTestCase{
 	// Deep fields
 
 	{
-		testCase:       "Server changes/adds/removes a deep field",
-		testId:         11,
-		o1:             MapAny{"outside": MapAny{"change":"a", "remove":"a"}},
-		o2:             MapAny{"outside": MapAny{"change":"b", "add":"a"}},
+		testCase:       "Server changes a deep field",
+		o1:             MapAny{"outside": MapAny{"change":"a"}},
+		o2:             MapAny{"outside": MapAny{"change":"b"}},
 		ignoreList:     []string{},
 		resultHasDelta: true,
 	},
 
 	{
-		testCase:       "Server changes/adds/removes a deep field (ignored)",
-		testId:         12,
-		o1:             MapAny{"outside": MapAny{"change":"a", "remove":"a"}},
-		o2:             MapAny{"outside": MapAny{"change":"b", "add":"a"}},
-		ignoreList:     []string{ "outside.change", "outside.add", "outside.remove" },
+		testCase:       "Server adds a deep field",
+		o1:             MapAny{"outside": MapAny{"change":"a"}},
+		o2:             MapAny{"outside": MapAny{"change":"a", "add":"a"}},
+		ignoreList:     []string{},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server removes a deep field",
+		o1:             MapAny{"outside": MapAny{"change":"a", "remove": "a"}},
+		o2:             MapAny{"outside": MapAny{"change":"a"}},
+		ignoreList:     []string{},
+		resultHasDelta: true,
+	},
+
+	// Deep fields (but ignored)
+
+	{
+		testCase:       "Server changes a deep field (ignored)",
+		o1:             MapAny{"outside": MapAny{"change":"a"}},
+		o2:             MapAny{"outside": MapAny{"change":"b"}},
+		ignoreList:     []string{ "outside.change" },
 		resultHasDelta: false,
 	},
 
+	{
+		testCase:       "Server adds a deep field (ignored)",
+		o1:             MapAny{"outside": MapAny{"change":"a"}},
+		o2:             MapAny{"outside": MapAny{"change":"a", "add":"a"}},
+		ignoreList:     []string{ "outside.add" },
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Server removes a deep field (ignored)",
+		o1:             MapAny{"outside": MapAny{"change":"a", "remove": "a"}},
+		o2:             MapAny{"outside": MapAny{"change":"a"}},
+		ignoreList:     []string{ "outside.remove" },
+		resultHasDelta: false,
+	},
 	// Similar to 12: make sure we notice a change to a deep field even when we ignore some of them
 	{
 		testCase:       "Server changes/adds/removes a deep field (ignored 2)",
-		testId:         13,
 		o1:             MapAny{"outside": MapAny{"watch":"me", "change":"a", "remove":"a"}},
 		o2:             MapAny{"outside": MapAny{"watch":"me_change","change":"b", "add":"a"}},
 		ignoreList:     []string{ "outside.change", "outside.add", "outside.remove" },
@@ -155,7 +175,6 @@ var deltaTestCases = []deltaTestCase{
 	// Similar to 12,13 but ignore the whole "outside"
 	{
 		testCase:       "Server changes/adds/removes a deep field (ignore root field)",
-		testId:         14,
 		o1:             MapAny{"outside": MapAny{"watch":"me", "change":"a", "remove":"a"}},
 		o2:             MapAny{"outside": MapAny{"watch":"me_change","change":"b", "add":"a"}},
 		ignoreList:     []string{ "outside" },
@@ -167,7 +186,6 @@ var deltaTestCases = []deltaTestCase{
 	// Note: we don't support ignoring specific differences to lists - only ignoring the list as a whole
 	{
 		testCase:       "Server adds to list",
-		testId:         15,
 		o1:             MapAny{"list": []string{"foo", "bar"} },
 		o2:             MapAny{"list": []string{"foo", "bar", "baz"} },
 		ignoreList:     []string{},
@@ -176,7 +194,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server removes from list",
-		testId:         16,
 		o1:             MapAny{"list": []string{"foo", "bar"} },
 		o2:             MapAny{"list": []string{"foo"} },
 		ignoreList:     []string{},
@@ -185,7 +202,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server changes an item in the list",
-		testId:         17,
 		o1:             MapAny{"list": []string{"foo", "bar"} },
 		o2:             MapAny{"list": []string{"foo", "BAR"} },
 		ignoreList:     []string{},
@@ -194,7 +210,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server rearranges the list",
-		testId:         18,
 		o1:             MapAny{"list": []string{"foo", "bar"} },
 		o2:             MapAny{"list": []string{"bar", "foo"} },
 		ignoreList:     []string{},
@@ -203,7 +218,6 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server changes the list but we ignore the whole list",
-		testId:         19,
 		o1:             MapAny{"list": []string{"foo", "bar"} },
 		o2:             MapAny{"list": []string{"bar", "foo"} },
 		ignoreList:     []string{ "list" },
@@ -213,7 +227,6 @@ var deltaTestCases = []deltaTestCase{
 	// We don't currently support ignoring a change like this, but we could in the future with a syntax like `list[].val` similar to jq
 	{
 		testCase:       "Server changes a sub-value in a list of objects",
-		testId:         19,
 		o1:             MapAny{"list": []MapAny{ {"key":"foo", "val":"x"}, {"key":"bar", "val":"x"} } },
 		o2:             MapAny{"list": []MapAny{ {"key":"foo", "val":"Y"}, {"key":"bar", "val":"Z"} } },
 		ignoreList:     []string{},
@@ -244,7 +257,6 @@ func generateTypeConversionTests() []deltaTestCase {
 		for toType, toValue := range typeValues {
 			tests = append(tests, deltaTestCase{
 				testCase:       fmt.Sprintf("Type Conversion from [%s] to [%s]", fromType, toType),
-				testId:         testCounter,
 				o1:             MapAny{"value": fromValue },
 				o2:             MapAny{"value": toValue },
 				ignoreList:     []string{},
@@ -263,7 +275,7 @@ func TestHasDelta(t *testing.T) {
 	for _, testCase := range deltaTestCases {
 		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList)
 		if result != testCase.resultHasDelta {
-			t.Errorf("delta_checker_test.go: Test Case [%d:%s] wanted [%v] got [%v]", testCase.testId, testCase.testCase, testCase.resultHasDelta, result)
+			t.Errorf("delta_checker_test.go: Test Case [%s] wanted [%v] got [%v]", testCase.testCase, testCase.resultHasDelta, result)
 		}
 	}
 
@@ -274,5 +286,44 @@ func TestHasDelta(t *testing.T) {
 			t.Errorf("delta_checker_test.go: TYPE CONVERSION Test Case [%d:%s] wanted [%v] got [%v]", testCase.testId, testCase.testCase, testCase.resultHasDelta, result)
 		}
 	}
+}
 
+func TestHasDeltaModifiedResource(t *testing.T) {
+
+	// Test modifiedResource return val
+
+	recordedInput := map[string]interface{} {
+		"name"    : "Joey",
+		"color"   : "tabby",
+		"hobbies" : map[string]interface{} {
+			"hunting" : "birds",
+			"eating"  : "plants",
+		},
+	}
+
+	actualInput := map[string]interface{} {
+		"color"   : "tabby",
+		"hairball": true,
+		"hobbies" : map[string]interface{} {
+			"hunting" : "birds",
+			"eating"  : "plants",
+			"sleeping": "yep",
+		},
+	}
+
+	expectedOutput := map[string]interface{} {
+		"name"    : "Joey",
+		"color"   : "tabby",
+		"hobbies" : map[string]interface{} {
+			"hunting" : "birds",
+			"eating"  : "plants",
+		},
+	}
+
+	ignoreList := []string { "hairball", "hobbies.sleeping", "name" }
+
+	modified, _ := getDelta(recordedInput, actualInput, ignoreList)
+	if ! reflect.DeepEqual(expectedOutput, modified) {
+		t.Errorf("delta_checker_test.go: Unexpected delta: expected %v but got %v", expectedOutput, modified)
+	}
 }
