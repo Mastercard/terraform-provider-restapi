@@ -6,66 +6,78 @@ import (
 )
 
 /*
- * Performs a deep comparison of two maps, returning true if there is a difference between them.
+ * Performs a deep comparison of two maps - the resource as recorded in state, and the resource as returned by the API.
  * Accepts a third argument that is a set of fields that are to be ignored when looking for differences.
+ * Returns 1. the recordedResource overlaid with fields that have been modified in actualResource but not ignored, and 2. a bool true if there were any changes.
  */
-func hasDelta(mapA map[string]interface{}, mapB map[string]interface{}, ignoreList []string) bool {
-	// Keep a set of keys we've check in mapA, to reduce work when checking keys in mapB
+func getDelta(recordedResource map[string]interface{}, actualResource map[string]interface{}, ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
+	modifiedResource = map[string]interface{} {}
+	hasChanges = false
+
+	// Keep track of keys we've already checked in actualResource to reduce work when checking keys in actualResource
 	checkedKeys := map[string]struct{} {}
 
-	for key, valA := range mapA {
+	for key, valRecorded := range recordedResource {
 
 		checkedKeys[key] = struct{}{}
 
 		// If the ignore_list contains the current key, don't compare
 		if contains(ignoreList, key) {
+			modifiedResource[key] = valRecorded
 			continue
 		}
 
-		valB := mapB[key]
+		valActual := actualResource[key]
 
-		// If valA was a map, assert both values are maps
-		if reflect.TypeOf(valA).Kind() == reflect.Map {
-			subMapA, okA := valA.(map[string]interface{})
-			subMapB, okB := valB.(map[string]interface{})
+		// If valRecorded was a map, assert both values are maps
+		if reflect.TypeOf(valRecorded).Kind() == reflect.Map {
+			subMapA, okA := valRecorded.(map[string]interface{})
+			subMapB, okB := valActual.(map[string]interface{})
 			if !okA || !okB {
-				return true
+				modifiedResource[key] = valActual
+				hasChanges = true
 			}
 			// Recursively compare
-			if hasDelta(subMapA, subMapB, _descendIgnoreList(key, ignoreList)) {
-				return true
+			if modifiedSubResource, hasChange := getDelta(subMapA, subMapB, _descendIgnoreList(key, ignoreList)); hasChange {
+				modifiedResource[key] = modifiedSubResource
+				hasChanges = true
 			}
-		} else if reflect.TypeOf(valA).Kind() == reflect.Slice {
+		} else if reflect.TypeOf(valRecorded).Kind() == reflect.Slice {
 			// Since we don't support ignoring differences in lists (besides ignoring the list as a
 			// whole), it is safe to deep compare the two list values.
-			if ! reflect.DeepEqual(valA, valB) {
-				return true
+			if ! reflect.DeepEqual(valRecorded, valActual) {
+				modifiedResource[key] = valActual
+				hasChanges = true
 			}
+		} else if valRecorded != valActual {
+				modifiedResource[key] = valActual
+				hasChanges = true
 		} else {
-			if valA != valB {
-				return true
-			}
+			// In this case, the recorded and actual values were the same
+			modifiedResource[key] = valRecorded
 		}
 
 	}
 
-	for key := range mapB {
-		// We may have already compared this key with mapA, and confirmed there is no difference.
+	for key, valActual := range actualResource {
+		// We may have already compared this key with recordedResource
 		_, alreadyChecked := checkedKeys[key]
 		if alreadyChecked {
 			continue
 		}
 
-		// If the ignore_list contains the current key, don't compare
+		// If the ignore_list contains the current key, don't compare.
+		// Don't modify modifiedResource either - we don't want this key to be tracked
 		if contains(ignoreList, key) {
 			continue
 		}
 
-		// If we've gotten here, that means mapB has an additional key that wasn't in mapA
-		return true
+		// If we've gotten here, that means actualResource has an additional key that wasn't in recordedResource
+		modifiedResource[key] = valActual
+		hasChanges = true
 	}
 
-	return false
+	return modifiedResource, hasChanges
 }
 
 /*
@@ -88,10 +100,10 @@ func _descendIgnoreList(descendPath string, ignoreList []string) []string {
 }
 
 func contains(list []string, elem string) bool {
-    for _, a := range list {
-        if a == elem {
-            return true
-        }
-    }
-    return false
+	for _, a := range list {
+		if a == elem {
+			return true
+		}
+	}
+	return false
 }

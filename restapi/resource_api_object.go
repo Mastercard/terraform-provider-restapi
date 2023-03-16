@@ -298,11 +298,11 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 
 			// This checks if there were any changes to the remote resource that will need to be corrected
 			// by comparing the current state with the response returned by the api.
-			hasDifferences := hasDelta(obj.data, obj.apiData, ignoreList)
+			modifiedResource, hasDifferences := getDelta(obj.data, obj.apiData, ignoreList)
 
 			if hasDifferences {
 				log.Printf("resource_api_object.go: Found differences in remote resource\n")
-				encoded, err := json.Marshal(obj.apiData)
+				encoded, err := json.Marshal(modifiedResource)
 				if err != nil {
 					return err
 				}

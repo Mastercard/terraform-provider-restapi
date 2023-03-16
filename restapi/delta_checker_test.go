@@ -261,7 +261,7 @@ func generateTypeConversionTests() []deltaTestCase {
 func TestHasDelta(t *testing.T) {
 	// Run the main test cases
 	for _, testCase := range deltaTestCases {
-		result := hasDelta(testCase.o1, testCase.o2, testCase.ignoreList)
+		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList)
 		if result != testCase.resultHasDelta {
 			t.Errorf("delta_checker_test.go: Test Case [%d:%s] wanted [%v] got [%v]", testCase.testId, testCase.testCase, testCase.resultHasDelta, result)
 		}
@@ -269,7 +269,7 @@ func TestHasDelta(t *testing.T) {
 
 	// Test type changes
 	for _, testCase := range generateTypeConversionTests() {
-		result := hasDelta(testCase.o1, testCase.o2, testCase.ignoreList)
+		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList)
 		if result != testCase.resultHasDelta {
 			t.Errorf("delta_checker_test.go: TYPE CONVERSION Test Case [%d:%s] wanted [%v] got [%v]", testCase.testId, testCase.testCase, testCase.resultHasDelta, result)
 		}
