@@ -176,6 +176,20 @@ func resourceRestAPI() *schema.Resource {
 					return warns, errs
 				},
 			},
+			"ignore_changes_to": {
+				Type:        schema.TypeList,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Description: "A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. To ignore changes to nested fields, use the dot syntax: 'metadata.timestamp'",
+				Sensitive:   isDataSensitive,
+				// TODO ValidateFunc not supported for lists, but should probably validate that the ignore paths are valid
+			},
+			"ignore_all_server_changes": {
+				Type:        schema.TypeBool,
+				Description: "By default Terraform will attempt to revert changes to remote resources. Set this to 'true' to ignore any remote changes. Default: false",
+				Optional:    true,
+				Default:     false,
+			},
 		}, /* End schema */
 
 	}
@@ -269,7 +283,34 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		/* Setting terraform ID tells terraform the object was created or it exists */
 		log.Printf("resource_api_object.go: Read resource. Returned id is '%s'\n", obj.id)
 		d.SetId(obj.id)
+
 		setResourceState(obj, d)
+
+		// Check whether the remote resource has changed.
+		if ! (d.Get("ignore_all_server_changes")).(bool) {
+			ignoreList := []string{}
+			v, ok := d.GetOk("ignore_changes_to")
+			if ok {
+				for _, s := range v.([]interface{}) {
+					ignoreList = append(ignoreList, s.(string));
+				}
+			}
+
+			// This checks if there were any changes to the remote resource that will need to be corrected
+			// by comparing the current state with the response returned by the api.
+			hasDifferences := hasDelta(obj.data, obj.apiData, ignoreList)
+
+			if hasDifferences {
+				log.Printf("resource_api_object.go: Found differences in remote resource\n")
+				encoded, err := json.Marshal(obj.apiData)
+				if err != nil {
+					return err
+				}
+				jsonString := string(encoded)
+				d.Set("data", jsonString)
+			}
+		}
+
 	}
 	return err
 }
