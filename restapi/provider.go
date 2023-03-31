@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -235,7 +236,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		insecure:            d.Get("insecure").(bool),
 		username:            d.Get("username").(string),
 		password:            d.Get("password").(string),
-		bearer: 			 os.Getenv(d.Get("bearer_env_var_name").(string)),
+		bearer:              os.Getenv(d.Get("bearer_env_var_name").(string)),
 		headers:             headers,
 		useCookies:          d.Get("use_cookies").(bool),
 		timeout:             d.Get("timeout").(int),
