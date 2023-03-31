@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -35,6 +36,12 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
 				Description: "When set, will use this password for BASIC auth to the API.",
+			},
+			"bearer_env_var_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_BEARER_ENV_VAR_NAME", nil),
+				Description: "When set, will use the value of this env var for as bearer for auth to the API.",
 			},
 			"headers": {
 				Type:        schema.TypeMap,
@@ -229,6 +236,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		insecure:            d.Get("insecure").(bool),
 		username:            d.Get("username").(string),
 		password:            d.Get("password").(string),
+		bearer:              os.Getenv(d.Get("bearer_env_var_name").(string)),
 		headers:             headers,
 		useCookies:          d.Get("use_cookies").(bool),
 		timeout:             d.Get("timeout").(int),
