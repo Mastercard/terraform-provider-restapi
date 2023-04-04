@@ -199,6 +199,7 @@ func (client *APIClient) toString() string {
 	buffer.WriteString(fmt.Sprintf("insecure: %t\n", client.insecure))
 	buffer.WriteString(fmt.Sprintf("username: %s\n", client.username))
 	buffer.WriteString(fmt.Sprintf("password: %s\n", client.password))
+	buffer.WriteString(fmt.Sprintf("bearer: %s\n", client.bearer))
 	buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", client.idAttribute))
 	buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", client.writeReturnsObject))
 	buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", client.createReturnsObject))
