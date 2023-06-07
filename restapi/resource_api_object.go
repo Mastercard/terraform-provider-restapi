@@ -77,6 +77,11 @@ func resourceRestAPI() *schema.Resource {
 				Description: "Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)",
 				Optional:    true,
 			},
+			"id_attribute_url": {
+				Type:        schema.TypeString,
+				Description: "Defaults to `id_attribute_url` set on the provider. Allows per-resource override of `id_attribute_url` (see `id_attribute_url` provider config documentation)",
+				Optional:    true,
+			},
 			"object_id": {
 				Type:        schema.TypeString,
 				Description: "Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.",

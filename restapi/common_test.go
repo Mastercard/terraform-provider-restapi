@@ -163,3 +163,34 @@ func TestGetListStringAtKey(t *testing.T) {
 		t.Fatalf("Error: Expected '2', but got %s", res)
 	}
 }
+
+func TestParseIdAsURL(t *testing.T) {
+	testCases := []struct {
+		url          string
+		expectedID   string
+		shouldError  bool
+		expectedErr  string
+	}{
+		{"https://example.com/path/to/89d364bc-d738-4594-86ad-c12f4c437500", "89d364bc-d738-4594-86ad-c12f4c437500", false, ""},
+		{"https://example.com/path/to/1234/", "1234", false, ""},
+		{"https://example.com", "", true, "could not extract id from https://example.com"},
+	}
+
+	for _, tc := range testCases {
+		actualID, err := parseIdAsURL(tc.url)
+
+		if tc.shouldError {
+			if err == nil || err.Error() != tc.expectedErr {
+				t.Errorf("Expected error '%s' but got '%v'", tc.expectedErr, err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Expected no error but got '%v'", err)
+			}
+
+			if actualID != tc.expectedID {
+				t.Errorf("Expected ID '%s' but got '%s'", tc.expectedID, actualID)
+			}
+		}
+	}
+}

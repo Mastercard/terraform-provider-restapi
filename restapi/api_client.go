@@ -27,6 +27,7 @@ type apiClientOpt struct {
 	headers             map[string]string
 	timeout             int
 	idAttribute         string
+	idAttributeUrl      bool
 	createMethod        string
 	readMethod          string
 	updateMethod        string
@@ -60,6 +61,7 @@ type APIClient struct {
 	password            string
 	headers             map[string]string
 	idAttribute         string
+	idAttributeUrl      bool
 	createMethod        string
 	readMethod          string
 	updateMethod        string
@@ -159,6 +161,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		password:            opt.password,
 		headers:             opt.headers,
 		idAttribute:         opt.idAttribute,
+		idAttributeUrl:      opt.idAttributeUrl,
 		createMethod:        opt.createMethod,
 		readMethod:          opt.readMethod,
 		updateMethod:        opt.updateMethod,
@@ -197,6 +200,7 @@ func (client *APIClient) toString() string {
 	buffer.WriteString(fmt.Sprintf("username: %s\n", client.username))
 	buffer.WriteString(fmt.Sprintf("password: %s\n", client.password))
 	buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", client.idAttribute))
+	buffer.WriteString(fmt.Sprintf("id_attribute_url: %t\n", client.idAttributeUrl))
 	buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", client.writeReturnsObject))
 	buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", client.createReturnsObject))
 	buffer.WriteString("headers:\n")
@@ -317,6 +321,41 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
+	}
+
+	location := resp.Header.Get("Location")
+	if client.debug {
+		log.Printf("api_client.go: Found Location: '%s'", location)
+	}
+
+	if resp.StatusCode == 201 && location != "" {
+		locationURL, err := url.Parse(location)
+		if err != nil {
+			return "", fmt.Errorf("could not parse location header data: '%s'", location)
+		}
+
+		req.URL = locationURL
+		req.Method = "GET"
+
+		resp, err := client.httpClient.Do(req)
+		if err != nil {
+			return "", err
+		}
+
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return "", err
+		}
+
+		body = strings.TrimPrefix(string(bodyBytes), client.xssiPrefix)
+		if client.debug {
+			log.Printf("api_client.go: BODY:\n%s\n", body)
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
+		}
 	}
 
 	return body, nil

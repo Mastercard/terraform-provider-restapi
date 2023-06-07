@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -21,6 +22,25 @@ func setResourceState(obj *APIObject, d *schema.ResourceData) {
 	d.Set("api_data", apiData)
 	d.Set("api_response", obj.apiResponse)
 }
+
+
+func parseIdAsURL(object_url string) (string, error) {
+	parsedUrl, err := url.Parse(object_url)
+	if err != nil {
+		return "", fmt.Errorf("could not parse url: %v", err)
+	}
+
+	segments := strings.Split(strings.TrimRight(parsedUrl.Path, "/"), "/")
+
+	object_id := segments[len(segments)-1]
+
+	if object_id == "" {
+		return "", fmt.Errorf("could not extract id from %s", object_url)
+	}
+
+	return object_id, nil
+}
+
 
 /*GetStringAtKey uses GetObjectAtKey to verify the resulting
   object is either a JSON string or Number and returns it as a string */
@@ -40,6 +60,7 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 		return "", fmt.Errorf("object at path '%s' is not a JSON string or number (float64) - the go fmt package says it is '%T'", path, res)
 	}
 }
+
 
 /*GetObjectAtKey is a handy helper that will dig through a map and find something
  at the defined key. The returned data is not type checked
