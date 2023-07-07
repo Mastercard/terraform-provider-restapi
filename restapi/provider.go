@@ -60,6 +60,12 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_ATTRIBUTE", nil),
 				Description: "When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`",
 			},
+			"id_attribute_url": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_ATTRIBUTE_URL", nil),
+				Description: "When set, the key specified in `id_attribute` will be parsed as a URL to extract the ID.",
+			},
 			"create_method": {
 				Type:        schema.TypeString,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_CREATE_METHOD", nil),
@@ -233,6 +239,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		useCookies:          d.Get("use_cookies").(bool),
 		timeout:             d.Get("timeout").(int),
 		idAttribute:         d.Get("id_attribute").(string),
+		idAttributeUrl:      d.Get("id_attribute_url").(bool),
 		copyKeys:            copyKeys,
 		writeReturnsObject:  d.Get("write_returns_object").(bool),
 		createReturnsObject: d.Get("create_returns_object").(bool),

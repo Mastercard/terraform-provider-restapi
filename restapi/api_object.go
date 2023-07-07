@@ -12,43 +12,45 @@ import (
 )
 
 type apiObjectOpts struct {
-	path          string
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	updateData    string
-	destroyMethod string
-	destroyData   string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
-	data          string
+	path           string
+	getPath        string
+	postPath       string
+	putPath        string
+	createMethod   string
+	readMethod     string
+	updateMethod   string
+	updateData     string
+	destroyMethod  string
+	destroyData    string
+	deletePath     string
+	searchPath     string
+	queryString    string
+	debug          bool
+	readSearch     map[string]string
+	id             string
+	idAttribute    string
+	idAttributeUrl bool
+	data           string
 }
 
 /*APIObject is the state holding struct for a restapi_object resource*/
 type APIObject struct {
-	apiClient     *APIClient
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
+	apiClient      *APIClient
+	getPath        string
+	postPath       string
+	putPath        string
+	createMethod   string
+	readMethod     string
+	updateMethod   string
+	destroyMethod  string
+	deletePath     string
+	searchPath     string
+	queryString    string
+	debug          bool
+	readSearch     map[string]string
+	id             string
+	idAttribute    string
+	idAttributeUrl bool
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
@@ -65,12 +67,16 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		log.Printf(" id: %s\n", opts.id)
 	}
 
-	/* id_attribute can be set either on the client (to apply for all calls with the server)
-	   or on a per object basis (for only calls to this kind of object).
-	   Permit overridding from the API client here by using the client-wide value only
-	   if a per-object value is not set */
+	/* id_attribute and id_attribute_url can be set either on the client (to apply
+	   for all calls with the server) or on a per object basis (for only calls to
+	   this kind of object). Permit overridding from the API client here by using
+	   the client-wide value only if a per-object value is not set */
 	if opts.idAttribute == "" {
 		opts.idAttribute = iClient.idAttribute
+	}
+
+	if opts.idAttributeUrl {
+		opts.idAttributeUrl = iClient.idAttributeUrl
 	}
 
 	if opts.createMethod == "" {
@@ -108,25 +114,26 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		getPath:       opts.getPath,
-		postPath:      opts.postPath,
-		putPath:       opts.putPath,
-		createMethod:  opts.createMethod,
-		readMethod:    opts.readMethod,
-		updateMethod:  opts.updateMethod,
-		destroyMethod: opts.destroyMethod,
-		deletePath:    opts.deletePath,
-		searchPath:    opts.searchPath,
-		queryString:   opts.queryString,
-		debug:         opts.debug,
-		readSearch:    opts.readSearch,
-		id:            opts.id,
-		idAttribute:   opts.idAttribute,
-		data:          make(map[string]interface{}),
-		updateData:    make(map[string]interface{}),
-		destroyData:   make(map[string]interface{}),
-		apiData:       make(map[string]interface{}),
+		apiClient:      iClient,
+		getPath:        opts.getPath,
+		postPath:       opts.postPath,
+		putPath:        opts.putPath,
+		createMethod:   opts.createMethod,
+		readMethod:     opts.readMethod,
+		updateMethod:   opts.updateMethod,
+		destroyMethod:  opts.destroyMethod,
+		deletePath:     opts.deletePath,
+		searchPath:     opts.searchPath,
+		queryString:    opts.queryString,
+		debug:          opts.debug,
+		readSearch:     opts.readSearch,
+		id:             opts.id,
+		idAttribute:    opts.idAttribute,
+		idAttributeUrl: opts.idAttributeUrl,
+		data:           make(map[string]interface{}),
+		updateData:     make(map[string]interface{}),
+		destroyData:    make(map[string]interface{}),
+		apiData:        make(map[string]interface{}),
 	}
 
 	if opts.data != "" {
@@ -239,6 +246,12 @@ func (obj *APIObject) updateState(state string) error {
 		if err != nil {
 			return fmt.Errorf("api_object.go: Error extracting ID from data element: %s", err)
 		}
+		if obj.idAttributeUrl {
+			val, err = parseIdAsURL(val)
+			if err != nil {
+				return fmt.Errorf("api_object.go: Error extracting ID as URL: %s", err)
+			}
+		}
 		obj.id = val
 	} else if obj.debug {
 		log.Printf("api_object.go: Not updating id. It is already set to '%s'\n", obj.id)
@@ -268,7 +281,7 @@ func (obj *APIObject) createObject() error {
 	   with the id of whatever gets created, we have no way to know what
 	   the object's id will be. Abandon this attempt */
 	if obj.id == "" && !obj.apiClient.writeReturnsObject && !obj.apiClient.createReturnsObject {
-		return fmt.Errorf("provided object does not have an id set and the client is not configured to read the object from a POST or PUT response; please set write_returns_object to true, or include an id in the object's data")
+		return fmt.Errorf("provided object does not have an id set and the client is not configured to read the object from a POST or PUT response; please set write_returns_object or create_returns_object to true, or include an id in the object's data")
 	}
 
 	b, _ := json.Marshal(obj.data)
@@ -516,10 +529,18 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 		/* We found our record */
 		if tmp == searchValue {
 			objFound = hash
-			obj.id, err = GetStringAtKey(hash, obj.idAttribute, obj.debug)
+			val, err := GetStringAtKey(hash, obj.idAttribute, obj.debug)
 			if err != nil {
 				return objFound, (fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.idAttribute, err))
 			}
+
+			if obj.idAttributeUrl {
+				val, err = parseIdAsURL(val)
+				if err != nil {
+					return objFound, fmt.Errorf("api_object.go: Error extracting ID as URL: %s", err)
+				}
+			}
+			obj.id = val
 
 			if obj.debug {
 				log.Printf("api_object.go: Found ID '%s'", obj.id)
