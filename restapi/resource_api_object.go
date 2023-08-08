@@ -22,6 +22,8 @@ func resourceRestAPI() *schema.Resource {
 		Delete: resourceRestAPIDelete,
 		Exists: resourceRestAPIExists,
 
+		Description: "Acting as a wrapper of cURL, this object supports POST, GET, PUT and DELETE on the specified url",
+
 		Importer: &schema.ResourceImporter{
 			State: resourceRestAPIImport,
 		},

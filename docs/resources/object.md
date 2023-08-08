@@ -3,12 +3,12 @@
 page_title: "restapi_object Resource - terraform-provider-restapi"
 subcategory: ""
 description: |-
-  
+  Acting as a wrapper of cURL, this object supports POST, GET, PUT and DELETE on the specified url
 ---
 
 # restapi_object (Resource)
 
-
+Acting as a wrapper of cURL, this object supports POST, GET, PUT and DELETE on the specified url
 
 
 
