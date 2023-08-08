@@ -9,6 +9,7 @@ import (
 func dataSourceRestAPI() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceRestAPIRead,
+		Description: "Performs a cURL get command on the specified url.",
 
 		Schema: map[string]*schema.Schema{
 			"path": {

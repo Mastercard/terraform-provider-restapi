@@ -3,12 +3,12 @@
 page_title: "restapi_object Data Source - terraform-provider-restapi"
 subcategory: ""
 description: |-
-  
+  Performs a cURL get command on the specified url.
 ---
 
 # restapi_object (Data Source)
 
-
+Performs a cURL get command on the specified url.
 
 
 
