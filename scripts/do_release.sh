@@ -59,7 +59,7 @@ cd $(dirname $0)
 WORK_DIR=$(pwd)
 cd ../
 
-tfpluginwebsite
+go generate ./...
 DIFFOUTPUT=`git diff docs`
 if [ -n "$DIFFOUTPUT" ];then
   git commit -m 'Update docs before release' docs
