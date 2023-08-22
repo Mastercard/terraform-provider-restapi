@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/time/rate"
 )
@@ -250,7 +251,8 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 	}
 
 	if client.oauthConfig != nil {
-		tokenSource := client.oauthConfig.TokenSource(context.Background())
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client.httpClient)
+		tokenSource := client.oauthConfig.TokenSource(ctx)
 		token, err := tokenSource.Token()
 		if err != nil {
 			return "", err
