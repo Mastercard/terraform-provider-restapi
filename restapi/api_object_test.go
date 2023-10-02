@@ -227,6 +227,21 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
+	/* Update once more with {id} placeholder info in update_data */
+	t.Run("update_object_with_update_data", func(t *testing.T) {
+		if testDebug {
+			log.Printf("api_object_test.go: Testing update_object() with update_data")
+		}
+		testingObjects["no Colors"].updateData["update_id"] = "{id}"
+		testingObjects["no Colors"].updateObject()
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed in update_object() test: %s", err)
+		} else if testingObjects["no Colors"].apiData["update_id"] != "3" {
+			t.Fatalf("api_object_test.go: Failed to set an 'update_id' field of 'no Colors' object. Expected it to be '%s' but it is '%s'\nFull obj: %+v\n",
+				"3", testingObjects["no Colors"].apiData["no Colors"], testingObjects["no Colors"])
+		}
+	})
+
 	/* Delete one and make sure a 404 follows */
 	t.Run("delete_object", func(t *testing.T) {
 		if testDebug {

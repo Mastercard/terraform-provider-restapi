@@ -366,6 +366,9 @@ func (obj *APIObject) updateObject() error {
 	b, _ := json.Marshal(obj.data)
 
 	updateData, _ := json.Marshal(obj.updateData)
+	// Replace the "{id}" String with the id attribute of the object
+	updateData = bytes.ReplaceAll(updateData, []byte(`{id}`), []byte(obj.id))
+
 	if string(updateData) != "{}" {
 		if obj.debug {
 			log.Printf("api_object.go: Using update data '%s'", string(updateData))
