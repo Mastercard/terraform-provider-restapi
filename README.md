@@ -71,7 +71,7 @@ This provider supports importing existing resources into the terraform state. Im
 To import data:
 `terraform import restapi.Name /path/to/resource`.
 
-See a concrete example [here](examples/dummy_users_with_fakeserver.tf).
+See a concrete example [here](examples/workingexamples/dummy_users_with_fakeserver.tf).
 
 &nbsp;
 
