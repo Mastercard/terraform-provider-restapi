@@ -187,6 +187,24 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
+	t.Run("read_object_with_read_data", func(t *testing.T) {
+		if testDebug {
+			log.Printf("api_object_test.go: Testing read_object() with read_data")
+		}
+		for testCase := range testingObjects {
+			t.Run(testCase, func(t *testing.T) {
+				if testDebug {
+					log.Printf("api_object_test.go: Getting data for '%s' test case from server\n", testCase)
+				}
+				testingObjects[testCase].readData["path"] = "/" + testCase
+				err := testingObjects[testCase].readObject()
+				if err != nil {
+					t.Fatalf("api_object_test.go: Failed to read data for test case '%s': %s", testCase, err)
+				}
+			})
+		}
+	})
+
 	/* Verify our copy_keys is happy by seeing if Thing made it into the data hash */
 	t.Run("copy_keys", func(t *testing.T) {
 		if testDebug {
