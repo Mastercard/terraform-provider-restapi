@@ -18,6 +18,7 @@ type apiObjectOpts struct {
 	putPath       string
 	createMethod  string
 	readMethod    string
+	readData      string
 	updateMethod  string
 	updateData    string
 	destroyMethod string
@@ -52,6 +53,7 @@ type APIObject struct {
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
+	readData    map[string]interface{} /* Read data as managed by the user */
 	updateData  map[string]interface{} /* Update data as managed by the user */
 	destroyData map[string]interface{} /* Destroy data as managed by the user */
 	apiData     map[string]interface{} /* Data as available from the API */
@@ -78,6 +80,9 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	}
 	if opts.readMethod == "" {
 		opts.readMethod = iClient.readMethod
+	}
+	if opts.readData == "" {
+		opts.readData = iClient.readData
 	}
 	if opts.updateMethod == "" {
 		opts.updateMethod = iClient.updateMethod
@@ -124,6 +129,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		id:            opts.id,
 		idAttribute:   opts.idAttribute,
 		data:          make(map[string]interface{}),
+		readData:      make(map[string]interface{}),
 		updateData:    make(map[string]interface{}),
 		destroyData:   make(map[string]interface{}),
 		apiData:       make(map[string]interface{}),
@@ -154,6 +160,17 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 				   later, error out to be safe */
 				return &obj, fmt.Errorf("provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response; without an id, the object cannot be managed", obj.idAttribute)
 			}
+		}
+	}
+
+	if opts.readData != "" {
+		if opts.debug {
+			log.Printf("api_object.go: Parsing read data: '%s'", opts.readData)
+		}
+
+		err := json.Unmarshal([]byte(opts.readData), &obj.readData)
+		if err != nil {
+			return &obj, fmt.Errorf("api_object.go: error parsing read data provided: %v", err.Error())
 		}
 	}
 
@@ -202,6 +219,7 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
 	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
+	buffer.WriteString(fmt.Sprintf("read_data: %s\n", spew.Sdump(obj.readData)))
 	buffer.WriteString(fmt.Sprintf("update_data: %s\n", spew.Sdump(obj.updateData)))
 	buffer.WriteString(fmt.Sprintf("destroy_data: %s\n", spew.Sdump(obj.destroyData)))
 	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.apiData)))
@@ -321,7 +339,16 @@ func (obj *APIObject) readObject() error {
 		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), "")
+	b := []byte{}
+	readData, _ := json.Marshal(obj.readData)
+	if string(readData) != "" {
+		if obj.debug {
+			log.Printf("api_object.go: Using read data '%s'", string(readData))
+		}
+		b = readData
+	}
+
+	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), string(b))
 	if err != nil {
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)

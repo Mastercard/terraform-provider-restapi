@@ -144,6 +144,23 @@ func resourceRestAPI() *schema.Resource {
 				ForceNew:    true,
 				Description: "Any changes to these values will result in recreating the resource instead of updating.",
 			},
+			"read_data": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Valid JSON object to pass during read requests.",
+				Sensitive:   isDataSensitive,
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if v != "" {
+						data := make(map[string]interface{})
+						err := json.Unmarshal([]byte(v), &data)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("read_data attribute is invalid JSON: %v", err))
+						}
+					}
+					return warns, errs
+				},
+			},
 			"update_data": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -183,10 +200,13 @@ func resourceRestAPI() *schema.Resource {
 	}
 }
 
-/* Since there is nothing in the ResourceData structure other
-   than the "id" passed on the command line, we have to use an opinionated
-   view of the API paths to figure out how to read that object
-   from the API */
+/*
+Since there is nothing in the ResourceData structure other
+
+	than the "id" passed on the command line, we have to use an opinionated
+	view of the API paths to figure out how to read that object
+	from the API
+*/
 func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported []*schema.ResourceData, err error) {
 	input := d.Id()
 
@@ -339,10 +359,13 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 	return exists, err
 }
 
-/* Simple helper routine to build an api_object struct
-   for the various calls terraform will use. Unfortunately,
-   terraform cannot just reuse objects, so each CRUD operation
-   results in a new object created */
+/*
+Simple helper routine to build an api_object struct
+
+	for the various calls terraform will use. Unfortunately,
+	terraform cannot just reuse objects, so each CRUD operation
+	results in a new object created
+*/
 func makeAPIObject(d *schema.ResourceData, meta interface{}) (*APIObject, error) {
 	opts, err := buildAPIObjectOpts(d)
 	if err != nil {
@@ -397,6 +420,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("read_method"); ok {
 		opts.readMethod = v.(string)
+	}
+	if v, ok := d.GetOk("read_data"); ok {
+		opts.readData = v.(string)
 	}
 	if v, ok := d.GetOk("update_method"); ok {
 		opts.updateMethod = v.(string)
