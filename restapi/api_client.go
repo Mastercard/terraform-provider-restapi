@@ -321,6 +321,10 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
 	}
 
+	if body == "" {
+		return "{}", nil
+	}
+
 	return body, nil
 
 }
