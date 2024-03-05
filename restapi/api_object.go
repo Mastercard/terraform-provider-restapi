@@ -339,16 +339,16 @@ func (obj *APIObject) readObject() error {
 		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
 	}
 
-	b := []byte{}
-	readData, _ := json.Marshal(obj.readData)
-	if string(readData) != "" {
+	send := ""
+	if len(obj.readData) > 0 {
+		readData, _ := json.Marshal(obj.readData)
+		send = string(readData)
 		if obj.debug {
-			log.Printf("api_object.go: Using read data '%s'", string(readData))
+			log.Printf("api_object.go: Using read data '%s'", send)
 		}
-		b = readData
 	}
 
-	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), string(b))
+	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), send)
 	if err != nil {
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)
@@ -390,14 +390,16 @@ func (obj *APIObject) updateObject() error {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
 	}
 
-	b, _ := json.Marshal(obj.data)
-
-	updateData, _ := json.Marshal(obj.updateData)
-	if string(updateData) != "{}" {
+	send := ""
+	if len(obj.updateData) > 0 {
+		updateData, _ := json.Marshal(obj.updateData)
+		send = string(updateData)
 		if obj.debug {
-			log.Printf("api_object.go: Using update data '%s'", string(updateData))
+			log.Printf("api_object.go: Using update data '%s'", send)
 		}
-		b = updateData
+	} else {
+		b, _ := json.Marshal(obj.data)
+		send = string(b)
 	}
 
 	putPath := obj.putPath
@@ -408,7 +410,7 @@ func (obj *APIObject) updateObject() error {
 		putPath = fmt.Sprintf("%s?%s", obj.putPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.sendRequest(obj.updateMethod, strings.Replace(putPath, "{id}", obj.id, -1), string(b))
+	resultString, err := obj.apiClient.sendRequest(obj.updateMethod, strings.Replace(putPath, "{id}", obj.id, -1), send)
 	if err != nil {
 		return err
 	}
@@ -441,16 +443,16 @@ func (obj *APIObject) deleteObject() error {
 		deletePath = fmt.Sprintf("%s?%s", obj.deletePath, obj.queryString)
 	}
 
-	b := []byte{}
-	destroyData, _ := json.Marshal(obj.destroyData)
-	if string(destroyData) != "{}" {
+	send := ""
+	if len(obj.destroyData) > 0 {
+		destroyData, _ := json.Marshal(obj.destroyData)
+		send = string(destroyData)
 		if obj.debug {
 			log.Printf("api_object.go: Using destroy data '%s'", string(destroyData))
 		}
-		b = destroyData
 	}
 
-	_, err := obj.apiClient.sendRequest(obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.id, -1), string(b))
+	_, err := obj.apiClient.sendRequest(obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.id, -1), send)
 	if err != nil {
 		return err
 	}
