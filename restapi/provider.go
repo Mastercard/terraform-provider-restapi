@@ -6,6 +6,8 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 /*Provider implements the REST API provider*/
@@ -157,13 +159,11 @@ func Provider() *schema.Provider {
 							Description: "scopes",
 						},
 						"endpoint_params": {
-							Type:        schema.TypeMap,
-							Optional:    true,
-							Description: "Additional key/values to pass to the underlying Oauth client library (as EndpointParams)",
-							Elem: &schema.Schema{
-								Type: schema.TypeList,
-								Elem: &schema.Schema{Type: schema.TypeString},
-							},
+							Type:             schema.TypeString,
+							Optional:         true,
+							ValidateFunc:     validation.StringIsJSON,
+							Description:      "Additional key/values to pass to the underlying Oauth client library (as EndpointParams)",
+							DiffSuppressFunc: structure.SuppressJsonDiff,
 						},
 					},
 				},
@@ -261,13 +261,14 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		opt.oauthTokenURL = oauthConfig["oauth_token_endpoint"].(string)
 		opt.oauthScopes = expandStringSet(oauthConfig["oauth_scopes"].([]interface{}))
 
-		if tmp, ok := oauthConfig["endpoint_params"]; ok {
-			m := tmp.(map[string]interface{})
+		if endPointParamString := oauthConfig["endpoint_params"].(string); endPointParamString != "" {
+			endPointParams, err := structure.ExpandJsonFromString(endPointParamString)
+			if err != nil {
+				return fmt.Errorf("unable to parse settings: %s", err), err
+			}
 			setVals := url.Values{}
-			for k, vals := range m {
-				for _, val := range vals.([]string) {
-					setVals.Add(k, val)
-				}
+			for k, vals := range endPointParams {
+				setVals.Set(k, vals.(string))
 			}
 			opt.oauthEndpointParams = setVals
 		}
