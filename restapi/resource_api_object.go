@@ -299,6 +299,7 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
+		d.Partial(true)
 		return err
 	}
 
@@ -317,6 +318,8 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 	err = obj.updateObject()
 	if err == nil {
 		setResourceState(obj, d)
+	} else {
+		d.Partial(true)
 	}
 	return err
 }
