@@ -14,7 +14,9 @@ package restapi
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
@@ -106,9 +108,9 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 	svr.Shutdown()
 }
 
-/* This function generates a terraform JSON configuration from
-   a name, JSON data and a list of params to set by coaxing it
-   all to maps and then serializing to JSON */
+// This function generates a terraform JSON configuration from
+// a name, JSON data and a list of params to set by coaxing it
+// all to maps and then serializing to JSON
 func generateTestResource(name string, data string, params map[string]interface{}) string {
 	strData, _ := json.Marshal(data)
 	config := []string{
@@ -129,4 +131,75 @@ resource "restapi_object" "%s" {
 %s
 }
 `, name, strConfig)
+}
+
+func mockServer(host string, returnCodes map[string]int, responses map[string]string) *http.Server {
+	serverMux := http.NewServeMux()
+	serverMux.HandleFunc("/api/", func(w http.ResponseWriter, req *http.Request) {
+		key := fmt.Sprintf("%s %s", req.Method, req.RequestURI) // e.g. "PUT /api/objects/1234"
+		returnCode, ok := returnCodes[key]
+		if !ok {
+			returnCode = http.StatusOK
+		}
+		w.WriteHeader(returnCode)
+		responseBody, ok := responses[key]
+		if !ok {
+			responseBody = ""
+		}
+		w.Write([]byte(responseBody))
+	})
+	srv := &http.Server{
+		Addr:    host,
+		Handler: serverMux,
+	}
+	go srv.ListenAndServe()
+	return srv
+}
+
+func TestAccRestApiObject_FailedUpdate(t *testing.T) {
+	host := "127.0.0.1:8082"
+	returnCodes := map[string]int{
+		"PUT /api/objects/1234": http.StatusBadRequest,
+	}
+	responses := map[string]string{
+		"GET /api/objects/1234": `{ "id": "1234", "foo": "Bar" }`,
+	}
+	srv := mockServer(host, returnCodes, responses)
+	defer srv.Close()
+
+	os.Setenv("REST_API_URI", "http://"+host)
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				// Create the resource
+				Config: generateTestResource(
+					"Foo",
+					`{ "id": "1234", "foo": "Bar" }`,
+					make(map[string]interface{}),
+				),
+				Check: resource.TestCheckResourceAttr("restapi_object.Foo", "data", `{ "id": "1234", "foo": "Bar" }`),
+			},
+			{
+				// Try update. It will fail becuase we return 400 for PUT operations from mock server
+				Config: generateTestResource(
+					"Foo",
+					`{ "id": "1234", "foo": "Updated" }`,
+					make(map[string]interface{}),
+				),
+				ExpectError: regexp.MustCompile("unexpected response code '400'"),
+			},
+			{
+				// Expecting plan to be non-empty because the failed apply above shouldn't update terraform state
+				Config: generateTestResource(
+					"Foo",
+					`{ "id": "1234", "foo": "Updated" }`,
+					make(map[string]interface{}),
+				),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
 }
