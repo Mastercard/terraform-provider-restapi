@@ -295,7 +295,8 @@ func TestAPIObject(t *testing.T) {
 		searchKey := "Thing"
 		searchValue := "dog"
 		resultsKey := ""
-		tmpObj, err := object.findObject(queryString, searchKey, searchValue, resultsKey)
+		searchData := ""
+		tmpObj, err := object.findObject(queryString, searchKey, searchValue, resultsKey, searchData)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed to find api_object: %s", searchValue)
 		}
