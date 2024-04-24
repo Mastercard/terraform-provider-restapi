@@ -372,8 +372,17 @@ func (obj *APIObject) readObject() error {
 			}
 			queryString = fmt.Sprintf("%s&%s", obj.readSearch["query_string"], obj.queryString)
 		}
+		searchData := ""
+		if len(obj.readSearch["search_data"]) > 0 {
+			tmpData, _ := json.Marshal(obj.readSearch["search_data"])
+			searchData = string(tmpData)
+			if obj.debug {
+				log.Printf("api_object.go: Using search data '%s'", searchData)
+			}
+		}
+
 		resultsKey := obj.readSearch["results_key"]
-		objFound, err := obj.findObject(queryString, searchKey, searchValue, resultsKey)
+		objFound, err := obj.findObject(queryString, searchKey, searchValue, resultsKey, searchData)
 		if err != nil {
 			obj.id = ""
 			return nil
@@ -460,7 +469,7 @@ func (obj *APIObject) deleteObject() error {
 	return nil
 }
 
-func (obj *APIObject) findObject(queryString string, searchKey string, searchValue string, resultsKey string) (map[string]interface{}, error) {
+func (obj *APIObject) findObject(queryString string, searchKey string, searchValue string, resultsKey string, searchData string) (map[string]interface{}, error) {
 	var objFound map[string]interface{}
 	var dataArray []interface{}
 	var ok bool
@@ -479,7 +488,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 	if obj.debug {
 		log.Printf("api_object.go: Calling API on path '%s'", searchPath)
 	}
-	resultString, err := obj.apiClient.sendRequest(obj.apiClient.readMethod, searchPath, "")
+	resultString, err := obj.apiClient.sendRequest(obj.apiClient.readMethod, searchPath, searchData)
 	if err != nil {
 		return objFound, err
 	}
