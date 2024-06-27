@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -48,8 +50,10 @@ type apiClientOpt struct {
 	oauthEndpointParams url.Values
 	certFile            string
 	keyFile             string
+	rootCAFile          string
 	certString          string
 	keyString           string
+	rootCAString        string
 	debug               bool
 }
 
@@ -131,6 +135,33 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 			return nil, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	// Load root CA
+	if opt.rootCAFile != "" || opt.rootCAString != "" {
+		caCertPool := x509.NewCertPool()
+		var rootCA []byte
+		var err error
+
+		if opt.rootCAFile != "" {
+			if opt.debug {
+				log.Printf("api_client.go: Reading root CA file: %s\n", opt.rootCAFile)
+			}
+			rootCA, err = os.ReadFile(opt.rootCAFile)
+			if err != nil {
+				return nil, fmt.Errorf("could not read root CA file: %v", err)
+			}
+		} else {
+			if opt.debug {
+				log.Printf("api_client.go: Using provided root CA string\n")
+			}
+			rootCA = []byte(opt.rootCAString)
+		}
+
+		if !caCertPool.AppendCertsFromPEM(rootCA) {
+			return nil, errors.New("failed to append root CA certificate")
+		}
+		tlsConfig.RootCAs = caCertPool
 	}
 
 	tr := &http.Transport{

@@ -50,6 +50,8 @@ provider "restapi" {
 - `insecure` (Boolean) When using https, this disables TLS verification of the host.
 - `key_file` (String) When set with the cert_file parameter, the provider will load a client certificate as a file for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
 - `key_string` (String) When set with the cert_string parameter, the provider will load a client certificate as a string for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
+- `root_ca_file` (String) When set the provider will use this file as the root certificate authority for the API server. This is useful if the API server is using a self-signed certificate.
+- `root_ca_string` (String) When set the provider will use this string as the root certificate authority for the API server. This is useful if the API server is using a self-signed certificate.
 - `oauth_client_credentials` (Block List, Max: 1) Configuration for oauth client credential flow (see [below for nested schema](#nestedblock--oauth_client_credentials))
 - `password` (String) When set, will use this password for BASIC auth to the API.
 - `rate_limit` (Number) Set this to limit the number of requests per second made to the API.
