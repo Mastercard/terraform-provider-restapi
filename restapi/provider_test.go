@@ -51,16 +51,9 @@ func TestResourceProvider_Oauth(t *testing.T) {
 		"uri": "http://foo.bar/baz",
 		"oauth_client_credentials": map[string]interface{}{
 			"oauth_client_id": "test",
-			/*
-				Commented out 2022-06-27. Although terraform allows the provider to define this as
-				array of strings, it panics during unmarshal on the terraform provider SDK
-						"oauth_client_credentials": map[string]interface{}{
-							"test": []string{
-								"value1",
-								"value2",
-							},
-						},
-			*/
+			"oauth_client_credentials": map[string]interface{}{
+				"audience": "coolAPI",
+			},
 		},
 	}
 
