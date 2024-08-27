@@ -322,6 +322,53 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
+	/* Crete an oject with no JSON response, saving int or string as ID */
+	t.Run("create_object_no_json_response", func(t *testing.T) {
+		var err error
+		if testDebug {
+			log.Printf("api_object_test.go: Testing create_object() with no JSON response")
+		}
+
+		objectOpts := &apiObjectOpts{
+			path:  "/api/objects",
+			debug: apiObjectDebug,
+			data: `{
+				"Test_case": "no_JSON_response",
+				"Id": "6",
+				"No_json": true,
+				"Name": "cat"
+			}`,
+		}
+		// Important to set the new idAttribute to "*" for non JSON responses
+		client.idAttribute = "*"
+
+		object, err := NewAPIObject(client, objectOpts)
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed to create new api_object")
+		}
+
+		err = object.createObject()
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed in create_object() test: %s", err)
+		}
+
+		if object.id != "6" {
+			t.Errorf("expected populated object id from creation to be %s but got %s", "6", object.id)
+		}
+
+		object.data["Name"] = "dog"
+		object.updateObject()
+
+		if object.data["Name"] != "dog" {
+			t.Fatalf("api_object_test.go: Failed to update 'Name' field. Expected it to be '%s' but it is '%s'\nFull obj: %+v\n", "dog", object.data["Name"], object)
+		}
+
+		if testDebug {
+			log.Printf("api_object_test.go: Object created %v", object)
+		}
+
+	})
+
 	if testDebug {
 		log.Println("api_object_test.go: Stopping HTTP server")
 	}
