@@ -108,7 +108,7 @@ func resourceRestAPI() *schema.Resource {
 			},
 			"read_search": {
 				Type:        schema.TypeMap,
-				Description: "Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
+				Description: "Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
 				Optional:    true,
 			},
 			"query_string": {
