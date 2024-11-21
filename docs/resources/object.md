@@ -54,3 +54,15 @@ resource "restapi_object" "Foo2" {
 - `api_response` (String) The raw body of the HTTP response from the last read of the object.
 - `create_response` (String) The raw body of the HTTP response returned when creating the object.
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# identifier: /<full path from server root>/<object id>
+
+# Examples:
+terraform import restapi_object.objects /api/objects
+terraform import restapi_object.object /api/objects/123
+```
