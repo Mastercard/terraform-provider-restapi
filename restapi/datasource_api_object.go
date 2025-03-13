@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -8,7 +9,7 @@ import (
 
 func dataSourceRestAPI() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceRestAPIRead,
+		Read:        dataSourceRestAPIRead,
 		Description: "Performs a cURL get command on the specified url.",
 
 		Schema: map[string]*schema.Schema{
@@ -34,6 +35,11 @@ func dataSourceRestAPI() *schema.Resource {
 				when read_query_string is not set at all in the configuration. */
 				Default:     "not-set",
 				Description: "Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.",
+				Optional:    true,
+			},
+			"search_data": {
+				Type:        schema.TypeString,
+				Description: "Valid JSON object to pass to search request as body",
 				Optional:    true,
 			},
 			"search_key": {
@@ -94,8 +100,18 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 
 	searchKey := d.Get("search_key").(string)
 	searchValue := d.Get("search_value").(string)
+	searchData := d.Get("search_data").(string)
 	resultsKey := d.Get("results_key").(string)
 	idAttribute := d.Get("id_attribute").(string)
+
+	send := ""
+	if len(searchData) > 0 {
+		tmpData, _ := json.Marshal(searchData)
+		send = string(tmpData)
+		if debug {
+			log.Printf("api_object.go: Using search data '%s'", send)
+		}
+	}
 
 	if debug {
 		log.Printf("datasource_api_object.go:\npath: %s\nsearch_path: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, searchPath, queryString, searchKey, searchValue, resultsKey, idAttribute)
@@ -114,7 +130,7 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	if _, err := obj.findObject(queryString, searchKey, searchValue, resultsKey); err != nil {
+	if _, err := obj.findObject(queryString, searchKey, searchValue, resultsKey, send); err != nil {
 		return err
 	}
 
