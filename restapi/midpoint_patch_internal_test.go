@@ -45,6 +45,9 @@ func TestSendMidpointPatch(t *testing.T) {
 		t.Fatalf("midpoint_patch_internal_test.go: Failed to create API object: %s", err)
 	}
 
+	// Skip state refresh for testing
+	obj.skipStateRefresh = true
+
 	// Read current state
 	err = obj.readObject()
 	if err != nil {
@@ -78,17 +81,17 @@ func TestSendMidpointPatch(t *testing.T) {
 
 		// Check values
 		if itemDelta["modificationType"] != "add" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected modificationType='add', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected modificationType='add', got '%v'",
 				itemDelta["modificationType"])
 		}
 
 		if itemDelta["path"] != "newField" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected path='newField', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected path='newField', got '%v'",
 				itemDelta["path"])
 		}
 
 		if itemDelta["value"] != "new value" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected value='new value', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected value='new value', got '%v'",
 				itemDelta["value"])
 		}
 	})
@@ -120,12 +123,12 @@ func TestSendMidpointPatch(t *testing.T) {
 
 		// Check values
 		if itemDelta["modificationType"] != "delete" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected modificationType='delete', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected modificationType='delete', got '%v'",
 				itemDelta["modificationType"])
 		}
 
 		if itemDelta["path"] != "description" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected path='description', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected path='description', got '%v'",
 				itemDelta["path"])
 		}
 
@@ -162,17 +165,17 @@ func TestSendMidpointPatch(t *testing.T) {
 
 		// Check values
 		if itemDelta["modificationType"] != "replace" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected modificationType='replace', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected modificationType='replace', got '%v'",
 				itemDelta["modificationType"])
 		}
 
 		if itemDelta["path"] != "name" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected path='name', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected path='name', got '%v'",
 				itemDelta["path"])
 		}
 
 		if itemDelta["value"] != "updated name" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected value='updated name', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected value='updated name', got '%v'",
 				itemDelta["value"])
 		}
 	})
@@ -219,6 +222,9 @@ func TestPatchMidpointObject(t *testing.T) {
 		t.Fatalf("midpoint_patch_internal_test.go: Failed to create API object: %s", err)
 	}
 
+	// Skip state refresh for testing
+	obj.skipStateRefresh = true
+
 	// Read current state
 	err = obj.readObject()
 	if err != nil {
@@ -229,11 +235,11 @@ func TestPatchMidpointObject(t *testing.T) {
 	t.Run("Patch_Multiple_Changes", func(t *testing.T) {
 		// Set desired state with multiple differences from current state
 		obj.data = map[string]interface{}{
-			"Id":          "test2",           // same
-			"name":        "updated name",    // changed
-			"newField":    "new value",       // added
+			"Id":       "test2",        // same
+			"name":     "updated name", // changed
+			"newField": "new value",    // added
 			// "description" removed
-			"attribute1":  "value1",          // same
+			"attribute1": "value1", // same
 		}
 
 		// Perform the patch
@@ -247,13 +253,13 @@ func TestPatchMidpointObject(t *testing.T) {
 
 		// Check the replaced field
 		if updatedObj["name"] != "updated name" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected name='updated name', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected name='updated name', got '%v'",
 				updatedObj["name"])
 		}
 
 		// Check the new field
 		if updatedObj["newField"] != "new value" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected newField='new value', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected newField='new value', got '%v'",
 				updatedObj["newField"])
 		}
 
@@ -264,7 +270,7 @@ func TestPatchMidpointObject(t *testing.T) {
 
 		// Check the unchanged field
 		if updatedObj["attribute1"] != "value1" {
-			t.Fatalf("midpoint_patch_internal_test.go: Expected attribute1='value1', got '%v'", 
+			t.Fatalf("midpoint_patch_internal_test.go: Expected attribute1='value1', got '%v'",
 				updatedObj["attribute1"])
 		}
 	})

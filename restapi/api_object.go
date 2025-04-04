@@ -35,21 +35,22 @@ type apiObjectOpts struct {
 
 /*APIObject is the state holding struct for a restapi_object resource*/
 type APIObject struct {
-	apiClient     *APIClient
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
+	apiClient        *APIClient
+	getPath          string
+	postPath         string
+	putPath          string
+	createMethod     string
+	readMethod       string
+	updateMethod     string
+	destroyMethod    string
+	deletePath       string
+	searchPath       string
+	queryString      string
+	debug            bool
+	readSearch       map[string]string
+	id               string
+	idAttribute      string
+	skipStateRefresh bool /* Used for testing to skip final state refresh */
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
@@ -390,12 +391,15 @@ func (obj *APIObject) updateObject() error {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
 	}
 
+	log.Printf("api_object.go: Updating object with id '%s' using method '%s'", obj.id, obj.updateMethod)
 	// For Midpoint integration, we need to detect changes and send them via PATCH
-	if obj.apiClient.updateMethod == "PATCH" {
-		// First, fetch current state to compare with desired state
-		err := obj.readObject()
-		if err != nil {
-			return fmt.Errorf("failed to read object for PATCH operation: %v", err)
+	if obj.updateMethod == "PATCH" {
+		// If apiData is empty, fetch current state to compare with desired state
+		if len(obj.apiData) == 0 {
+			err := obj.readObject()
+			if err != nil {
+				return fmt.Errorf("failed to read object for PATCH operation: %v", err)
+			}
 		}
 
 		// We have apiData (current) and obj.data (desired)
@@ -484,31 +488,63 @@ func (obj *APIObject) patchMidpointObject() error {
 	// Track if we made any changes
 	changesApplied := false
 
+	var rootKey string
+	var rootInnerMap map[string]interface{}
+
+	if len(obj.data) > 0 {
+		for key, innerMapInterface := range obj.data {
+			rootKey = key
+			if innerMap, ok := innerMapInterface.(map[string]interface{}); ok {
+				rootInnerMap = innerMap
+			} else {
+				// If it's not a map, use the whole data object
+				rootKey = ""
+				rootInnerMap = obj.data
+			}
+			break
+		}
+	} else {
+		rootKey = ""
+		rootInnerMap = obj.data
+	}
+
 	// Process each top-level key in the desired state
-	for key, desiredValue := range obj.data {
-		currentValue, exists := obj.apiData[key]
+	for key, desiredValue := range rootInnerMap {
+
+		var currentValue interface{}
+		var exists bool
+
+		if rootKey != "" {
+			if apiDataMap, ok := obj.apiData[rootKey].(map[string]interface{}); ok {
+				currentValue, exists = apiDataMap[key]
+			} else {
+				exists = false
+			}
+		} else {
+			currentValue, exists = obj.apiData[key]
+		}
 
 		// Handle additions and modifications
 		if !exists {
 			// Key doesn't exist in current state - add it
 			if obj.debug {
-				log.Printf("api_object.go: Adding new attribute '%s'", key)
+				log.Printf("api_object.go: Adding new attribute '%s'/'%s'", rootKey, key)
 			}
 
 			err := obj.sendMidpointPatch("add", key, desiredValue)
 			if err != nil {
-				return fmt.Errorf("failed to add attribute '%s': %v", key, err)
+				return fmt.Errorf("failed to add attribute '%s'/'%s': %v", rootKey, key, err)
 			}
 			changesApplied = true
 		} else if !reflect.DeepEqual(currentValue, desiredValue) {
 			// Key exists but value is different - replace it
 			if obj.debug {
-				log.Printf("api_object.go: Replacing attribute '%s'", key)
+				log.Printf("api_object.go: Replacing attribute '%s'/'%s'", rootKey, key)
 			}
 
 			err := obj.sendMidpointPatch("replace", key, desiredValue)
 			if err != nil {
-				return fmt.Errorf("failed to replace attribute '%s': %v", key, err)
+				return fmt.Errorf("failed to replace attribute '%s'/'%s': %v", rootKey, key, err)
 			}
 			changesApplied = true
 		}
@@ -523,26 +559,27 @@ func (obj *APIObject) patchMidpointObject() error {
 			}
 
 			if obj.debug {
-				log.Printf("api_object.go: Deleting attribute '%s'", key)
+				log.Printf("api_object.go: Deleting attribute '%s'/'%s'", rootKey, key)
 			}
 
 			err := obj.sendMidpointPatch("delete", key, nil)
 			if err != nil {
-				return fmt.Errorf("failed to delete attribute '%s': %v", key, err)
+				return fmt.Errorf("failed to delete attribute '%s'/'%s': %v", rootKey, key, err)
 			}
 			changesApplied = true
 		}
 	}
 
-	// If we didn't make any changes, read the object to ensure state is current
-	if !changesApplied {
+	// If we made any changes, read the object to ensure state is current
+	if !changesApplied && !obj.skipStateRefresh {
 		if obj.debug {
-			log.Printf("api_object.go: No changes detected, refreshing state")
+			log.Printf("api_object.go: refreshing state")
 		}
 		return obj.readObject()
 	}
 
 	return nil
+
 }
 
 // sendMidpointPatch sends a single PATCH request for the specified modification
