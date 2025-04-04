@@ -10,9 +10,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-/* After any operation that returns API data, we'll stuff
-   all the k,v pairs into the api_data map so users can
-   consume the values elsewhere if they'd like */
+/*
+After any operation that returns API data, we'll stuff
+
+	all the k,v pairs into the api_data map so users can
+	consume the values elsewhere if they'd like
+*/
 func setResourceState(obj *APIObject, d *schema.ResourceData) {
 	apiData := make(map[string]string)
 	for k, v := range obj.apiData {
@@ -22,8 +25,11 @@ func setResourceState(obj *APIObject, d *schema.ResourceData) {
 	d.Set("api_response", obj.apiResponse)
 }
 
-/*GetStringAtKey uses GetObjectAtKey to verify the resulting
-  object is either a JSON string or Number and returns it as a string */
+/*
+GetStringAtKey uses GetObjectAtKey to verify the resulting
+
+	object is either a JSON string or Number and returns it as a string
+*/
 func GetStringAtKey(data map[string]interface{}, path string, debug bool) (string, error) {
 	res, err := GetObjectAtKey(data, path, debug)
 	if err != nil {
@@ -41,19 +47,21 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 	}
 }
 
-/*GetObjectAtKey is a handy helper that will dig through a map and find something
- at the defined key. The returned data is not type checked
- Example:
- Given:
- {
-   "attrs": {
-     "id": 1234
-   },
-   "config": {
-     "foo": "abc",
-     "bar": "xyz"
-   }
-}
+/*
+GetObjectAtKey is a handy helper that will dig through a map and find something
+
+	 at the defined key. The returned data is not type checked
+	 Example:
+	 Given:
+	 {
+	   "attrs": {
+	     "id": 1234
+	   },
+	   "config": {
+	     "foo": "abc",
+	     "bar": "xyz"
+	   }
+	}
 
 Result:
 attrs/id => 1234
@@ -138,8 +146,10 @@ func GetKeys(hash map[string]interface{}) []string {
 	return keys
 }
 
-/*GetEnvOrDefault is a helper function that returns the value of the
-given environment variable, if one exists, or the default value */
+/*
+GetEnvOrDefault is a helper function that returns the value of the
+given environment variable, if one exists, or the default value
+*/
 func GetEnvOrDefault(k string, defaultvalue string) string {
 	v := os.Getenv(k)
 	if v == "" {

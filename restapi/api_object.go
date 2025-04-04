@@ -35,21 +35,22 @@ type apiObjectOpts struct {
 
 /*APIObject is the state holding struct for a restapi_object resource*/
 type APIObject struct {
-	apiClient     *APIClient
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
+	apiClient        *APIClient
+	getPath          string
+	postPath         string
+	putPath          string
+	createMethod     string
+	readMethod       string
+	updateMethod     string
+	destroyMethod    string
+	deletePath       string
+	searchPath       string
+	queryString      string
+	debug            bool
+	readSearch       map[string]string
+	id               string
+	idAttribute      string
+	skipStateRefresh bool /* Used for testing to skip final state refresh */
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
@@ -390,6 +391,23 @@ func (obj *APIObject) updateObject() error {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
 	}
 
+	log.Printf("api_object.go: Updating object with id '%s' using method '%s'", obj.id, obj.updateMethod)
+	// For Midpoint integration, we need to detect changes and send them via PATCH
+	if obj.updateMethod == "PATCH" {
+		// If apiData is empty, fetch current state to compare with desired state
+		if len(obj.apiData) == 0 {
+			err := obj.readObject()
+			if err != nil {
+				return fmt.Errorf("failed to read object for PATCH operation: %v", err)
+			}
+		}
+
+		// We have apiData (current) and obj.data (desired)
+		// Now calculate what changed and form appropriate PATCH requests
+		return obj.patchMidpointObject()
+	}
+
+	// Original PUT behavior
 	send := ""
 	if len(obj.updateData) > 0 {
 		updateData, _ := json.Marshal(obj.updateData)
@@ -455,6 +473,163 @@ func (obj *APIObject) deleteObject() error {
 	_, err := obj.apiClient.sendRequest(obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.id, -1), send)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// patchMidpointObject calculates differences between current and desired state
+// and makes PATCH requests for each modification needed using Midpoint's ObjectModificationType format
+func (obj *APIObject) patchMidpointObject() error {
+	if obj.debug {
+		log.Printf("api_object.go: Calculating differences for PATCH operation")
+	}
+
+	// Track if we made any changes
+	changesApplied := false
+
+	var rootKey string
+	var rootInnerMap map[string]interface{}
+
+	if len(obj.data) > 0 {
+		for key, innerMapInterface := range obj.data {
+			rootKey = key
+			if innerMap, ok := innerMapInterface.(map[string]interface{}); ok {
+				rootInnerMap = innerMap
+			} else {
+				// If it's not a map, use the whole data object
+				rootKey = ""
+				rootInnerMap = obj.data
+			}
+			break
+		}
+	} else {
+		rootKey = ""
+		rootInnerMap = obj.data
+	}
+
+	// Process each top-level key in the desired state
+	for key, desiredValue := range rootInnerMap {
+
+		var currentValue interface{}
+		var exists bool
+
+		if rootKey != "" {
+			if apiDataMap, ok := obj.apiData[rootKey].(map[string]interface{}); ok {
+				currentValue, exists = apiDataMap[key]
+			} else {
+				exists = false
+			}
+		} else {
+			currentValue, exists = obj.apiData[key]
+		}
+
+		// Handle additions and modifications
+		if !exists {
+			// Key doesn't exist in current state - add it
+			if obj.debug {
+				log.Printf("api_object.go: Adding new attribute '%s'/'%s'", rootKey, key)
+			}
+
+			err := obj.sendMidpointPatch("add", key, desiredValue)
+			if err != nil {
+				return fmt.Errorf("failed to add attribute '%s'/'%s': %v", rootKey, key, err)
+			}
+			changesApplied = true
+		} else if !reflect.DeepEqual(currentValue, desiredValue) {
+			// Key exists but value is different - replace it
+			if obj.debug {
+				log.Printf("api_object.go: Replacing attribute '%s'/'%s'", rootKey, key)
+			}
+
+			err := obj.sendMidpointPatch("replace", key, desiredValue)
+			if err != nil {
+				return fmt.Errorf("failed to replace attribute '%s'/'%s': %v", rootKey, key, err)
+			}
+			changesApplied = true
+		}
+	}
+
+	// Check for deletions - keys that exist in current state but not in desired state
+	for key := range obj.apiData {
+		if _, exists := obj.data[key]; !exists {
+			// Skip the ID attribute - we don't want to delete that
+			if key == obj.idAttribute {
+				continue
+			}
+
+			if obj.debug {
+				log.Printf("api_object.go: Deleting attribute '%s'/'%s'", rootKey, key)
+			}
+
+			err := obj.sendMidpointPatch("delete", key, nil)
+			if err != nil {
+				return fmt.Errorf("failed to delete attribute '%s'/'%s': %v", rootKey, key, err)
+			}
+			changesApplied = true
+		}
+	}
+
+	// If we made any changes, read the object to ensure state is current
+	if !changesApplied && !obj.skipStateRefresh {
+		if obj.debug {
+			log.Printf("api_object.go: refreshing state")
+		}
+		return obj.readObject()
+	}
+
+	return nil
+
+}
+
+// sendMidpointPatch sends a single PATCH request for the specified modification
+func (obj *APIObject) sendMidpointPatch(modificationType string, path string, value interface{}) error {
+	// Build the ObjectModificationType payload
+	modification := make(map[string]interface{})
+
+	// Structure for the itemDelta
+	itemDelta := make(map[string]interface{})
+	itemDelta["modificationType"] = modificationType
+	itemDelta["path"] = path
+
+	// Add value for add and replace operations
+	if modificationType != "delete" && value != nil {
+		itemDelta["value"] = value
+	}
+
+	// Complete the structure
+	modification["objectModification"] = map[string]interface{}{
+		"itemDelta": itemDelta,
+	}
+
+	// Convert to JSON
+	modificationJSON, err := json.Marshal(modification)
+	if err != nil {
+		return fmt.Errorf("failed to marshal modification to JSON: %v", err)
+	}
+
+	if obj.debug {
+		log.Printf("api_object.go: Sending PATCH with payload: %s", string(modificationJSON))
+	}
+
+	// Construct the PATCH path
+	patchPath := obj.putPath // reuse the PUT path
+	if obj.queryString != "" {
+		patchPath = fmt.Sprintf("%s?%s", patchPath, obj.queryString)
+	}
+
+	// Send the PATCH request
+	resultString, err := obj.apiClient.sendRequest("PATCH", strings.Replace(patchPath, "{id}", obj.id, -1), string(modificationJSON))
+	if err != nil {
+		return err
+	}
+
+	// Update internal state if the API returns the updated object
+	if obj.apiClient.writeReturnsObject {
+		if obj.debug {
+			log.Printf("api_object.go: Parsing response from PATCH to update internal structures (write_returns_object=true)...\n")
+		}
+		return obj.updateState(resultString)
 	}
 
 	return nil

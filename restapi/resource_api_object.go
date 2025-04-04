@@ -61,7 +61,7 @@ func resourceRestAPI() *schema.Resource {
 			},
 			"update_method": {
 				Type:        schema.TypeString,
-				Description: "Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)",
+				Description: "Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation). Set to `PATCH` for Midpoint integration to enable calculating changes and sending them in Midpoint's ObjectModificationType format.",
 				Optional:    true,
 			},
 			"destroy_method": {

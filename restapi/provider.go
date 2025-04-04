@@ -75,7 +75,7 @@ func Provider() *schema.Provider {
 			"update_method": {
 				Type:        schema.TypeString,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_UPDATE_METHOD", nil),
-				Description: "Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.",
+				Description: "Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server. For Midpoint integration, set this to `PATCH` to enable calculating changes and sending them in Midpoint's ObjectModificationType format.",
 				Optional:    true,
 			},
 			"destroy_method": {
