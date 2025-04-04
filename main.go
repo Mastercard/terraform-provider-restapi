@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Mastercard/terraform-provider-restapi/restapi"
+	"github.com/jplana/terraform-provider-midpoint-restapi/restapi"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"

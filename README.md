@@ -45,6 +45,7 @@ This provider has only a few moving components, but LOTS of configurable paramet
 * Play with the [fakeserver cli tool](fakeservercli/) (included in releases) to get a feel for how this API client is expected to work. Also see the [examples directory](examples) directory for some working use cases with fakeserver.
 * By default, data isn't considered sensitive. If you want to hide the data this provider submits as well as the data returned by the API, you would need to set environment variable `API_DATA_IS_SENSITIVE=true`.
 * The `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`.
+* For Midpoint integration, set `update_method` to `PATCH`. This enables the provider to calculate changes between the current and desired state and send them using Midpoint's ObjectModificationType format. See the [midpoint integration example](examples/workingexamples/midpoint_integration.tf) for details.
 
 &nbsp;
 

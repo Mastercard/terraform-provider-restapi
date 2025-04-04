@@ -1,6 +1,8 @@
-module github.com/Mastercard/terraform-provider-restapi
+module github.com/jplana/terraform-provider-midpoint-restapi
 
-go 1.18
+go 1.23.0
+
+toolchain go1.24.1
 
 require (
 	github.com/davecgh/go-spew v1.1.1
@@ -10,7 +12,10 @@ require (
 	golang.org/x/time v0.3.0
 )
 
-require github.com/hashicorp/terraform-plugin-docs v0.16.0
+require (
+	github.com/Mastercard/terraform-provider-restapi v1.20.0
+	github.com/hashicorp/terraform-plugin-docs v0.16.0
+)
 
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -59,7 +64,6 @@ require (
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
