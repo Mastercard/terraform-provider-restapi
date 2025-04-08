@@ -257,7 +257,9 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 	if err != nil {
 		return imported, err
 	}
-	log.Printf("resource_api_object.go: Import routine called. Object built:\n%s\n", obj.toString())
+	if obj.debug {
+		log.Printf("resource_api_object.go: Import routine called. Object built:\n%s\n", obj.toString())
+	}
 
 	err = obj.readObject()
 	if err == nil {
@@ -275,7 +277,9 @@ func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("resource_api_object.go: Create routine called. Object built:\n%s\n", obj.toString())
+	if obj.debug {
+		log.Printf("resource_api_object.go: Create routine called. Object built:\n%s\n", obj.toString())
+	}
 
 	err = obj.createObject()
 	if err == nil {
@@ -298,7 +302,10 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 	}
-	log.Printf("resource_api_object.go: Read routine called. Object built:\n%s\n", obj.toString())
+
+	if obj.debug {
+		log.Printf("resource_api_object.go: Read routine called. Object built:\n%s\n", obj.toString())
+	}
 
 	err = obj.readObject()
 	if err == nil {
@@ -309,12 +316,12 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		setResourceState(obj, d)
 
 		// Check whether the remote resource has changed.
-		if ! (d.Get("ignore_all_server_changes")).(bool) {
+		if !(d.Get("ignore_all_server_changes")).(bool) {
 			ignoreList := []string{}
 			v, ok := d.GetOk("ignore_changes_to")
 			if ok {
 				for _, s := range v.([]interface{}) {
-					ignoreList = append(ignoreList, s.(string));
+					ignoreList = append(ignoreList, s.(string))
 				}
 			}
 
@@ -354,7 +361,9 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	log.Printf("resource_api_object.go: Update routine called. Object built:\n%s\n", obj.toString())
+	if obj.debug {
+		log.Printf("resource_api_object.go: Update routine called. Object built:\n%s\n", obj.toString())
+	}
 
 	err = obj.updateObject()
 	if err == nil {
@@ -370,7 +379,9 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("resource_api_object.go: Delete routine called. Object built:\n%s\n", obj.toString())
+	if obj.debug {
+		log.Printf("resource_api_object.go: Delete routine called. Object built:\n%s\n", obj.toString())
+	}
 
 	err = obj.deleteObject()
 	if err != nil {
@@ -392,7 +403,10 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 			return exists, err
 		}
 	}
-	log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
+
+	if obj.debug {
+		log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
+	}
 
 	/* Assume all errors indicate the object just doesn't exist.
 	This may not be a good assumption... */
