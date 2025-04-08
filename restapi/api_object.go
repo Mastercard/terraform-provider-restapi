@@ -549,7 +549,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 
 		tmp, err := GetStringAtKey(hash, searchKey, obj.debug)
 		if err != nil {
-			return objFound, (fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err))
+			return objFound, fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err)
 		}
 
 		/* We found our record */
@@ -557,7 +557,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 			objFound = hash
 			obj.id, err = GetStringAtKey(hash, obj.idAttribute, obj.debug)
 			if err != nil {
-				return objFound, (fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.idAttribute, err))
+				return objFound, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.idAttribute, err)
 			}
 
 			if obj.debug {
@@ -566,14 +566,14 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 
 			/* But there is no id attribute??? */
 			if obj.id == "" {
-				return objFound, (fmt.Errorf(fmt.Sprintf("The object for '%s'='%s' did not have the id attribute '%s', or the value was empty.", searchKey, searchValue, obj.idAttribute)))
+				return objFound, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, obj.idAttribute)
 			}
 			break
 		}
 	}
 
 	if obj.id == "" {
-		return objFound, (fmt.Errorf("failed to find an object with the '%s' key = '%s' at %s", searchKey, searchValue, searchPath))
+		return objFound, fmt.Errorf("failed to find an object with the '%s' key = '%s' at %s", searchKey, searchValue, searchPath)
 	}
 
 	return objFound, nil
