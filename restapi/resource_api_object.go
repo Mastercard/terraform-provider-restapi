@@ -195,6 +195,12 @@ func resourceRestAPI() *schema.Resource {
 					return warns, errs
 				},
 			},
+			"filter_keys": {
+				Type:        schema.TypeList,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Description: "A list of keys to filter out when parsing the API response. These keys will be removed from the state at any level in the JSON hierarchy.",
+			},
 		}, /* End schema */
 
 	}
@@ -448,6 +454,15 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
 	opts.readSearch = readSearch
+
+	// Set filter_keys if provided
+	if v, ok := d.GetOk("filter_keys"); ok {
+		filterKeys := make([]string, 0)
+		for _, key := range v.([]interface{}) {
+			filterKeys = append(filterKeys, key.(string))
+		}
+		opts.filterKeys = filterKeys
+	}
 
 	opts.data = d.Get("data").(string)
 	opts.debug = d.Get("debug").(bool)

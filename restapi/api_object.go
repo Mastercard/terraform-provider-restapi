@@ -31,6 +31,7 @@ type apiObjectOpts struct {
 	id            string
 	idAttribute   string
 	data          string
+	filterKeys    []string
 }
 
 /*APIObject is the state holding struct for a restapi_object resource*/
@@ -50,7 +51,8 @@ type APIObject struct {
 	readSearch       map[string]string
 	id               string
 	idAttribute      string
-	skipStateRefresh bool /* Used for testing to skip final state refresh */
+	skipStateRefresh bool     /* Used for testing to skip final state refresh */
+	filterKeys       []string /* Keys to filter out when parsing the API response */
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
@@ -129,6 +131,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		readSearch:    opts.readSearch,
 		id:            opts.id,
 		idAttribute:   opts.idAttribute,
+		filterKeys:    opts.filterKeys,
 		data:          make(map[string]interface{}),
 		readData:      make(map[string]interface{}),
 		updateData:    make(map[string]interface{}),
@@ -219,6 +222,7 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
 	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
+	buffer.WriteString(fmt.Sprintf("filter_keys: %s\n", spew.Sdump(obj.filterKeys)))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("read_data: %s\n", spew.Sdump(obj.readData)))
 	buffer.WriteString(fmt.Sprintf("update_data: %s\n", spew.Sdump(obj.updateData)))
@@ -250,6 +254,15 @@ func (obj *APIObject) updateState(state string) error {
 
 	/* Store response body for parsing via jsondecode() */
 	obj.apiResponse = state
+
+	/* Filter out keys that should be excluded from state tracking */
+	if len(obj.filterKeys) > 0 {
+		if obj.debug {
+			log.Printf("api_object.go: Filtering out keys: %v", obj.filterKeys)
+		}
+		// Use iterative approach to filter keys at any level
+		obj.filterKeysFromData()
+	}
 
 	/* A usable ID was not passed (in constructor or here),
 	   so we have to guess what it is from the data structure */
@@ -539,7 +552,10 @@ func (obj *APIObject) patchMidpointObject() error {
 		} else if !reflect.DeepEqual(currentValue, desiredValue) {
 			// Key exists but value is different - replace it
 			if obj.debug {
+
 				log.Printf("api_object.go: Replacing attribute '%s'/'%s'", rootKey, key)
+				log.Printf("api_object.go: OLD is %s", currentValue)
+				log.Printf("api_object.go: NEW is %s", desiredValue)
 			}
 
 			err := obj.sendMidpointPatch("replace", key, desiredValue)
@@ -633,6 +649,70 @@ func (obj *APIObject) sendMidpointPatch(modificationType string, path string, va
 	}
 
 	return nil
+}
+
+// filterKeysFromData iteratively filters out specified keys at any level in the JSON hierarchy
+func (obj *APIObject) filterKeysFromData() {
+	// Use a stack-based approach to traverse the JSON structure
+	type processItem struct {
+		path string
+		data interface{}
+	}
+
+	stack := []processItem{
+		{path: "", data: obj.apiData},
+	}
+
+	for len(stack) > 0 {
+		// Pop item from stack
+		n := len(stack) - 1
+		current := stack[n]
+		stack = stack[:n]
+
+		// Process based on type
+		switch v := current.data.(type) {
+		case map[string]interface{}:
+			// For maps, check each key
+			for key, value := range v {
+				// Check if this key should be filtered
+				shouldFilter := false
+				for _, filterKey := range obj.filterKeys {
+					if key == filterKey {
+						shouldFilter = true
+						if obj.debug {
+							log.Printf("api_object.go: Filtering out key '%s' at path '%s'", key, current.path)
+						}
+						delete(v, key)
+						break
+					}
+				}
+
+				if !shouldFilter {
+					// Add to stack for further processing if it's a container type
+					itemPath := key
+					if current.path != "" {
+						itemPath = current.path + "." + key
+					}
+
+					switch value.(type) {
+					case map[string]interface{}, []interface{}:
+						stack = append(stack, processItem{path: itemPath, data: value})
+					}
+				}
+			}
+		case []interface{}:
+			// For arrays, check each element
+			for i, item := range v {
+				itemPath := fmt.Sprintf("%s[%d]", current.path, i)
+
+				// Add container types to stack for further processing
+				switch item.(type) {
+				case map[string]interface{}, []interface{}:
+					stack = append(stack, processItem{path: itemPath, data: item})
+				}
+			}
+		}
+	}
 }
 
 func (obj *APIObject) findObject(queryString string, searchKey string, searchValue string, resultsKey string) (map[string]interface{}, error) {

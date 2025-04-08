@@ -61,6 +61,12 @@ func dataSourceRestAPI() *schema.Resource {
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
 				Optional:    true,
 			},
+			"filter_keys": {
+				Type:        schema.TypeList,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Description: "A list of keys to filter out when parsing the API response. These keys will be removed from the state at any level in the JSON hierarchy.",
+			},
 			"api_data": {
 				Type:        schema.TypeMap,
 				Elem:        &schema.Schema{Type: schema.TypeString},
@@ -107,6 +113,15 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		debug:       debug,
 		queryString: readQueryString,
 		idAttribute: idAttribute,
+	}
+	
+	// Set filter_keys if provided
+	if v, ok := d.GetOk("filter_keys"); ok {
+		filterKeys := make([]string, 0)
+		for _, key := range v.([]interface{}) {
+			filterKeys = append(filterKeys, key.(string))
+		}
+		opts.filterKeys = filterKeys
 	}
 
 	obj, err := NewAPIObject(client, opts)
