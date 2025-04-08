@@ -1,0 +1,27 @@
+{
+    "service": {
+        "oid": "35bee894-bf40-4006-a032-3efcec3b2010",
+        "name": "service",
+        "description": "Access to several specific roles in Service",
+        "assignment": {
+            "@ns": "http://prism.evolveum.com/xml/ns/public/types-3",
+            "@id": 1,
+            "targetRef": {
+                "oid": "00000000-0000-0000-0000-000000000329",
+                "relation": "org:default",
+                "type": "c:ArchetypeType"
+            }
+        },
+        "archetypeRef": {
+            "oid": "00000000-0000-0000-0000-000000000329",
+            "relation": "org:default",
+            "type": "c:ArchetypeType"
+        },
+        "roleMembershipRef": {
+            "oid": "00000000-0000-0000-0000-000000000329",
+            "relation": "org:default",
+            "type": "c:ArchetypeType"
+        },
+        "displayName": "Service"
+    }
+}

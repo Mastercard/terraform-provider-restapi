@@ -1,0 +1,137 @@
+{
+  "service" : {
+    "@metadata" : {
+      "@ns" : "http://prism.evolveum.com/xml/ns/public/types-3",
+      "@id" : 4,
+      "storage" : {
+        "modifyTimestamp" : "2025-04-08T14:38:34.676Z",
+        "modifierRef" : {
+          "oid" : "00000000-0000-0000-0000-000000000002",
+          "relation" : "org:default",
+          "type" : "c:UserType"
+        },
+        "modifyChannel" : "http://midpoint.evolveum.com/xml/ns/public/common/channels-3#user"
+      },
+      "provisioning" : {
+        "lastProvisioningTimestamp" : "2025-04-08T14:38:34.676Z"
+      }
+    },
+    "oid" : "35bee894-bf40-4006-a032-3efcec3b2010",
+    "version" : "3",
+    "name" : "Service",
+    "description" : "Access to several specific roles in Service",
+    "operationExecution" : {
+      "@ns" : "http://prism.evolveum.com/xml/ns/public/types-3",
+      "@id" : 6,
+      "recordType" : "simple",
+      "timestamp" : "2025-04-08T14:38:34.709Z",
+      "operation" : [ {
+        "objectDelta" : {
+          "changeType" : "modify",
+          "objectType" : "c:ServiceType"
+        },
+        "executionResult" : {
+          "operation" : "com.evolveum.midpoint.model.impl.lens.ChangeExecutor.executeDelta",
+          "status" : "success",
+          "importance" : "normal",
+          "token" : 1000000000000012926
+        },
+        "objectName" : "keycloak"
+      }, {
+        "objectDelta" : {
+          "changeType" : "modify",
+          "objectType" : "c:ServiceType"
+        },
+        "executionResult" : {
+          "operation" : "com.evolveum.midpoint.model.impl.lens.ChangeExecutor.linkShadow",
+          "status" : "success",
+          "importance" : "normal",
+          "token" : 1000000000000012927
+        },
+        "objectName" : "service",
+        "resourceOid" : "7d2f274a-3df2-4459-a53e-ec75227ccc2f",
+        "resourceName" : "LDAP"
+      } ],
+      "status" : "success",
+      "initiatorRef" : {
+        "oid" : "00000000-0000-0000-0000-000000000002",
+        "relation" : "org:default",
+        "type" : "c:UserType"
+      },
+      "channel" : "http://midpoint.evolveum.com/xml/ns/public/common/channels-3#user"
+    },
+    "assignment" : {
+      "@ns" : "http://prism.evolveum.com/xml/ns/public/types-3",
+      "@metadata" : {
+        "@id" : 5,
+        "storage" : {
+          "modifyTimestamp" : "2025-04-08T14:38:34.676Z",
+          "modifierRef" : {
+            "oid" : "00000000-0000-0000-0000-000000000002",
+            "relation" : "org:default",
+            "type" : "c:UserType"
+          },
+          "modifyChannel" : "http://midpoint.evolveum.com/xml/ns/public/common/channels-3#user"
+        }
+      },
+      "@id" : 1,
+      "targetRef" : {
+        "oid" : "00000000-0000-0000-0000-000000000329",
+        "relation" : "org:default",
+        "type" : "c:ArchetypeType"
+      },
+      "activation" : {
+        "effectiveStatus" : "enabled"
+      }
+    },
+    "iteration" : 0,
+    "iterationToken" : "",
+    "archetypeRef" : {
+      "oid" : "00000000-0000-0000-0000-000000000329",
+      "relation" : "org:default",
+      "type" : "c:ArchetypeType"
+    },
+    "roleMembershipRef" : {
+      "@metadata" : {
+        "@ns" : "http://prism.evolveum.com/xml/ns/public/types-3",
+        "@id" : 2,
+        "storage" : {
+          "createTimestamp" : "2025-04-08T14:38:34.671Z"
+        },
+        "provenance" : {
+          "assignmentPath" : {
+            "sourceRef" : {
+              "oid" : "7b80a7da-1d05-4838-9f36-bb2b09671273",
+              "relation" : "org:default",
+              "type" : "c:ServiceType"
+            },
+            "segment" : {
+              "@id" : 3,
+              "segmentOrder" : 1,
+              "assignmentId" : 1,
+              "targetRef" : {
+                "oid" : "00000000-0000-0000-0000-000000000329",
+                "relation" : "org:default",
+                "type" : "c:ArchetypeType"
+              },
+              "matchingOrder" : true
+            }
+          }
+        }
+      },
+      "oid" : "00000000-0000-0000-0000-000000000329",
+      "relation" : "org:default",
+      "type" : "c:ArchetypeType"
+    },
+    "linkRef" : {
+      "oid" : "b2a3f944-6040-4adb-a606-d5c00349b8e7",
+      "relation" : "org:default",
+      "type" : "c:ShadowType"
+    },
+    "activation" : {
+      "effectiveStatus" : "enabled",
+      "enableTimestamp" : "2025-04-08T14:38:34.668Z"
+    },
+    "displayName" : "Service"
+  }
+}
