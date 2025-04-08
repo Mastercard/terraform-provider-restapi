@@ -67,7 +67,8 @@ func TestGetStringAtKey(t *testing.T) {
           "bar",
           "baz"
         ]
-      }
+      },
+	  "trueFalse": true
     }
   `), &testObj)
 	if nil != err {
@@ -81,6 +82,13 @@ func TestGetStringAtKey(t *testing.T) {
 		t.Fatalf("Error extracting 'rootFoo' from JSON payload: %s", err)
 	} else if res != "bar" {
 		t.Fatalf("Error: Expected 'bar', but got %s", res)
+	}
+
+	res, err = GetStringAtKey(testObj, "trueFalse", debug)
+	if err != nil {
+		t.Fatalf("Error extracting 'trueFalse' from JSON payload: %s", err)
+	} else if res != "true" {
+		t.Fatalf("Error: Expected 'true', but got %s", res)
 	}
 
 	res, err = GetStringAtKey(testObj, "top/foo", debug)

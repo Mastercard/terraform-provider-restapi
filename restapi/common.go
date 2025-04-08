@@ -10,9 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-/* After any operation that returns API data, we'll stuff
-   all the k,v pairs into the api_data map so users can
-   consume the values elsewhere if they'd like */
+// After any operation that returns API data, we'll stuff all the k,v pairs into the api_data map so users can consume the values elsewhere if they'd like
 func setResourceState(obj *APIObject, d *schema.ResourceData) {
 	apiData := make(map[string]string)
 	for k, v := range obj.apiData {
@@ -22,8 +20,7 @@ func setResourceState(obj *APIObject, d *schema.ResourceData) {
 	d.Set("api_response", obj.apiResponse)
 }
 
-/*GetStringAtKey uses GetObjectAtKey to verify the resulting
-  object is either a JSON string or Number and returns it as a string */
+// GetStringAtKey uses GetObjectAtKey to verify the resulting object is either a JSON string or Number and returns it as a string
 func GetStringAtKey(data map[string]interface{}, path string, debug bool) (string, error) {
 	res, err := GetObjectAtKey(data, path, debug)
 	if err != nil {
@@ -31,29 +28,31 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 	}
 
 	/* JSON supports strings, numbers, objects and arrays. Allow a string OR number here */
-	t := fmt.Sprintf("%T", res)
-	if t == "string" {
-		return res.(string), nil
-	} else if t == "float64" {
-		return strconv.FormatFloat(res.(float64), 'f', -1, 64), nil
-	} else {
+	switch tmp := res.(type) {
+	case string:
+		return tmp, nil
+	case float64:
+		return strconv.FormatFloat(tmp, 'f', -1, 64), nil
+	case bool:
+		return fmt.Sprintf("%v", res), nil
+	default:
 		return "", fmt.Errorf("object at path '%s' is not a JSON string or number (float64) - the go fmt package says it is '%T'", path, res)
 	}
 }
 
-/*GetObjectAtKey is a handy helper that will dig through a map and find something
- at the defined key. The returned data is not type checked
- Example:
- Given:
- {
-   "attrs": {
-     "id": 1234
-   },
-   "config": {
-     "foo": "abc",
-     "bar": "xyz"
-   }
-}
+// GetObjectAtKey is a handy helper that will dig through a map and find something at the defined key. The returned data is not type checked.
+/*
+	 Example:
+	 Given:
+	 {
+	   "attrs": {
+	     "id": 1234
+	   },
+	   "config": {
+	     "foo": "abc",
+	     "bar": "xyz"
+	   }
+	}
 
 Result:
 attrs/id => 1234
@@ -129,7 +128,7 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 	return hash[part], nil
 }
 
-/*GetKeys is a handy helper to just dump the keys of a map into a slice */
+// GetKeys is a handy helper to just dump the keys of a map into a slice
 func GetKeys(hash map[string]interface{}) []string {
 	keys := make([]string, 0)
 	for k := range hash {
@@ -138,8 +137,7 @@ func GetKeys(hash map[string]interface{}) []string {
 	return keys
 }
 
-/*GetEnvOrDefault is a helper function that returns the value of the
-given environment variable, if one exists, or the default value */
+// GetEnvOrDefault is a helper function that returns the value of the given environment variable, if one exists, or the default value
 func GetEnvOrDefault(k string, defaultvalue string) string {
 	v := os.Getenv(k)
 	if v == "" {
