@@ -13,7 +13,7 @@ name: release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 permissions:
   contents: write
 jobs:
@@ -44,7 +44,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v3.0.0
         with:
           version: latest
-          args: release --parallelism 2 --rm-dist --timeout 1h --release-notes .release_info.md
+          args: release --parallelism 2 --clean --timeout 1h --release-notes .release_info.md
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           # GitHub sets this automatically

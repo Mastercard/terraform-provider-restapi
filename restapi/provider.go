@@ -132,7 +132,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeList,
 				Optional:    true,
 				MaxItems:    1,
-				Description: "Configuration for oauth client credential flow",
+				Description: "Configuration for oauth client credential flow using the https://pkg.go.dev/golang.org/x/oauth2 implementation",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"oauth_client_id": {
@@ -161,8 +161,7 @@ func Provider() *schema.Provider {
 							Optional:    true,
 							Description: "Additional key/values to pass to the underlying Oauth client library (as EndpointParams)",
 							Elem: &schema.Schema{
-								Type: schema.TypeList,
-								Elem: &schema.Schema{Type: schema.TypeString},
+								Type: schema.TypeString,
 							},
 						},
 					},
@@ -276,10 +275,8 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		if tmp, ok := oauthConfig["endpoint_params"]; ok {
 			m := tmp.(map[string]interface{})
 			setVals := url.Values{}
-			for k, vals := range m {
-				for _, val := range vals.([]string) {
-					setVals.Add(k, val)
-				}
+			for k, val := range m {
+				setVals.Add(k, val.(string))
 			}
 			opt.oauthEndpointParams = setVals
 		}
