@@ -50,12 +50,12 @@ provider "restapi" {
 - `insecure` (Boolean) When using https, this disables TLS verification of the host.
 - `key_file` (String) When set with the cert_file parameter, the provider will load a client certificate as a file for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
 - `key_string` (String) When set with the cert_string parameter, the provider will load a client certificate as a string for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.
-- `root_ca_file` (String) When set the provider will use this file as the root certificate authority for the API server. This is useful if the API server is using a self-signed certificate.
-- `root_ca_string` (String) When set the provider will use this string as the root certificate authority for the API server. This is useful if the API server is using a self-signed certificate.
 - `oauth_client_credentials` (Block List, Max: 1) Configuration for oauth client credential flow using the https://pkg.go.dev/golang.org/x/oauth2 implementation (see [below for nested schema](#nestedblock--oauth_client_credentials))
 - `password` (String) When set, will use this password for BASIC auth to the API.
 - `rate_limit` (Number) Set this to limit the number of requests per second made to the API.
 - `read_method` (String) Defaults to `GET`. The HTTP method used to READ objects of this type on the API server.
+- `root_ca_file` (String) When set, the provider will load a root CA certificate as a file for mTLS authentication. This is useful when the API server is using a self-signed certificate and the client needs to trust it.
+- `root_ca_string` (String) When set, the provider will load a root CA certificate as a string for mTLS authentication. This is useful when the API server is using a self-signed certificate and the client needs to trust it.
 - `test_path` (String) If set, the provider will issue a read_method request to this path after instantiation requiring a 200 OK response before proceeding. This is useful if your API provides a no-op endpoint that can signal if this provider is configured correctly. Response data will be ignored.
 - `timeout` (Number) When set, will cause requests taking longer than this time (in seconds) to be aborted.
 - `update_method` (String) Defaults to `PUT`. The HTTP method used to UPDATE objects of this type on the API server.

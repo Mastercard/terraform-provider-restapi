@@ -38,12 +38,14 @@ resource "restapi_object" "Foo2" {
 - `destroy_path` (String) Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `force_new` (List of String) Any changes to these values will result in recreating the resource instead of updating.
 - `id_attribute` (String) Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)
+- `ignore_all_server_changes` (Boolean) By default Terraform will attempt to revert changes to remote resources. Set this to 'true' to ignore any remote changes. Default: false
+- `ignore_changes_to` (List of String) A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. To ignore changes to nested fields, use the dot syntax: 'metadata.timestamp'
 - `object_id` (String) Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
 - `query_string` (String) Query string to be included in the path
 - `read_data` (String) Valid JSON object to pass during read requests.
 - `read_method` (String) Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation)
 - `read_path` (String) Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
-- `read_search` (Map of String) Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)
+- `read_search` (Map of String) Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)
 - `update_data` (String) Valid JSON object to pass during to update requests.
 - `update_method` (String) Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)
 - `update_path` (String) Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
