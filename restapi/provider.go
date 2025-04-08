@@ -132,7 +132,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeList,
 				Optional:    true,
 				MaxItems:    1,
-				Description: "Configuration for oauth client credential flow",
+				Description: "Configuration for oauth client credential flow using the https://pkg.go.dev/golang.org/x/oauth2 implementation",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"oauth_client_id": {
@@ -161,8 +161,7 @@ func Provider() *schema.Provider {
 							Optional:    true,
 							Description: "Additional key/values to pass to the underlying Oauth client library (as EndpointParams)",
 							Elem: &schema.Schema{
-								Type: schema.TypeList,
-								Elem: &schema.Schema{Type: schema.TypeString},
+								Type: schema.TypeString,
 							},
 						},
 					},
@@ -191,6 +190,18 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_KEY_FILE", nil),
 				Description: "When set with the cert_file parameter, the provider will load a client certificate as a file for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.",
+			},
+			"root_ca_file": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_ROOT_CA_FILE", nil),
+				Description: "When set, the provider will load a root CA certificate as a file for mTLS authentication. This is useful when the API server is using a self-signed certificate and the client needs to trust it.",
+			},
+			"root_ca_string": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_ROOT_CA_STRING", nil),
+				Description: "When set, the provider will load a root CA certificate as a string for mTLS authentication. This is useful when the API server is using a self-signed certificate and the client needs to trust it.",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
@@ -264,10 +275,8 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		if tmp, ok := oauthConfig["endpoint_params"]; ok {
 			m := tmp.(map[string]interface{})
 			setVals := url.Values{}
-			for k, vals := range m {
-				for _, val := range vals.([]string) {
-					setVals.Add(k, val)
-				}
+			for k, val := range m {
+				setVals.Add(k, val.(string))
 			}
 			opt.oauthEndpointParams = setVals
 		}
@@ -284,7 +293,13 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	if v, ok := d.GetOk("key_string"); ok {
 		opt.keyString = v.(string)
 	}
+	if v, ok := d.GetOk("root_ca_file"); ok {
+		opt.rootCAFile = v.(string)
+	}
+	if v, ok := d.GetOk("root_ca_string"); ok {
+		opt.rootCAString = v.(string)
 
+	}
 	client, err := NewAPIClient(opt)
 
 	if v, ok := d.GetOk("test_path"); ok {

@@ -383,7 +383,8 @@ func (obj *APIObject) readObject() error {
 
 		resultsKey := obj.readSearch["results_key"]
 		objFound, err := obj.findObject(queryString, searchKey, searchValue, resultsKey, searchData)
-		if err != nil {
+		if err != nil || objFound == nil {
+			log.Printf("api_object.go: Search did not find object with the '%s' key = '%s'", searchKey, searchValue)
 			obj.id = ""
 			return nil
 		}
