@@ -3,7 +3,7 @@ package fakeserver
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -92,7 +92,7 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 	var ok bool
 
 	/* Assume this will never fail */
-	b, _ := ioutil.ReadAll(r.Body)
+	b, _ := io.ReadAll(r.Body)
 
 	if svr.debug {
 		log.Printf("fakeserver.go: Recieved request: %+v\n", r)

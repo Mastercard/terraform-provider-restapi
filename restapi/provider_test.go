@@ -82,6 +82,9 @@ func TestResourceProvider_RequireTestPath(t *testing.T) {
 	}
 
 	err := rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
+	if err != nil {
+		t.Fatalf("Provider config failed when visiting %v at %v but it did not!", raw["test_path"], raw["uri"])
+	}
 
 	/* Now test the inverse */
 	rp = Provider()

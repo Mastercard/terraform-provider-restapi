@@ -99,9 +99,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 
 	/* Remove any trailing slashes since we will append
 	   to this URL with our own root-prefixed location */
-	if strings.HasSuffix(opt.uri, "/") {
-		opt.uri = opt.uri[:len(opt.uri)-1]
-	}
+	opt.uri = strings.TrimSuffix(opt.uri, "/")
 
 	if opt.createMethod == "" {
 		opt.createMethod = "POST"
