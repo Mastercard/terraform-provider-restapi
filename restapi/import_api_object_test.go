@@ -52,7 +52,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 				ImportStateIdPrefix: "/api/objects/",
 				ImportStateVerify:   true,
 				/* create_response isn't populated during import (we don't know the API response from creation) */
-				ImportStateVerifyIgnore: []string{"debug", "data", "create_response"},
+				ImportStateVerifyIgnore: []string{"debug", "data", "create_response", "ignore_all_server_changes"},
 			},
 		},
 	})
