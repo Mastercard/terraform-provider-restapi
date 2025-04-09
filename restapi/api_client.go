@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -341,7 +341,7 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 		}
 	}
 
-	bodyBytes, err2 := ioutil.ReadAll(resp.Body)
+	bodyBytes, err2 := io.ReadAll(resp.Body)
 	resp.Body.Close()
 
 	if err2 != nil {
