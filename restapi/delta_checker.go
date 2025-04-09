@@ -11,11 +11,11 @@ import (
  * Returns 1. the recordedResource overlaid with fields that have been modified in actualResource but not ignored, and 2. a bool true if there were any changes.
  */
 func getDelta(recordedResource map[string]interface{}, actualResource map[string]interface{}, ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
-	modifiedResource = map[string]interface{} {}
+	modifiedResource = map[string]interface{}{}
 	hasChanges = false
 
 	// Keep track of keys we've already checked in actualResource to reduce work when checking keys in actualResource
-	checkedKeys := map[string]struct{} {}
+	checkedKeys := map[string]struct{}{}
 
 	for key, valRecorded := range recordedResource {
 
@@ -27,9 +27,16 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 			continue
 		}
 
-		valActual := actualResource[key]
-		// If valRecorded was a map, assert both values are maps
-		if reflect.TypeOf(valRecorded).Kind() == reflect.Map {
+		valActual, actualHasKey := actualResource[key]
+
+		if valRecorded == nil {
+			// A JSON null was put in input data, confirm the result is either not set or is also null
+			modifiedResource[key] = valActual
+			if actualHasKey && valActual != nil {
+				hasChanges = true
+			}
+		} else if reflect.TypeOf(valRecorded).Kind() == reflect.Map {
+			// If valRecorded was a map, assert both values are maps
 			subMapA, okA := valRecorded.(map[string]interface{})
 			subMapB, okB := valActual.(map[string]interface{})
 			if !okA || !okB {
@@ -48,15 +55,15 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 		} else if reflect.TypeOf(valRecorded).Kind() == reflect.Slice {
 			// Since we don't support ignoring differences in lists (besides ignoring the list as a
 			// whole), it is safe to deep compare the two list values.
-			if ! reflect.DeepEqual(valRecorded, valActual) {
+			if !reflect.DeepEqual(valRecorded, valActual) {
 				modifiedResource[key] = valActual
 				hasChanges = true
 			} else {
 				modifiedResource[key] = valRecorded
 			}
 		} else if valRecorded != valActual {
-				modifiedResource[key] = valActual
-				hasChanges = true
+			modifiedResource[key] = valActual
+			hasChanges = true
 		} else {
 			// In this case, the recorded and actual values were the same
 			modifiedResource[key] = valRecorded

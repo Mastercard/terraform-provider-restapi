@@ -47,8 +47,8 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "No change - more types",
-		o1:             MapAny{"bool": true, "int": 4},
-		o2:             MapAny{"bool": true, "int": 4},
+		o1:             MapAny{"bool": true, "int": 4, "null": nil},
+		o2:             MapAny{"bool": true, "int": 4, "null": nil},
 		ignoreList:     []string{},
 		resultHasDelta: false,
 	},
@@ -73,6 +73,31 @@ var deltaTestCases = []deltaTestCase{
 		o1:             MapAny{"foo": "bar"},
 		o2:             MapAny{"foo": "changed"},
 		ignoreList:     []string{"foo"},
+		resultHasDelta: false,
+	},
+
+	// Handle nils in data
+	{
+		testCase:       "Server changes the value of a field (nil provided)",
+		o1:             MapAny{"foo": nil},
+		o2:             MapAny{"foo": "changed"},
+		ignoreList:     []string{},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server changes the value of a field (nil returned)",
+		o1:             MapAny{"foo": "bar"},
+		o2:             MapAny{"foo": nil},
+		ignoreList:     []string{},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server omits setting the value of a null field",
+		o1:             MapAny{"foo": "bar", "baz": nil},
+		o2:             MapAny{"foo": "bar"},
+		ignoreList:     []string{},
 		resultHasDelta: false,
 	},
 
