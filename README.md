@@ -102,3 +102,9 @@ go get github.com/Mastercard/terraform-provider-restapi
 cd ~/go/src/github.com/Mastercard/terraform-provider-restapi
 #Hack hack hack
 ```
+
+#### Local builds
+* Build the binary by running `go build` in project root directory (this generates the binary `terraform-provider-restapi`)
+* Create a directory structure in `~/.terraform.d/plugins` with pattern as `${host_name}/${namespace}/${type}/${version}/${os_arch}`
+   * Example: `example.com/test/restapi/1.8.2/darwin_arm64`
+* Place the binary in the resulting directory
