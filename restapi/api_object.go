@@ -360,6 +360,13 @@ func (obj *APIObject) readObject() error {
 
 	searchKey := obj.readSearch["search_key"]
 	searchValue := obj.readSearch["search_value"]
+	idAttribute := obj.readSearch["id_attribute"]
+	if idAttribute != "" {
+		obj.idAttribute = idAttribute
+		if obj.debug {
+			log.Printf("api_object.go: idAttribute set to '%s'", obj.idAttribute)
+		}
+	}
 
 	if searchKey != "" && searchValue != "" {
 
