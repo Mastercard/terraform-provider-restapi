@@ -1,6 +1,7 @@
 main.tf
 .terraform
 terraform-provider-restapi
+terraform-provider-restapi.exe
 terraform.tfstate
 terraform.tfstate.backup
 crash.log
