@@ -100,7 +100,9 @@ func _descendIgnoreList(descendPath string, ignoreList []string) []string {
 	newIgnoreList := make([]string, len(ignoreList))
 
 	for _, ignorePath := range ignoreList {
-		pathComponents := strings.Split(ignorePath, ".")
+		pathComponents := strings.FieldsFunc(ignorePath, func(r rune) bool {
+			return r == '.' || r == '/'
+		})
 		// If this ignorePath starts with the descendPath, remove the first component and keep the rest
 		if pathComponents[0] == descendPath {
 			modifiedPath := strings.Join(pathComponents[1:], ".")
