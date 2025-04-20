@@ -396,6 +396,13 @@ func (obj *APIObject) readObject() error {
 			obj.id = ""
 			return nil
 		}
+		// Strip null values from the object if they are unset in the input data
+		for k, v := range objFound {
+			_, hasKey := obj.data[k]
+			if v == nil && !hasKey {
+				delete(objFound, k)
+			}
+		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateState(string(objFoundString))
 	}
