@@ -403,6 +403,13 @@ func (obj *APIObject) readObject() error {
 				delete(objFound, k)
 			}
 		}
+		objectWrap := obj.readSearch["object_wrap"]
+		if objectWrap != "" {
+			if obj.debug {
+				log.Printf("api_object.go: Wrapping object in '%s'", objectWrap)
+			}
+			objFound = map[string]interface{}{objectWrap: objFound}
+		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateState(string(objFoundString))
 	}
