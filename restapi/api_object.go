@@ -371,6 +371,7 @@ func (obj *APIObject) readObject() error {
 	if searchKey != "" && searchValue != "" {
 
 		obj.searchPath = strings.Replace(obj.getPath, "{id}", obj.id, -1)
+		searchValue = strings.Replace(searchValue, "{id}", obj.id, -1)
 
 		queryString := obj.readSearch["query_string"]
 		if obj.queryString != "" {
