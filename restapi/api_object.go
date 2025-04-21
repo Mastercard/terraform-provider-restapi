@@ -360,10 +360,18 @@ func (obj *APIObject) readObject() error {
 
 	searchKey := obj.readSearch["search_key"]
 	searchValue := obj.readSearch["search_value"]
+	idAttribute := obj.readSearch["id_attribute"]
+	if idAttribute != "" {
+		obj.idAttribute = idAttribute
+		if obj.debug {
+			log.Printf("api_object.go: idAttribute set to '%s'", obj.idAttribute)
+		}
+	}
 
 	if searchKey != "" && searchValue != "" {
 
 		obj.searchPath = strings.Replace(obj.getPath, "{id}", obj.id, -1)
+		searchValue = strings.Replace(searchValue, "{id}", obj.id, -1)
 
 		queryString := obj.readSearch["query_string"]
 		if obj.queryString != "" {
@@ -387,6 +395,20 @@ func (obj *APIObject) readObject() error {
 			log.Printf("api_object.go: Search did not find object with the '%s' key = '%s'", searchKey, searchValue)
 			obj.id = ""
 			return nil
+		}
+		// Strip null values from the object if they are unset in the input data
+		for k, v := range objFound {
+			_, hasKey := obj.data[k]
+			if v == nil && !hasKey {
+				delete(objFound, k)
+			}
+		}
+		objectWrap := obj.readSearch["object_wrap"]
+		if objectWrap != "" {
+			if obj.debug {
+				log.Printf("api_object.go: Wrapping object in '%s'", objectWrap)
+			}
+			objFound = map[string]interface{}{objectWrap: objFound}
 		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateState(string(objFoundString))
