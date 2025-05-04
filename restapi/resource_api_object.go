@@ -209,6 +209,12 @@ func resourceRestAPI() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
+			"ok_status_codes": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "List/range of acceptable status codes (e.g., \"200-299\", \"200,201,204\"). Overrides provider-level setting. If not set, defaults to provider setting (or 2xx if provider is not set). If set to empty string \"\", defaults to 200-399.",
+				ValidateFunc: validateStatusCodesFunc,
+			},
 		}, /* End schema */
 
 	}
@@ -272,11 +278,38 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 	return imported, err
 }
 
+// configureClientForResource checks for resource-level ok_status_codes
+// and updates the client if they are defined, otherwise leaves the client's
+// (potentially provider-defined) codes intact.
+func configureClientForResource(d *schema.ResourceData, client *APIClient) {
+	if v, ok := d.GetOk("ok_status_codes"); ok {
+		// Attribute exists in resource config, override client's codes
+		codeStr := v.(string)
+		parsedCodes, err := parseStatusCodesString(codeStr)
+		if err != nil {
+			log.Printf("[WARN] Failed to parse resource ok_status_codes '%s': %v. Using provider defaults.", codeStr, err)
+		} else {
+			// Override client codes with resource-specific ones (could be empty list)
+			client.okStatusCodes = parsedCodes
+			if client.debug {
+				log.Printf("resource_api_object.go: Using resource-specific ok_status_codes: %v (parsed from \")%s\")", client.okStatusCodes, codeStr)
+			}
+		}
+	} else {
+		// Attribute does not exist in resource config, leave client codes as they are (nil or provider default)
+		if client.debug {
+			log.Printf("resource_api_object.go: No resource-specific ok_status_codes defined, using client defaults: %v", client.okStatusCodes)
+		}
+	}
+}
+
 func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		return err
 	}
+	client := meta.(*APIClient)
+	configureClientForResource(d, client) // Configure client before use
 	if obj.debug {
 		log.Printf("resource_api_object.go: Create routine called. Object built:\n%s\n", obj.toString())
 	}
@@ -303,6 +336,8 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
+	client := meta.(*APIClient)
+	configureClientForResource(d, client) // Configure client before use
 	if obj.debug {
 		log.Printf("resource_api_object.go: Read routine called. Object built:\n%s\n", obj.toString())
 	}
@@ -351,9 +386,10 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
+	client := meta.(*APIClient)
+	configureClientForResource(d, client) // Configure client before use
 	/* If copy_keys is not empty, we have to grab the latest
 	   data so we can copy anything needed before the update */
-	client := meta.(*APIClient)
 	if len(client.copyKeys) > 0 {
 		err = obj.readObject()
 		if err != nil {
@@ -379,6 +415,8 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
+	client := meta.(*APIClient)
+	configureClientForResource(d, client) // Configure client before use
 	if obj.debug {
 		log.Printf("resource_api_object.go: Delete routine called. Object built:\n%s\n", obj.toString())
 	}
@@ -404,6 +442,8 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 		}
 	}
 
+	client := meta.(*APIClient)
+	configureClientForResource(d, client) // Configure client before use
 	if obj.debug {
 		log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
 	}

@@ -55,6 +55,7 @@ type apiClientOpt struct {
 	keyString           string
 	rootCAString        string
 	debug               bool
+	okStatusCodes       []int
 }
 
 /*APIClient is a HTTP client with additional controlling fields*/
@@ -80,6 +81,7 @@ type APIClient struct {
 	rateLimiter         *rate.Limiter
 	debug               bool
 	oauthConfig         *clientcredentials.Config
+	okStatusCodes       []int
 }
 
 // NewAPIClient makes a new api client for RESTful calls
@@ -203,6 +205,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		createReturnsObject: opt.createReturnsObject,
 		xssiPrefix:          opt.xssiPrefix,
 		debug:               opt.debug,
+		okStatusCodes:       opt.okStatusCodes,
 	}
 
 	if opt.oauthClientID != "" && opt.oauthClientSecret != "" && opt.oauthTokenURL != "" {
@@ -352,8 +355,32 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 		log.Printf("api_client.go: BODY:\n%s\n", body)
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
+	// Check response code
+	if client.okStatusCodes != nil {
+		// ok_status_codes was explicitly provided (could be empty list)
+		if len(client.okStatusCodes) > 0 {
+			// User provided specific codes, check against them
+			found := false
+			for _, code := range client.okStatusCodes {
+				if resp.StatusCode == code {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return body, fmt.Errorf("unexpected response code '%d' (expected one of %v): %s", resp.StatusCode, client.okStatusCodes, body)
+			}
+		} else {
+			// User provided empty list `[]`, use 200-399 range
+			if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+				return body, fmt.Errorf("unexpected response code '%d' (expected 200-399 because ok_status_codes=[]): %s", resp.StatusCode, body)
+			}
+		}
+	} else {
+		// ok_status_codes was *not* provided, use original default (2xx)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return body, fmt.Errorf("unexpected response code '%d' (expected 2xx): %s", resp.StatusCode, body)
+		}
 	}
 
 	if body == "" {

@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -203,6 +206,12 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_ROOT_CA_STRING", nil),
 				Description: "When set, the provider will load a root CA certificate as a string for mTLS authentication. This is useful when the API server is using a self-signed certificate and the client needs to trust it.",
 			},
+			"ok_status_codes": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "Default list/range of acceptable status codes (e.g., \"200-299\", \"200,201,204\"). Can be overridden per resource. If not set, defaults to 2xx. If set to empty string \"\", defaults to 200-399.",
+				ValidateFunc: validateStatusCodesFunc,
+			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			/* Could only get terraform to recognize this resource if
@@ -235,6 +244,18 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		}
 	}
 
+	// Read and parse ok_status_codes if set in provider config
+	var okStatusCodes []int // Default to nil
+	if v, ok := d.GetOk("ok_status_codes"); ok {
+		codeStr := v.(string)
+		parsedCodes, err := parseStatusCodesString(codeStr)
+		if err != nil {
+			// Validation should prevent this, but handle defensively
+			return nil, fmt.Errorf("failed to parse provider ok_status_codes '%s': %w", codeStr, err)
+		}
+		okStatusCodes = parsedCodes // Assign parsed codes (could be empty slice)
+	}
+
 	opt := &apiClientOpt{
 		uri:                 d.Get("uri").(string),
 		insecure:            d.Get("insecure").(bool),
@@ -250,6 +271,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		xssiPrefix:          d.Get("xssi_prefix").(string),
 		rateLimit:           d.Get("rate_limit").(float64),
 		debug:               d.Get("debug").(bool),
+		okStatusCodes:       okStatusCodes,
 	}
 
 	if v, ok := d.GetOk("create_method"); ok {
@@ -298,7 +320,6 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	}
 	if v, ok := d.GetOk("root_ca_string"); ok {
 		opt.rootCAString = v.(string)
-
 	}
 	client, err := NewAPIClient(opt)
 
@@ -310,4 +331,83 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		}
 	}
 	return client, err
+}
+
+// Parses a string containing status codes and ranges (e.g., "200", "200-299", "200,201,404", "200-299,404") into a sorted slice of unique ints.
+// Returns nil slice and error if parsing fails.
+func parseStatusCodesString(codeStr string) ([]int, error) {
+	codeStr = strings.TrimSpace(codeStr)
+	if codeStr == "" {
+		return []int{}, nil // Treat empty string as explicitly empty list (means 200-399)
+	}
+
+	codesMap := make(map[int]struct{}) // Use map for uniqueness
+
+	parts := strings.Split(codeStr, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue // Skip empty parts (e.g., from "200, ,201")
+		}
+
+		if strings.Contains(part, "-") {
+			// Range format "start-end"
+			rangeParts := strings.Split(part, "-")
+			if len(rangeParts) != 2 {
+				return nil, fmt.Errorf("invalid range format '%s' within '%s'", part, codeStr)
+			}
+			startStr := strings.TrimSpace(rangeParts[0])
+			endStr := strings.TrimSpace(rangeParts[1])
+
+			start, err := strconv.Atoi(startStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid start value '%s' in range '%s': %w", startStr, part, err)
+			}
+			end, err := strconv.Atoi(endStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid end value '%s' in range '%s': %w", endStr, part, err)
+			}
+
+			if start > end {
+				return nil, fmt.Errorf("invalid range '%s': start value %d is greater than end value %d", part, start, end)
+			}
+
+			for i := start; i <= end; i++ {
+				codesMap[i] = struct{}{}
+			}
+		} else {
+			// Single code format
+			code, err := strconv.Atoi(part)
+			if err != nil {
+				return nil, fmt.Errorf("invalid single code format '%s' within '%s': %w", part, codeStr, err)
+			}
+			codesMap[code] = struct{}{}
+		}
+	}
+
+	if len(codesMap) == 0 {
+		return nil, fmt.Errorf("invalid format '%s': resulted in empty list of codes", codeStr)
+	}
+
+	// Convert map keys to sorted slice
+	codes := make([]int, 0, len(codesMap))
+	for code := range codesMap {
+		codes = append(codes, code)
+	}
+	sort.Ints(codes)
+
+	return codes, nil
+}
+
+// Validation function for the schema
+func validateStatusCodesFunc(val interface{}, key string) (warns []string, errs []error) {
+	v := val.(string)
+	if v == "" {
+		return // Empty string is allowed (means 200-399)
+	}
+	_, err := parseStatusCodesString(v)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("invalid %s format: %w", key, err))
+	}
+	return
 }
