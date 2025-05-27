@@ -43,6 +43,13 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.",
 			},
+			"bearer_token": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Sensitive:   true,
+				DefaultFunc: schema.EnvDefaultFunc("BEARER_TOKEN", nil),
+				Description: "Token to use for Authorization: Bearer <token>",
+			},
 			"use_cookies": {
 				Type:        schema.TypeBool,
 				Optional:    true,
@@ -234,6 +241,10 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		for k, v := range iHeaders.(map[string]interface{}) {
 			headers[k] = v.(string)
 		}
+	}
+
+	if token, ok := d.GetOk("bearer_token"); ok && token.(string) != "" {
+		headers["Authorization"] = "Bearer " + token.(string)
 	}
 
 	opt := &apiClientOpt{
