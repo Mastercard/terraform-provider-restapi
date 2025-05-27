@@ -47,7 +47,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				DefaultFunc: schema.EnvDefaultFunc("BEARER_TOKEN", nil),
+				DefaultFunc: schema.EnvDefaultFunc("REST_API_BEARER", nil),
 				Description: "Token to use for Authorization: Bearer <token>",
 			},
 			"use_cookies": {

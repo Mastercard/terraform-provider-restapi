@@ -28,7 +28,7 @@ type apiClientOpt struct {
 	username            string
 	password            string
 	headers             map[string]string
-	bearer_token        string
+	bearerToken         string
 	timeout             int
 	idAttribute         string
 	createMethod        string
@@ -66,7 +66,7 @@ type APIClient struct {
 	username            string
 	password            string
 	headers             map[string]string
-	bearer_token        string
+	bearerToken        string
 	idAttribute         string
 	createMethod        string
 	readMethod          string
@@ -192,7 +192,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		username:            opt.username,
 		password:            opt.password,
 		headers:             opt.headers,
-		bearer_token:        opt.bearer_token,
+		bearerToken:         opt.bearerToken,
 		idAttribute:         opt.idAttribute,
 		createMethod:        opt.createMethod,
 		readMethod:          opt.readMethod,
