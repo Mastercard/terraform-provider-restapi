@@ -33,6 +33,7 @@ func Provider() *schema.Provider {
 			"password": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc("REST_API_PASSWORD", nil),
 				Description: "When set, will use this password for BASIC auth to the API.",
 			},
