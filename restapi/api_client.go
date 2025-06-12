@@ -23,40 +23,40 @@ import (
 )
 
 type apiClientOpt struct {
-	uri                 string
-	insecure            bool
-	username            string
-	password            string
-	headers             map[string]string
-	timeout             int
-	idAttribute         string
-	createMethod        string
-	readMethod          string
-	readData            string
-	updateMethod        string
-	updateData          string
-	destroyMethod       string
-	destroyData         string
-	copyKeys            []string
-	writeReturnsObject  bool
-	createReturnsObject bool
-	xssiPrefix          string
-	useCookies          bool
-	rateLimit           float64
-	oauthClientIDEnvVar string 
+	uri                     string
+	insecure                bool
+	username                string
+	password                string
+	headers                 map[string]string
+	timeout                 int
+	idAttribute             string
+	createMethod            string
+	readMethod              string
+	readData                string
+	updateMethod            string
+	updateData              string
+	destroyMethod           string
+	destroyData             string
+	copyKeys                []string
+	writeReturnsObject      bool
+	createReturnsObject     bool
+	xssiPrefix              string
+	useCookies              bool
+	rateLimit               float64
+	oauthClientIDEnvVar     string
 	oauthClientSecretEnvVar string
-	oauthClientID       string
-	oauthClientSecret   string
-	oauthScopes         []string
-	oauthTokenURL       string
-	oauthEndpointParams url.Values
-	certFile            string
-	keyFile             string
-	rootCAFile          string
-	certString          string
-	keyString           string
-	rootCAString        string
-	debug               bool
+	oauthClientID           string
+	oauthClientSecret       string
+	oauthScopes             []string
+	oauthTokenURL           string
+	oauthEndpointParams     url.Values
+	certFile                string
+	keyFile                 string
+	rootCAFile              string
+	certString              string
+	keyString               string
+	rootCAString            string
+	debug                   bool
 }
 
 /*APIClient is a HTTP client with additional controlling fields*/
@@ -84,12 +84,13 @@ type APIClient struct {
 	oauthConfig         *clientcredentials.Config
 }
 
+// Helper function for optional environment imports
 func GetEnvStringOrDefault(key, def string) string {
-if env := os.Getenv(key); env != "" {
-	log.Printf("Got env for %s", key)
-	return env
-}
-return def
+	if env := os.Getenv(key); env != "" {
+		log.Printf("Got env for %s", key)
+		return env
+	}
+	return def
 }
 
 // NewAPIClient makes a new api client for RESTful calls
@@ -215,7 +216,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		debug:               opt.debug,
 	}
 
-    resolvedClientID := GetEnvStringOrDefault(opt.oauthClientIDEnvVar, opt.oauthClientID)
+	resolvedClientID := GetEnvStringOrDefault(opt.oauthClientIDEnvVar, opt.oauthClientID)
 	resolvedClientSecret := GetEnvStringOrDefault(opt.oauthClientSecretEnvVar, opt.oauthClientSecret)
 
 	if resolvedClientID != "" && resolvedClientSecret != "" && opt.oauthTokenURL != "" {
