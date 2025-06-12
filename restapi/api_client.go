@@ -43,6 +43,8 @@ type apiClientOpt struct {
 	xssiPrefix          string
 	useCookies          bool
 	rateLimit           float64
+	oauthClientIDEnvVar string 
+	oauthClientSecretEnvVar string
 	oauthClientID       string
 	oauthClientSecret   string
 	oauthScopes         []string
@@ -80,6 +82,13 @@ type APIClient struct {
 	rateLimiter         *rate.Limiter
 	debug               bool
 	oauthConfig         *clientcredentials.Config
+}
+
+func GetEnvStringOrDefault(key, def string) string {
+if env := os.Getenv(key); env != "" {
+	return env
+}
+return def
 }
 
 // NewAPIClient makes a new api client for RESTful calls
@@ -205,7 +214,10 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		debug:               opt.debug,
 	}
 
-	if opt.oauthClientID != "" && opt.oauthClientSecret != "" && opt.oauthTokenURL != "" {
+    resolvedClientID := GetEnvStringOrDefault(opt.oauthClientIDEnvVar, opt.oauthClientID)
+	resolvedClientSecret := GetEnvStringOrDefault(opt.oauthClientSecretEnvVar, opt.oauthClientSecret)
+
+	if resolvedClientID != "" && resolvedClientSecret != "" && opt.oauthTokenURL != "" {
 		client.oauthConfig = &clientcredentials.Config{
 			ClientID:       opt.oauthClientID,
 			ClientSecret:   opt.oauthClientSecret,
