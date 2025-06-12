@@ -67,13 +67,16 @@ provider "restapi" {
 <a id="nestedblock--oauth_client_credentials"></a>
 ### Nested Schema for `oauth_client_credentials`
 
+NOTE: One of `oauth_client_id_environment_variable` and `oauth_client_secret_environment_variable` or `oauth_client_id` and `oauth_client_secret` MUST be set if this block is configured. If both are set environment variables take priority.
+
 Required:
 
-- `oauth_client_id` (String) client id
-- `oauth_client_secret` (String) client secret
 - `oauth_token_endpoint` (String) oauth token endpoint
 
 Optional:
-
+- `oauth_client_id_environment_variable` (String) client id
+- `oauth_client_secret_environment_variable` (String) client secret
+- `oauth_client_id` (String) client id
+- `oauth_client_secret` (String) client secret
 - `endpoint_params` (Map of String) Additional key/values to pass to the underlying Oauth client library (as EndpointParams)
 - `oauth_scopes` (List of String) scopes

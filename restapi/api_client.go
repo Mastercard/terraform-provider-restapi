@@ -86,6 +86,7 @@ type APIClient struct {
 
 func GetEnvStringOrDefault(key, def string) string {
 if env := os.Getenv(key); env != "" {
+	log.Printf("Got env for %s", key)
 	return env
 }
 return def
@@ -219,8 +220,8 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 
 	if resolvedClientID != "" && resolvedClientSecret != "" && opt.oauthTokenURL != "" {
 		client.oauthConfig = &clientcredentials.Config{
-			ClientID:       opt.oauthClientID,
-			ClientSecret:   opt.oauthClientSecret,
+			ClientID:       resolvedClientID,
+			ClientSecret:   resolvedClientSecret,
 			TokenURL:       opt.oauthTokenURL,
 			Scopes:         opt.oauthScopes,
 			EndpointParams: opt.oauthEndpointParams,

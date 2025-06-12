@@ -68,6 +68,27 @@ func TestResourceProvider_Oauth(t *testing.T) {
 	}
 }
 
+func TestResourceProvider_Oauth_Env(t *testing.T) {
+	rp := Provider()
+	raw := map[string]interface{}{
+		"uri": "http://foo.bar/baz",
+		"oauth_client_credentials": map[string]interface{}{
+			"oauth_client_id_environment_variable": "test",
+			"oauth_client_secret_environment_variable": "secret",
+		},
+	}
+
+	/*
+	   XXX: This is expected to work even though we are not
+	        explicitly declaring the required url parameter since
+	        the test suite is run with the ENV entry set.
+	*/
+	err := rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
+	if err != nil {
+		t.Fatalf("Provider failed with error: %v", err)
+	}
+}
+
 func TestResourceProvider_RequireTestPath(t *testing.T) {
 	debug := false
 	apiServerObjects := make(map[string]map[string]interface{})
