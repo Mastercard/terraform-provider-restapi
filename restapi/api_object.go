@@ -129,7 +129,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		id:            opts.id,
 		idAttribute:   opts.idAttribute,
 		data:          make(map[string]interface{}),
-		readData:      make(map[string]interface{}),
+		readData:      nil,
 		updateData:    make(map[string]interface{}),
 		destroyData:   make(map[string]interface{}),
 		apiData:       make(map[string]interface{}),
@@ -339,25 +339,6 @@ func (obj *APIObject) readObject() error {
 		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
 	}
 
-	send := ""
-	if len(obj.readData) > 0 {
-		readData, _ := json.Marshal(obj.readData)
-		send = string(readData)
-		if obj.debug {
-			log.Printf("api_object.go: Using read data '%s'", send)
-		}
-	}
-
-	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), send)
-	if err != nil {
-		if strings.Contains(err.Error(), "unexpected response code '404'") {
-			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)
-			obj.id = ""
-			return nil
-		}
-		return err
-	}
-
 	searchKey := obj.readSearch["search_key"]
 	searchValue := obj.readSearch["search_value"]
 
@@ -374,8 +355,7 @@ func (obj *APIObject) readObject() error {
 		}
 		searchData := ""
 		if len(obj.readSearch["search_data"]) > 0 {
-			tmpData, _ := json.Marshal(obj.readSearch["search_data"])
-			searchData = string(tmpData)
+			searchData = obj.readSearch["search_data"]
 			if obj.debug {
 				log.Printf("api_object.go: Using search data '%s'", searchData)
 			}
@@ -390,6 +370,25 @@ func (obj *APIObject) readObject() error {
 		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateState(string(objFoundString))
+	}
+
+	send := ""
+	if obj.readData != nil {
+		readData, _ := json.Marshal(obj.readData)
+		send = string(readData)
+		if obj.debug {
+			log.Printf("api_object.go: Using read data '%s'", send)
+		}
+	}
+
+	resultString, err := obj.apiClient.sendRequest(obj.readMethod, strings.Replace(getPath, "{id}", obj.id, -1), send)
+	if err != nil {
+		if strings.Contains(err.Error(), "unexpected response code '404'") {
+			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.id, obj.getPath)
+			obj.id = ""
+			return nil
+		}
+		return err
 	}
 
 	return obj.updateState(resultString)
