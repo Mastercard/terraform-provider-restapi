@@ -12,44 +12,46 @@ import (
 )
 
 type apiObjectOpts struct {
-	path          string
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	readData      string
-	updateMethod  string
-	updateData    string
-	destroyMethod string
-	destroyData   string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
-	data          string
+	path                string
+	getPath             string
+	postPath            string
+	putPath             string
+	createMethod        string
+	readMethod          string
+	readData            string
+	readResponseIsArray bool
+	updateMethod        string
+	updateData          string
+	destroyMethod       string
+	destroyData         string
+	deletePath          string
+	searchPath          string
+	queryString         string
+	debug               bool
+	readSearch          map[string]string
+	id                  string
+	idAttribute         string
+	data                string
 }
 
 /*APIObject is the state holding struct for a restapi_object resource*/
 type APIObject struct {
-	apiClient     *APIClient
-	getPath       string
-	postPath      string
-	putPath       string
-	createMethod  string
-	readMethod    string
-	updateMethod  string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	id            string
-	idAttribute   string
+	apiClient           *APIClient
+	getPath             string
+	postPath            string
+	putPath             string
+	createMethod        string
+	readMethod          string
+	readResponseIsArray bool
+	updateMethod        string
+	destroyMethod       string
+	deletePath          string
+	searchPath          string
+	queryString         string
+	debug               bool
+	readSearch          map[string]string
+	id                  string
+	idAttribute         string
 
 	/* Set internally */
 	data        map[string]interface{} /* Data as managed by the user */
@@ -113,26 +115,27 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		getPath:       opts.getPath,
-		postPath:      opts.postPath,
-		putPath:       opts.putPath,
-		createMethod:  opts.createMethod,
-		readMethod:    opts.readMethod,
-		updateMethod:  opts.updateMethod,
-		destroyMethod: opts.destroyMethod,
-		deletePath:    opts.deletePath,
-		searchPath:    opts.searchPath,
-		queryString:   opts.queryString,
-		debug:         opts.debug,
-		readSearch:    opts.readSearch,
-		id:            opts.id,
-		idAttribute:   opts.idAttribute,
-		data:          make(map[string]interface{}),
-		readData:      make(map[string]interface{}),
-		updateData:    make(map[string]interface{}),
-		destroyData:   make(map[string]interface{}),
-		apiData:       make(map[string]interface{}),
+		apiClient:           iClient,
+		getPath:             opts.getPath,
+		postPath:            opts.postPath,
+		putPath:             opts.putPath,
+		createMethod:        opts.createMethod,
+		readMethod:          opts.readMethod,
+		readResponseIsArray: opts.readResponseIsArray,
+		updateMethod:        opts.updateMethod,
+		destroyMethod:       opts.destroyMethod,
+		deletePath:          opts.deletePath,
+		searchPath:          opts.searchPath,
+		queryString:         opts.queryString,
+		debug:               opts.debug,
+		readSearch:          opts.readSearch,
+		id:                  opts.id,
+		idAttribute:         opts.idAttribute,
+		data:                make(map[string]interface{}),
+		readData:            make(map[string]interface{}),
+		updateData:          make(map[string]interface{}),
+		destroyData:         make(map[string]interface{}),
+		apiData:             make(map[string]interface{}),
 	}
 
 	if opts.data != "" {
@@ -152,7 +155,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 			tmp, err := GetStringAtKey(obj.data, obj.idAttribute, obj.debug)
 			if err == nil {
 				if opts.debug {
-					log.Printf("api_object.go: opportunisticly set id from data provided.")
+					log.Printf("api_object.go: opportunistically set id from data provided.")
 				}
 				obj.id = tmp
 			} else if !obj.apiClient.writeReturnsObject && !obj.apiClient.createReturnsObject && obj.searchPath == "" {
@@ -390,6 +393,48 @@ func (obj *APIObject) readObject() error {
 		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateState(string(objFoundString))
+	}
+
+	if obj.debug {
+		log.Printf("api_object.go: readResponseIsArray is set to %t", obj.readResponseIsArray)
+	}
+
+	if obj.readResponseIsArray {
+		if obj.debug {
+			log.Printf("api_object.go: Parsing response as an array")
+		}
+
+		var arr []interface{}
+		err := json.Unmarshal([]byte(resultString), &arr)
+		if err != nil {
+			return fmt.Errorf("api_object.go: error parsing response as array: %v", err)
+		}
+		if len(arr) == 0 {
+			return fmt.Errorf("api_object.go: response array is empty")
+		}
+		firstObj, ok := arr[0].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("api_object.go: first element in array is not an object")
+		}
+
+		// remove the zone name (pfaroe.moodys.cloud) from name field of firstObj
+		zoneNName := "pfaroe.moodys.cloud" // TODO make this configurable
+		name := firstObj["name"].(string)
+		nameNew := strings.Replace(name, "."+zoneNName, "", -1)
+		firstObj["name"] = nameNew
+
+		//remove id field from firstObj
+		delete(firstObj, "id")
+
+		firstObjStr, err := json.Marshal(firstObj)
+		if obj.debug {
+			log.Printf("api_object.go: firstObjStr after replacements: %s", firstObjStr)
+		}
+		if err != nil {
+			return fmt.Errorf("api_object.go: error marshaling first object: %v", err)
+		}
+
+		return obj.updateState(string(firstObjStr))
 	}
 
 	return obj.updateState(resultString)

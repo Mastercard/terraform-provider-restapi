@@ -33,6 +33,7 @@ type apiClientOpt struct {
 	createMethod        string
 	readMethod          string
 	readData            string
+	readResponseIsArray bool
 	updateMethod        string
 	updateData          string
 	destroyMethod       string
@@ -69,6 +70,7 @@ type APIClient struct {
 	createMethod        string
 	readMethod          string
 	readData            string
+	readResponseIsArray bool
 	updateMethod        string
 	updateData          string
 	destroyMethod       string
@@ -194,6 +196,7 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		createMethod:        opt.createMethod,
 		readMethod:          opt.readMethod,
 		readData:            opt.readData,
+		readResponseIsArray: opt.readResponseIsArray,
 		updateMethod:        opt.updateMethod,
 		updateData:          opt.updateData,
 		destroyMethod:       opt.destroyMethod,
@@ -238,6 +241,25 @@ func (client *APIClient) toString() string {
 	}
 	for _, n := range client.copyKeys {
 		buffer.WriteString(fmt.Sprintf("  %s", n))
+	}
+	buffer.WriteString(fmt.Sprintf("\ncreate_method: %s\n", client.createMethod))
+	buffer.WriteString(fmt.Sprintf("read_method: %s\n", client.readMethod))
+	buffer.WriteString(fmt.Sprintf("read_response_is_array: %t\n", client.readResponseIsArray))
+	if client.oauthConfig != nil {
+		buffer.WriteString("oauth_client_credentials:\n")
+		buffer.WriteString(fmt.Sprintf("  oauth_client_id: %s\n", client.oauthConfig.ClientID))
+		buffer.WriteString(fmt.Sprintf("  oauth_token_endpoint: %s\n", client.oauthConfig.TokenURL))
+		if client.oauthConfig.EndpointParams != nil {
+			buffer.WriteString("  endpoint_params:\n")
+			for key, values := range client.oauthConfig.EndpointParams {
+				for _, value := range values {
+					buffer.WriteString(fmt.Sprintf("    %s: %s\n", key, value))
+				}
+			}
+		}
+		buffer.WriteString(fmt.Sprintf("  oauth_scopes: %v\n", client.oauthConfig.Scopes))
+	} else {
+		buffer.WriteString("oauth_client_credentials: <not set>\n")
 	}
 	return buffer.String()
 }
@@ -287,9 +309,15 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 
 	if client.oauthConfig != nil {
 		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client.httpClient)
+		if client.debug {
+			log.Printf("api_client.go: Using OAuth2 token source for request client_id %s, client_endpoint %s \n", client.oauthConfig.ClientID, client.oauthConfig.TokenURL)
+		}
 		tokenSource := client.oauthConfig.TokenSource(ctx)
 		token, err := tokenSource.Token()
 		if err != nil {
+			if client.debug {
+				log.Printf("api_client.go: Error getting OAuth2 token: %v\n", err)
+			}
 			return "", err
 		}
 		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
@@ -308,7 +336,7 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 			}
 		}
 
-		log.Printf("api_client.go: BODY:\n")
+		log.Printf("api_client.go: Request BODY: ")
 		body := "<none>"
 		if req.Body != nil {
 			body = string(data)
@@ -349,7 +377,7 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 	}
 	body := strings.TrimPrefix(string(bodyBytes), client.xssiPrefix)
 	if client.debug {
-		log.Printf("api_client.go: BODY:\n%s\n", body)
+		log.Printf("api_client.go: Response BODY: %s\n", body)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

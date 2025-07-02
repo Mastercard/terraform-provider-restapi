@@ -111,6 +111,12 @@ func resourceRestAPI() *schema.Resource {
 				Description: "Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
 				Optional:    true,
 			},
+			"read_response_is_array": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "If the response from the read request is an array, set this to 'true'. This will cause the provider to treat the response as an array and return the first element as the resource data. Default: false",
+			},
 			"query_string": {
 				Type:        schema.TypeString,
 				Description: "Query string to be included in the path",
@@ -503,6 +509,8 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
 	opts.readSearch = readSearch
+
+	opts.readResponseIsArray = d.Get("read_response_is_array").(bool)
 
 	opts.data = d.Get("data").(string)
 	opts.debug = d.Get("debug").(bool)
