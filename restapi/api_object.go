@@ -417,15 +417,6 @@ func (obj *APIObject) readObject() error {
 			return fmt.Errorf("api_object.go: first element in array is not an object")
 		}
 
-		// remove the zone name (pfaroe.moodys.cloud) from name field of firstObj
-		zoneNName := "pfaroe.moodys.cloud" // TODO make this configurable
-		name := firstObj["name"].(string)
-		nameNew := strings.Replace(name, "."+zoneNName, "", -1)
-		firstObj["name"] = nameNew
-
-		//remove id field from firstObj
-		delete(firstObj, "id")
-
 		firstObjStr, err := json.Marshal(firstObj)
 		if obj.debug {
 			log.Printf("api_object.go: firstObjStr after replacements: %s", firstObjStr)
