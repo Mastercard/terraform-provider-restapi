@@ -149,7 +149,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		   If it is not set, we will get it later in synchronize_state */
 		if obj.id == "" {
 			var tmp string
-			tmp, err := GetStringAtKey(obj.data, obj.idAttribute, obj.debug)
+			tmp, err := GetStringAtKey(obj.data, obj.idAttribute, obj.apiClient.debug)
 			if err == nil {
 				if opts.debug {
 					log.Printf("api_object.go: opportunisticly set id from data provided.")
@@ -216,7 +216,7 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("read_method: %s\n", obj.readMethod))
 	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
 	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
-	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
+	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.apiClient.debug))
 	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("read_data: %s\n", spew.Sdump(obj.readData)))
@@ -233,7 +233,7 @@ Centralized function to ensure that our data as managed by
 	the API
 */
 func (obj *APIObject) updateState(state string) error {
-	if obj.debug {
+	if obj.apiClient.debug {
 		log.Printf("api_object.go: Updating API object state to '%s'\n", state)
 	}
 
@@ -253,28 +253,28 @@ func (obj *APIObject) updateState(state string) error {
 	/* A usable ID was not passed (in constructor or here),
 	   so we have to guess what it is from the data structure */
 	if obj.id == "" {
-		val, err := GetStringAtKey(obj.apiData, obj.idAttribute, obj.debug)
+		val, err := GetStringAtKey(obj.apiData, obj.idAttribute, obj.apiClient.debug)
 		if err != nil {
 			return fmt.Errorf("api_object.go: Error extracting ID from data element: %s", err)
 		}
 		obj.id = val
-	} else if obj.debug {
+	} else if obj.apiClient.debug {
 		log.Printf("api_object.go: Not updating id. It is already set to '%s'\n", obj.id)
 	}
 
 	/* Any keys that come from the data we want to copy are done here */
 	if len(obj.apiClient.copyKeys) > 0 {
 		for _, key := range obj.apiClient.copyKeys {
-			if obj.debug {
+			if obj.apiClient.debug {
 				log.Printf("api_object.go: Copying key '%s' from api_data (%v) to data (%v)\n", key, obj.apiData[key], obj.data[key])
 			}
 			obj.data[key] = obj.apiData[key]
 		}
-	} else if obj.debug {
+	} else if obj.apiClient.debug {
 		log.Printf("api_object.go: copy_keys is empty - not attempting to copy data")
 	}
 
-	if obj.debug {
+	if obj.apiClient.debug {
 		log.Printf("api_object.go: final object after synchronization of state:\n%+v\n", obj.toString())
 	}
 	return err
@@ -293,7 +293,7 @@ func (obj *APIObject) createObject() error {
 
 	postPath := obj.postPath
 	if obj.queryString != "" {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
 		}
 		postPath = fmt.Sprintf("%s?%s", obj.postPath, obj.queryString)
@@ -306,7 +306,7 @@ func (obj *APIObject) createObject() error {
 
 	/* We will need to sync state as well as get the object's ID */
 	if obj.apiClient.writeReturnsObject || obj.apiClient.createReturnsObject {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Parsing response from POST to update internal structures (write_returns_object=%t, create_returns_object=%t)...\n",
 				obj.apiClient.writeReturnsObject, obj.apiClient.createReturnsObject)
 		}
@@ -317,7 +317,7 @@ func (obj *APIObject) createObject() error {
 			return fmt.Errorf("internal validation failed; object ID is not set, but *may* have been created; this should never happen")
 		}
 	} else {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Requesting created object from API (write_returns_object=%t, create_returns_object=%t)...\n",
 				obj.apiClient.writeReturnsObject, obj.apiClient.createReturnsObject)
 		}
@@ -333,7 +333,7 @@ func (obj *APIObject) readObject() error {
 
 	getPath := obj.getPath
 	if obj.queryString != "" {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
 		}
 		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
@@ -343,7 +343,7 @@ func (obj *APIObject) readObject() error {
 	if len(obj.readData) > 0 {
 		readData, _ := json.Marshal(obj.readData)
 		send = string(readData)
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Using read data '%s'", send)
 		}
 	}
@@ -367,7 +367,7 @@ func (obj *APIObject) readObject() error {
 
 		queryString := obj.readSearch["query_string"]
 		if obj.queryString != "" {
-			if obj.debug {
+			if obj.apiClient.debug {
 				log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
 			}
 			queryString = fmt.Sprintf("%s&%s", obj.readSearch["query_string"], obj.queryString)
@@ -376,7 +376,7 @@ func (obj *APIObject) readObject() error {
 		if len(obj.readSearch["search_data"]) > 0 {
 			tmpData, _ := json.Marshal(obj.readSearch["search_data"])
 			searchData = string(tmpData)
-			if obj.debug {
+			if obj.apiClient.debug {
 				log.Printf("api_object.go: Using search data '%s'", searchData)
 			}
 		}
@@ -404,7 +404,7 @@ func (obj *APIObject) updateObject() error {
 	if len(obj.updateData) > 0 {
 		updateData, _ := json.Marshal(obj.updateData)
 		send = string(updateData)
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Using update data '%s'", send)
 		}
 	} else {
@@ -414,7 +414,7 @@ func (obj *APIObject) updateObject() error {
 
 	putPath := obj.putPath
 	if obj.queryString != "" {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
 		}
 		putPath = fmt.Sprintf("%s?%s", obj.putPath, obj.queryString)
@@ -426,12 +426,12 @@ func (obj *APIObject) updateObject() error {
 	}
 
 	if obj.apiClient.writeReturnsObject {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Parsing response from PUT to update internal structures (write_returns_object=true)...\n")
 		}
 		err = obj.updateState(resultString)
 	} else {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Requesting updated object from API (write_returns_object=false)...\n")
 		}
 		err = obj.readObject()
@@ -447,7 +447,7 @@ func (obj *APIObject) deleteObject() error {
 
 	deletePath := obj.deletePath
 	if obj.queryString != "" {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
 		}
 		deletePath = fmt.Sprintf("%s?%s", obj.deletePath, obj.queryString)
@@ -457,7 +457,7 @@ func (obj *APIObject) deleteObject() error {
 	if len(obj.destroyData) > 0 {
 		destroyData, _ := json.Marshal(obj.destroyData)
 		send = string(destroyData)
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Using destroy data '%s'", string(destroyData))
 		}
 	}
@@ -480,13 +480,13 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 	*/
 	searchPath := obj.searchPath
 	if queryString != "" {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Adding query string '%s'", queryString)
 		}
 		searchPath = fmt.Sprintf("%s?%s", obj.searchPath, queryString)
 	}
 
-	if obj.debug {
+	if obj.apiClient.debug {
 		log.Printf("api_object.go: Calling API on path '%s'", searchPath)
 	}
 	resultString, err := obj.apiClient.sendRequest(obj.apiClient.readMethod, searchPath, searchData)
@@ -497,7 +497,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 	/*
 	   Parse it seeking JSON data
 	*/
-	if obj.debug {
+	if obj.apiClient.debug {
 		log.Printf("api_object.go: Response received... parsing")
 	}
 	var result interface{}
@@ -509,7 +509,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 	if resultsKey != "" {
 		var tmp interface{}
 
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Locating '%s' in the results", resultsKey)
 		}
 
@@ -518,7 +518,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 			return objFound, fmt.Errorf("api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", searchPath, resultsKey)
 		}
 
-		tmp, err = GetObjectAtKey(result.(map[string]interface{}), resultsKey, obj.debug)
+		tmp, err = GetObjectAtKey(result.(map[string]interface{}), resultsKey, obj.apiClient.debug)
 		if err != nil {
 			return objFound, fmt.Errorf("api_object.go: Error finding results_key: %s", err)
 		}
@@ -526,7 +526,7 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 			return objFound, fmt.Errorf("api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", resultsKey, reflect.TypeOf(tmp))
 		}
 	} else {
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: results_key is not set - coaxing data to array of interfaces")
 		}
 		if dataArray, ok = result.([]interface{}); !ok {
@@ -542,12 +542,12 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 			return objFound, fmt.Errorf("api_object.go: The elements being searched for data are not a map of key value pairs")
 		}
 
-		if obj.debug {
+		if obj.apiClient.debug {
 			log.Printf("api_object.go: Examining %v", hash)
 			log.Printf("api_object.go:   Comparing '%s' to the value in '%s'", searchValue, searchKey)
 		}
 
-		tmp, err := GetStringAtKey(hash, searchKey, obj.debug)
+		tmp, err := GetStringAtKey(hash, searchKey, obj.apiClient.debug)
 		if err != nil {
 			return objFound, fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err)
 		}
@@ -555,12 +555,12 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 		/* We found our record */
 		if tmp == searchValue {
 			objFound = hash
-			obj.id, err = GetStringAtKey(hash, obj.idAttribute, obj.debug)
+			obj.id, err = GetStringAtKey(hash, obj.idAttribute, obj.apiClient.debug)
 			if err != nil {
 				return objFound, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.idAttribute, err)
 			}
 
-			if obj.debug {
+			if obj.apiClient.debug {
 				log.Printf("api_object.go: Found ID '%s'", obj.id)
 			}
 
