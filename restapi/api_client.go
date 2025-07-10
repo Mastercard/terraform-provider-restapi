@@ -236,6 +236,7 @@ func (client *APIClient) toString() string {
 	for k, v := range client.headers {
 		buffer.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
 	}
+	buffer.WriteString("copy_keys:\n")
 	for _, n := range client.copyKeys {
 		buffer.WriteString(fmt.Sprintf("  %s", n))
 	}
@@ -308,7 +309,7 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 			}
 		}
 
-		log.Printf("api_client.go: BODY:\n")
+		log.Printf("api_client.go: Request BODY:\n")
 		body := "<none>"
 		if req.Body != nil {
 			body = string(data)
@@ -349,7 +350,7 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 	}
 	body := strings.TrimPrefix(string(bodyBytes), client.xssiPrefix)
 	if client.debug {
-		log.Printf("api_client.go: BODY:\n%s\n", body)
+		log.Printf("api_client.go: Response BODY:\n%s\n", body)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
