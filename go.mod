@@ -8,7 +8,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/terraform-json v0.17.1 // indirect; forced so test cases pass
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.27.0
-	golang.org/x/oauth2 v0.10.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/time v0.3.0
 )
 
