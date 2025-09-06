@@ -53,10 +53,10 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 				modifiedResource[key] = valRecorded
 			}
 		} else if reflect.TypeOf(valRecorded).Kind() == reflect.Slice {
-			// Since we don't support ignoring differences in lists (besides ignoring the list as a
-			// whole), it is safe to deep compare the two list values.
-			if !reflect.DeepEqual(valRecorded, valActual) {
-				modifiedResource[key] = valActual
+			// Use reflection to handle slice comparison with ignoreList support
+			modifiedSlice, sliceHasChanges := compareSlicesWithIgnoreListReflection(valRecorded, valActual, key, ignoreList)
+			if sliceHasChanges {
+				modifiedResource[key] = modifiedSlice
 				hasChanges = true
 			} else {
 				modifiedResource[key] = valRecorded
@@ -93,11 +93,67 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 }
 
 /*
+ * Compares two slices with ignoreList support for map elements within the slice using reflection.
+ * Returns the modified slice and a boolean indicating if there were changes.
+ */
+func compareSlicesWithIgnoreListReflection(recordedResource interface{}, actualResource interface{}, key string, ignoreList []string) (interface{}, bool) {
+	recordedValue := reflect.ValueOf(recordedResource)
+	actualValue := reflect.ValueOf(actualResource)
+
+	// Verify both are slices
+	if recordedValue.Kind() != reflect.Slice || actualValue.Kind() != reflect.Slice {
+		// Fallback to deep comparison if not both slices
+		return actualResource, !reflect.DeepEqual(recordedResource, actualResource)
+	}
+
+	// If slices have different lengths, that's always a change
+	if recordedValue.Len() != actualValue.Len() {
+		return actualResource, true
+	}
+
+	hasChanges := false
+	deeperIgnoreList := _descendIgnoreList(key, ignoreList)
+
+	// Create new slice with same type as recorded
+	modifiedSlice := reflect.MakeSlice(recordedValue.Type(), recordedValue.Len(), recordedValue.Len())
+
+	for i := 0; i < recordedValue.Len(); i++ {
+		recordedElement := recordedValue.Index(i).Interface()
+		actualElement := actualValue.Index(i).Interface()
+
+		// Check if both elements are maps
+		mapRecorded, okRecorded := recordedElement.(map[string]interface{})
+		mapActual, okActual := actualElement.(map[string]interface{})
+
+		if okRecorded && okActual {
+			// Both elements are maps, use getDelta recursively
+			modifiedElement, elementHasChanges := getDelta(mapRecorded, mapActual, deeperIgnoreList)
+			if elementHasChanges {
+				modifiedSlice.Index(i).Set(reflect.ValueOf(modifiedElement))
+				hasChanges = true
+			} else {
+				modifiedSlice.Index(i).Set(reflect.ValueOf(recordedElement))
+			}
+		} else {
+			// At least one element is not a map, use simple comparison
+			if !reflect.DeepEqual(recordedElement, actualElement) {
+				modifiedSlice.Index(i).Set(reflect.ValueOf(actualElement))
+				hasChanges = true
+			} else {
+				modifiedSlice.Index(i).Set(reflect.ValueOf(recordedElement))
+			}
+		}
+	}
+
+	return modifiedSlice.Interface(), hasChanges
+}
+
+/*
  * Modifies an ignoreList to be relative to a descended path.
  * E.g. given descendPath = "bar", and the ignoreList [foo, bar.alpha, bar.bravo], this returns [alpha, bravo]
  */
 func _descendIgnoreList(descendPath string, ignoreList []string) []string {
-	newIgnoreList := make([]string, len(ignoreList))
+	var newIgnoreList []string
 
 	for _, ignorePath := range ignoreList {
 		pathComponents := strings.Split(ignorePath, ".")

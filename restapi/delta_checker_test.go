@@ -248,12 +248,85 @@ var deltaTestCases = []deltaTestCase{
 		resultHasDelta: false,
 	},
 
-	// We don't currently support ignoring a change like this, but we could in the future with a syntax like `list[].val` similar to jq
 	{
 		testCase:       "Server changes a sub-value in a list of objects",
 		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"key": "bar", "val": "x"}}},
 		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "Y"}, {"key": "bar", "val": "Z"}}},
 		ignoreList:     []string{},
+		resultHasDelta: true,
+	},
+
+	// Test slice ignoreList functionality for map elements
+	{
+		testCase:       "Server changes sub-value in list of objects (ignored)",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"key": "bar", "val": "x"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "Y"}, {"key": "bar", "val": "Z"}}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Server changes some sub-values in list of objects (partial ignore)",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x", "other": "a"}, {"key": "bar", "val": "x", "other": "b"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "Y", "other": "A"}, {"key": "bar", "val": "Z", "other": "B"}}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server adds field to objects in list (ignored)",
+		o1:             MapAny{"list": []MapAny{{"key": "foo"}, {"key": "bar"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "new": "field1"}, {"key": "bar", "new": "field2"}}},
+		ignoreList:     []string{"list.new"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Mixed slice types with maps (some ignored)",
+		o1:             MapAny{"list": []interface{}{MapAny{"key": "foo", "val": "x"}, "string_element", 42}},
+		o2:             MapAny{"list": []interface{}{MapAny{"key": "foo", "val": "Y"}, "different_string", 42}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: true,
+	},
+
+	// Test different length slices with ignoreList - length changes are always detected
+	{
+		testCase:       "Server adds element to list (always a change regardless of ignored fields)",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"val": "ignored_addition"}}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server adds element to list with non-ignored fields",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"key": "new", "val": "ignored_addition"}}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server removes element from list (always a change regardless of ignored fields)",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"val": "ignored_removal"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server removes element from list with non-ignored fields",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"key": "removed", "val": "ignored_removal"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}}},
+		ignoreList:     []string{"list.val"},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server adds non-map element to list",
+		o1:             MapAny{"list": []interface{}{MapAny{"key": "foo", "val": "x"}}},
+		o2:             MapAny{"list": []interface{}{MapAny{"key": "foo", "val": "x"}, "new_string"}},
+		ignoreList:     []string{"list.val"},
 		resultHasDelta: true,
 	},
 }
@@ -322,6 +395,10 @@ func TestHasDeltaModifiedResource(t *testing.T) {
 			"hunting": "birds",
 			"eating":  "plants",
 		},
+		"friends": []map[string]interface{}{
+			{"name": "Whiskers", "age": 3, "secret": "loves_tuna"},
+			{"name": "Mittens", "age": 2, "secret": "hides_toys"},
+		},
 	}
 
 	actualInput := map[string]interface{}{
@@ -332,6 +409,10 @@ func TestHasDeltaModifiedResource(t *testing.T) {
 			"eating":   "plants",
 			"sleeping": "yep",
 		},
+		"friends": []map[string]interface{}{
+			{"name": "Whiskers", "age": 4, "secret": "loves_salmon", "new_field": "ignored"},
+			{"name": "Mittens", "age": 2, "secret": "steals_socks", "new_field": "ignored"},
+		},
 	}
 
 	expectedOutput := map[string]interface{}{
@@ -341,9 +422,13 @@ func TestHasDeltaModifiedResource(t *testing.T) {
 			"hunting": "birds",
 			"eating":  "plants",
 		},
+		"friends": []map[string]interface{}{
+			{"name": "Whiskers", "age": 4, "secret": "loves_tuna"},
+			{"name": "Mittens", "age": 2, "secret": "hides_toys"},
+		},
 	}
 
-	ignoreList := []string{"hairball", "hobbies.sleeping", "name"}
+	ignoreList := []string{"hairball", "hobbies.sleeping", "name", "friends.secret", "friends.new_field"}
 
 	modified, _ := getDelta(recordedInput, actualInput, ignoreList)
 	if !reflect.DeepEqual(expectedOutput, modified) {
