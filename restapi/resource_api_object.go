@@ -209,6 +209,12 @@ func resourceRestAPI() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
+			"ignore_server_additions": {
+				Type:        schema.TypeBool,
+				Description: "When set to 'true', fields added by the server (but not present in your configuration) will be ignored for drift detection. This prevents resource recreation when the API returns additional fields like defaults or metadata. Default: false",
+				Optional:    true,
+				Default:     false,
+			},
 		}, /* End schema */
 
 	}
@@ -325,9 +331,11 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 				}
 			}
 
+			ignoreServerAdditions := d.Get("ignore_server_additions").(bool)
+
 			// This checks if there were any changes to the remote resource that will need to be corrected
 			// by comparing the current state with the response returned by the api.
-			modifiedResource, hasDifferences := getDelta(obj.data, obj.apiData, ignoreList)
+			modifiedResource, hasDifferences := getDelta(obj.data, obj.apiData, ignoreList, ignoreServerAdditions)
 
 			if hasDifferences {
 				log.Printf("resource_api_object.go: Found differences in remote resource\n")
