@@ -1,0 +1,19 @@
+{
+    "go.goroot": "/usr/local/go",
+    "go.gopath": "/root/go",
+    "go.toolsGopath": "/root/go",
+    "go.useLanguageServer": true,
+    "go.testEnvVars": {
+        "TMPDIR": "/tmp",
+        "TEMP": "/tmp",
+        "TMP": "/tmp",
+        "GOBIN": "/root/go/bin",
+        "GOTMPDIR": "/tmp"
+    },
+    "go.testFlags": ["-v"],
+    "go.coverOnSave": false,
+    "go.coverOnSingleTest": true,
+    "go.coverOnSingleTestFile": false,
+    "go.coverOnTestPackage": false,
+    "go.coverageOptions": "showUncoveredCodeOnly"
+}
