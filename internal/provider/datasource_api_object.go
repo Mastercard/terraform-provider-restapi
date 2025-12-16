@@ -3,9 +3,9 @@ package restapi
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -86,14 +86,14 @@ func dataSourceRestAPI() *schema.Resource {
 }
 
 func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
+	ctx := context.TODO()
 	path := d.Get("path").(string)
 	searchPath := d.Get("search_path").(string)
 	queryString := d.Get("query_string").(string)
 	debug := d.Get("debug").(bool)
 	client := meta.(*apiclient.APIClient)
-	if debug {
-		log.Printf("datasource_api_object.go: Data routine called.")
-	}
+
+	tflog.Debug(ctx, "Data routine called.", map[string]interface{}{})
 
 	readQueryString := d.Get("read_query_string").(string)
 	if readQueryString == "not-set" {
@@ -110,14 +110,18 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	if len(searchData) > 0 {
 		tmpData, _ := json.Marshal(searchData)
 		send = string(tmpData)
-		if debug {
-			log.Printf("api_object.go: Using search data '%s'", send)
-		}
+		tflog.Debug(ctx, "Using search data", map[string]interface{}{"data": send})
 	}
 
-	if debug {
-		log.Printf("datasource_api_object.go:\npath: %s\nsearch_path: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, searchPath, queryString, searchKey, searchValue, resultsKey, idAttribute)
-	}
+	tflog.Debug(ctx, "Data parameters", map[string]interface{}{
+		"path":         path,
+		"search_path":  searchPath,
+		"query_string": queryString,
+		"search_key":   searchKey,
+		"search_value": searchValue,
+		"results_key":  resultsKey,
+		"id_attribute": idAttribute,
+	})
 
 	opts := &apiclient.APIObjectOpts{
 		Path:        path,
@@ -137,16 +141,14 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	/* Back to terraform-specific stuff. Create an api_object with the ID and refresh it object */
-	if debug {
-		log.Printf("datasource_api_object.go: Attempting to construct api_object to refresh data")
-	}
+	tflog.Debug(ctx, "Attempting to construct api_object to refresh data", map[string]interface{}{})
 
 	d.SetId(obj.ID)
 
 	err = obj.ReadObject(context.TODO())
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
-		log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.ID)
+		tflog.Debug(ctx, "Data resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
 		d.SetId(obj.ID)
 		apiclient.SetResourceState(obj, d)
 	}

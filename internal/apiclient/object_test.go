@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
@@ -109,12 +108,12 @@ func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (ty
 		testCase := testObj.TestCase
 
 		if testDebug {
-			log.Printf("api_object_test.go: Adding test object for case '%s' as id '%s'\n", testCase, id)
+			fmt.Printf("Adding test object for case '%s' as id '%s'\n", testCase, id)
 		}
 		typed[id] = testObj
 
 		if testDebug {
-			log.Printf("api_object_test.go: Adding API server test object for case '%s' as id '%s'\n", testCase, id)
+			fmt.Printf("Adding API server test object for case '%s' as id '%s'\n", testCase, id)
 		}
 		untyped[id] = apiServerObj
 	}
@@ -140,7 +139,7 @@ func TestAPIObject(t *testing.T) {
 
 	/* Construct a local map of test case objects with only the ID populated */
 	if testDebug {
-		log.Println("api_object_test.go: Building test objects...")
+		fmt.Println("api_object_test.go: Building test objects...")
 	}
 
 	/* Holds the full list of api_object items that we are testing
@@ -149,7 +148,7 @@ func TestAPIObject(t *testing.T) {
 
 	for id, testObj := range generatedObjects {
 		if testDebug {
-			log.Printf("api_object_test.go:   '%s'\n", id)
+			fmt.Printf("  '%s'\n", id)
 		}
 
 		objectOpts := &APIObjectOpts{
@@ -167,19 +166,19 @@ func TestAPIObject(t *testing.T) {
 	}
 
 	if testDebug {
-		log.Println("api_object_test.go: Starting HTTP server")
+		fmt.Println("api_object_test.go: Starting HTTP server")
 	}
 	svr := fakeserver.NewFakeServer(8081, apiServerObjects, true, httpServerDebug, "")
 
 	/* Loop through all of the objects and GET their data from the server */
 	t.Run("read_object", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing read_object()")
+			fmt.Printf("Testing read_object()")
 		}
 		for testCase := range testingObjects {
 			t.Run(testCase, func(t *testing.T) {
 				if testDebug {
-					log.Printf("api_object_test.go: Getting data for '%s' test case from server\n", testCase)
+					fmt.Printf("Getting data for '%s' test case from server\n", testCase)
 				}
 				err := testingObjects[testCase].ReadObject(ctx)
 				if err != nil {
@@ -191,12 +190,12 @@ func TestAPIObject(t *testing.T) {
 
 	t.Run("read_object_with_read_data", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing read_object() with read_data")
+			fmt.Printf("Testing read_object() with read_data")
 		}
 		for testCase := range testingObjects {
 			t.Run(testCase, func(t *testing.T) {
 				if testDebug {
-					log.Printf("api_object_test.go: Getting data for '%s' test case from server\n", testCase)
+					fmt.Printf("Getting data for '%s' test case from server\n", testCase)
 				}
 				testingObjects[testCase].readData["path"] = "/" + testCase
 				err := testingObjects[testCase].ReadObject(ctx)
@@ -210,7 +209,7 @@ func TestAPIObject(t *testing.T) {
 	/* Verify our copy_keys is happy by seeing if Thing made it into the data hash */
 	t.Run("copy_keys", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing copy_keys()")
+			fmt.Printf("Testing copy_keys()")
 		}
 		if testingObjects["normal"].data["Thing"].(string) == "" {
 			t.Fatalf("api_object_test.go: copy_keys for 'normal' object failed. Expected 'Thing' to be non-empty, but got '%+v'\n", testingObjects["normal"].data["Thing"])
@@ -220,7 +219,7 @@ func TestAPIObject(t *testing.T) {
 	/* Go ahead and update one of our objects */
 	t.Run("update_object", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing update_object()")
+			fmt.Printf("Testing update_object()")
 		}
 		testingObjects["minimal"].data["Thing"] = "spoon"
 		testingObjects["minimal"].UpdateObject(ctx)
@@ -235,7 +234,7 @@ func TestAPIObject(t *testing.T) {
 	/* Update once more with update_data */
 	t.Run("update_object_with_update_data", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing update_object() with update_data")
+			fmt.Printf("Testing update_object() with update_data")
 		}
 		testingObjects["minimal"].updateData["Thing"] = "knife"
 		testingObjects["minimal"].UpdateObject(ctx)
@@ -250,7 +249,7 @@ func TestAPIObject(t *testing.T) {
 	/* Delete one and make sure a 404 follows */
 	t.Run("delete_object", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing delete_object()")
+			fmt.Printf("Testing delete_object()")
 		}
 		testingObjects["pet"].DeleteObject(ctx)
 		err = testingObjects["pet"].ReadObject(ctx)
@@ -262,7 +261,7 @@ func TestAPIObject(t *testing.T) {
 	/* Recreate the one we just got rid of */
 	t.Run("create_object", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing create_object()")
+			fmt.Printf("Testing create_object()")
 		}
 		testingObjects["pet"].data["Thing"] = "dog"
 		err = testingObjects["pet"].CreateObject(ctx)
@@ -315,7 +314,7 @@ func TestAPIObject(t *testing.T) {
 	/* Delete it again with destroy_data and make sure a 404 follows */
 	t.Run("delete_object_with_destroy_data", func(t *testing.T) {
 		if testDebug {
-			log.Printf("api_object_test.go: Testing delete_object() with destroy_data")
+			fmt.Printf("Testing delete_object() with destroy_data")
 		}
 		testingObjects["pet"].destroyData["destroy"] = "true"
 		testingObjects["pet"].DeleteObject(ctx)
@@ -326,10 +325,10 @@ func TestAPIObject(t *testing.T) {
 	})
 
 	if testDebug {
-		log.Println("api_object_test.go: Stopping HTTP server")
+		fmt.Println("api_object_test.go: Stopping HTTP server")
 	}
 	svr.Shutdown()
 	if testDebug {
-		log.Println("api_object_test.go: Done")
+		fmt.Println("api_object_test.go: Done")
 	}
 }

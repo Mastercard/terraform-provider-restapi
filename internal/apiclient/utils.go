@@ -1,12 +1,13 @@
 package restapi
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -60,14 +61,13 @@ attrs/id => 1234
 config/foo => "abc"
 */
 func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (interface{}, error) {
+	ctx := context.TODO()
 	hash := data
 
 	parts := strings.Split(path, "/")
 	part := ""
 	seen := ""
-	if debug {
-		log.Printf("common.go:GetObjectAtKey: Locating results_key in parts: %v...", parts)
-	}
+	tflog.Debug(ctx, "GetObjectAtKey: Locating results_key", map[string]interface{}{"parts": parts})
 
 	for len(parts) > 1 {
 		/* AKA, Slice...*/
@@ -80,19 +80,13 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 
 		/* See if this key exists in the hash at this point */
 		if _, ok := hash[part]; ok {
-			if debug {
-				log.Printf("common.go:GetObjectAtKey:  %s - exists", part)
-			}
+			tflog.Debug(ctx, "GetObjectAtKey: key exists", map[string]interface{}{"key": part})
 			seen += "/" + part
 			if tmp, ok := hash[part].(map[string]interface{}); ok {
-				if debug {
-					log.Printf("common.go:GetObjectAtKey:    %s - is a map", part)
-				}
+				tflog.Debug(ctx, "GetObjectAtKey:    is a map", map[string]interface{}{"key": part})
 				hash = tmp
 			} else if tmp, ok := hash[part].([]interface{}); ok {
-				if debug {
-					log.Printf("common.go:GetObjectAtKey:    %s - is a list", part)
-				}
+				tflog.Debug(ctx, "GetObjectAtKey:    is a list", map[string]interface{}{"key": part})
 				mapString := make(map[string]interface{})
 				for key, value := range tmp {
 					strKey := fmt.Sprintf("%v", key)
@@ -100,15 +94,12 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 				}
 				hash = mapString
 			} else {
-				if debug {
-					log.Printf("common.go:GetObjectAtKey:    %s - is a %T", part, hash[part])
-				}
+				tflog.Debug(ctx, "GetObjectAtKey:    is not a map", map[string]interface{}{"key": part, "type": fmt.Sprintf("%T", hash[part])})
 				return nil, fmt.Errorf("GetObjectAtKey: Object at '%s' is not a map. Is this the right path?", seen)
 			}
 		} else {
-			if debug {
-				log.Printf("common.go:GetObjectAtKey:  %s - MISSING", part)
-			}
+			tflog.Debug(ctx, "GetObjectAtKey:  MISSING", map[string]interface{}{"key": part})
+
 			return nil, fmt.Errorf("GetObjectAtKey: Failed to find '%s' in returned data structure after finding '%s'. Available: %s", part, seen, strings.Join(GetKeys(hash), ","))
 		}
 	} /* End Loop through parts */
@@ -116,15 +107,11 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 	/* We have found the containing map of the value we want */
 	part = parts[0] /* One last time */
 	if _, ok := hash[part]; !ok {
-		if debug {
-			log.Printf("common.go:GetObjectAtKey:  %s - MISSING (available: %s)", part, strings.Join(GetKeys(hash), ","))
-		}
+		tflog.Debug(ctx, "GetObjectAtKey:  MISSING", map[string]interface{}{"key": part, "available": strings.Join(GetKeys(hash), ",")})
 		return nil, fmt.Errorf("GetObjectAtKey: Resulting map at '%s' does not have key '%s'. Available: %s", seen, part, strings.Join(GetKeys(hash), ","))
 	}
 
-	if debug {
-		log.Printf("common.go:GetObjectAtKey:  %s - exists (%v)", part, hash[part])
-	}
+	tflog.Debug(ctx, "GetObjectAtKey:  exists", map[string]interface{}{"key": part, "value": hash[part]})
 
 	return hash[part], nil
 }

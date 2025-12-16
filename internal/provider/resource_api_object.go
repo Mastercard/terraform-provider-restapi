@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"runtime"
 	"strconv"
 	"strings"
@@ -261,7 +260,7 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 	if err != nil {
 		return imported, err
 	}
-	tflog.Debug(ctx, "resource_api_object.go: Import routine called.", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Import routine called.", map[string]interface{}{"object": obj.String()})
 
 	err = obj.ReadObject(context.TODO())
 	if err == nil {
@@ -281,7 +280,7 @@ func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	tflog.Debug(ctx, "resource_api_object.go: Create routine called", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Create routine called", map[string]interface{}{"object": obj.String()})
 
 	err = obj.CreateObject(context.TODO())
 	if err == nil {
@@ -299,19 +298,19 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		if strings.Contains(err.Error(), "error parsing data provided") {
-			log.Printf("resource_api_object.go: WARNING! The data passed from Terraform's state is invalid! %v", err)
-			log.Printf("resource_api_object.go: Continuing with partially constructed object...")
+			tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
+			tflog.Warn(ctx, "Continuing with partially constructed object...", nil)
 		} else {
 			return err
 		}
 	}
 
-	tflog.Debug(ctx, "resource_api_object.go: Read routine called", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": obj.String()})
 
 	err = obj.ReadObject(ctx)
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
-		log.Printf("resource_api_object.go: Read resource. Returned id is '%s'\n", obj.ID)
+		tflog.Debug(ctx, "Read resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
 		d.SetId(obj.ID)
 
 		apiclient.SetResourceState(obj, d)
@@ -331,7 +330,7 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 			modifiedResource, hasDifferences := obj.GetDelta(ignoreList)
 
 			if hasDifferences {
-				log.Printf("resource_api_object.go: Found differences in remote resource\n")
+				tflog.Info(ctx, "Found differences in remote resource", nil)
 				encoded, err := json.Marshal(modifiedResource)
 				if err != nil {
 					return err
@@ -363,7 +362,7 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	tflog.Debug(ctx, "resource_api_object.go: Update routine called", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Update routine called", map[string]interface{}{"object": obj.String()})
 
 	err = obj.UpdateObject(ctx)
 	if err == nil {
@@ -380,7 +379,7 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	tflog.Debug(ctx, "resource_api_object.go: Delete routine called. Object built", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Delete routine called. Object built", map[string]interface{}{"object": obj.String()})
 
 	err = obj.DeleteObject(ctx)
 	if err != nil {
@@ -398,14 +397,14 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		if strings.Contains(err.Error(), "error parsing data provided") {
-			log.Printf("resource_api_object.go: WARNING! The data passed from Terraform's state is invalid! %v", err)
-			log.Printf("resource_api_object.go: Continuing with partially constructed object...")
+			tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
+			tflog.Warn(ctx, "Continuing with partially constructed object...", nil)
 		} else {
 			return exists, err
 		}
 	}
 
-	tflog.Debug(ctx, "resource_api_object.go: Exists routine called. Object built", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Exists routine called. Object built", map[string]interface{}{"object": obj.String()})
 
 	/* Assume all errors indicate the object just doesn't exist.
 	This may not be a good assumption... */
@@ -424,6 +423,7 @@ Simple helper routine to build an api_object struct
 	results in a new object created
 */
 func makeAPIObject(d *schema.ResourceData, meta interface{}) (*apiclient.APIObject, error) {
+	ctx := context.TODO()
 	opts, err := buildAPIObjectOpts(d)
 	if err != nil {
 		return nil, err
@@ -436,7 +436,7 @@ func makeAPIObject(d *schema.ResourceData, meta interface{}) (*apiclient.APIObje
 		parts := strings.Split(details.Name(), ".")
 		caller = parts[len(parts)-1]
 	}
-	log.Printf("resource_rest_api.go: Constructing new APIObject in makeAPIObject (called by %s)", caller)
+	tflog.Debug(ctx, "Constructing new APIObject in makeAPIObject", map[string]interface{}{"caller": caller})
 
 	obj, err := apiclient.NewAPIObject(meta.(*apiclient.APIClient), opts)
 
@@ -444,6 +444,7 @@ func makeAPIObject(d *schema.ResourceData, meta interface{}) (*apiclient.APIObje
 }
 
 func buildAPIObjectOpts(d *schema.ResourceData) (*apiclient.APIObjectOpts, error) {
+	ctx := context.TODO()
 	opts := &apiclient.APIObjectOpts{
 		Path: d.Get("path").(string),
 	}
@@ -461,7 +462,7 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiclient.APIObjectOpts, error
 		opts.ID = d.Id()
 	}
 
-	log.Printf("resource_rest_api.go: buildAPIObjectOpts routine called for id '%s'\n", opts.ID)
+	tflog.Debug(ctx, "buildAPIObjectOpts routine called for id", map[string]interface{}{"id": opts.ID})
 
 	if v, ok := d.GetOk("create_path"); ok {
 		opts.PostPath = v.(string)

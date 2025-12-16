@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"log"
+	"fmt"
 	"math/big"
 	"net"
 	"net/http"
@@ -35,7 +35,7 @@ func TestAPIClient(t *testing.T) {
 	ctx := context.Background()
 
 	if debug {
-		log.Println("client_test.go: Starting HTTP server")
+		fmt.Println("client_test.go: Starting HTTP server")
 	}
 	setupAPIClientServer()
 
@@ -60,14 +60,14 @@ func TestAPIClient(t *testing.T) {
 	var err error
 
 	if debug {
-		log.Printf("api_client_test.go: Testing standard OK request\n")
+		fmt.Printf("Testing standard OK request\n")
 	}
 	res, err = client.SendRequest(ctx, "GET", "/ok", "")
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	if debug {
-		log.Printf("api_client_test.go: Testing redirect request\n")
+		fmt.Printf("Testing redirect request\n")
 	}
 	res, err = client.SendRequest(ctx, "GET", "/redirect", "")
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
@@ -75,13 +75,13 @@ func TestAPIClient(t *testing.T) {
 
 	/* Verify timeout works */
 	if debug {
-		log.Printf("api_client_test.go: Testing timeout aborts requests\n")
+		fmt.Printf("Testing timeout aborts requests\n")
 	}
 	_, err = client.SendRequest(ctx, "GET", "/slow", "")
 	assert.Error(t, err, "client_test.go: Timeout should trigger on slow request")
 
 	if debug {
-		log.Printf("api_client_test.go: Testing rate limited OK request\n")
+		fmt.Printf("Testing rate limited OK request\n")
 	}
 	startTime := time.Now().Unix()
 
@@ -93,11 +93,11 @@ func TestAPIClient(t *testing.T) {
 	assert.GreaterOrEqual(t, duration, int64(3), "client_test.go: requests should be delayed")
 
 	if debug {
-		log.Println("client_test.go: Stopping HTTP server")
+		fmt.Println("client_test.go: Stopping HTTP server")
 	}
 	shutdownAPIClientServer()
 	if debug {
-		log.Println("client_test.go: Done")
+		fmt.Println("client_test.go: Done")
 	}
 
 	// Setup and test HTTPS client with root CA
@@ -124,7 +124,7 @@ func TestAPIClient(t *testing.T) {
 
 	require.NoError(t, httpsClientErr, "client_test.go: NewAPIClient should not return an error")
 	if debug {
-		log.Printf("api_client_test.go: Testing HTTPS standard OK request\n")
+		fmt.Printf("Testing HTTPS standard OK request\n")
 	}
 	res, err = httpsClient.SendRequest(ctx, "GET", "/ok", "")
 	require.NoError(t, err, "client_test.go: sendRequest should not return an error")

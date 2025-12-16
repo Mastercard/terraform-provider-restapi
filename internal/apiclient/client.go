@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"net/http/cookiejar"
@@ -88,9 +87,7 @@ type APIClient struct {
 // NewAPIClient makes a new api client for RESTful calls
 func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 	ctx := context.Background()
-	if opt.Debug {
-		log.Printf("api_client.go: Constructing debug api_client\n")
-	}
+	tflog.Debug(ctx, "Constructing API client", map[string]interface{}{"debug": opt.Debug})
 
 	if opt.URI == "" {
 		return nil, errors.New("uri must be set to construct an API client")
@@ -146,13 +143,13 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		var err error
 
 		if opt.RootCAFile != "" {
-			tflog.Debug(ctx, "api_client.go: Reading root CA file", map[string]interface{}{"rootCAFile": opt.RootCAFile})
+			tflog.Debug(ctx, "Reading root CA file", map[string]interface{}{"rootCAFile": opt.RootCAFile})
 			rootCA, err = os.ReadFile(opt.RootCAFile)
 			if err != nil {
 				return nil, fmt.Errorf("could not read root CA file: %v", err)
 			}
 		} else {
-			tflog.Debug(ctx, "api_client.go: Using provided root CA string")
+			tflog.Debug(ctx, "Using provided root CA string")
 			rootCA = []byte(opt.RootCAString)
 		}
 
@@ -216,7 +213,7 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		}
 	}
 
-	tflog.Debug(ctx, "api_client.go: Constructed client", map[string]interface{}{"details": client.String()})
+	tflog.Debug(ctx, "Constructed client", map[string]interface{}{"details": client.String()})
 	return &client, nil
 }
 
@@ -251,7 +248,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	var req *http.Request
 	var err error
 
-	tflog.Debug(ctx, "api_client.go: Sending request", map[string]interface{}{"method": method, "path": path, "fullURI": fullURI, "data": data})
+	tflog.Debug(ctx, "Sending request", map[string]interface{}{"method": method, "path": path, "fullURI": fullURI, "data": data})
 
 	buffer := bytes.NewBuffer([]byte(data))
 

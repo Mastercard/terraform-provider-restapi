@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 type APIObjectOpts struct {
@@ -63,10 +63,8 @@ type APIObject struct {
 
 // NewAPIObject makes an APIobject to manage a RESTful object in an API
 func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
-	if opts.Debug {
-		log.Printf("api_object.go: Constructing debug api_object\n")
-		log.Printf(" id: %s\n", opts.ID)
-	}
+	ctx := context.Background()
+	tflog.Debug(ctx, "Constructing api_object", map[string]interface{}{"id": opts.ID})
 
 	/* id_attribute can be set either on the client (to apply for all calls with the server)
 	   or on a per object basis (for only calls to this kind of object).
@@ -137,13 +135,11 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	if opts.Data != "" {
-		if opts.Debug {
-			log.Printf("api_object.go: Parsing data: '%s'", opts.Data)
-		}
+		tflog.Debug(ctx, "Parsing data", map[string]interface{}{"data": opts.Data})
 
 		err := json.Unmarshal([]byte(opts.Data), &obj.data)
 		if err != nil {
-			return &obj, fmt.Errorf("api_object.go: error parsing data provided: %v", err.Error())
+			return &obj, fmt.Errorf("error parsing data provided: %v", err.Error())
 		}
 
 		/* Opportunistically set the object's ID if it is provided in the data.
@@ -152,9 +148,7 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 			var tmp string
 			tmp, err := GetStringAtKey(obj.data, obj.IDAttribute, obj.debug)
 			if err == nil {
-				if opts.Debug {
-					log.Printf("api_object.go: opportunisticly set id from data provided.")
-				}
+				tflog.Debug(ctx, "opportunisticly set id from data provided", map[string]interface{}{"id": tmp})
 				obj.ID = tmp
 			} else if !obj.apiClient.writeReturnsObject && !obj.apiClient.createReturnsObject && obj.searchPath == "" {
 				/* If the id is not set and we cannot obtain it
@@ -165,41 +159,34 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	if opts.ReadData != "" {
-		if opts.Debug {
-			log.Printf("api_object.go: Parsing read data: '%s'", opts.ReadData)
-		}
+		tflog.Debug(ctx, "Parsing read data", map[string]interface{}{"readData": opts.ReadData})
 
 		err := json.Unmarshal([]byte(opts.ReadData), &obj.readData)
 		if err != nil {
-			return &obj, fmt.Errorf("api_object.go: error parsing read data provided: %v", err.Error())
+			return &obj, fmt.Errorf("error parsing read data provided: %v", err.Error())
 		}
 	}
 
 	if opts.UpdateData != "" {
-		if opts.Debug {
-			log.Printf("api_object.go: Parsing update data: '%s'", opts.UpdateData)
-		}
+		tflog.Debug(ctx, "Parsing update data", map[string]interface{}{"updateData": opts.UpdateData})
 
 		err := json.Unmarshal([]byte(opts.UpdateData), &obj.updateData)
 		if err != nil {
-			return &obj, fmt.Errorf("api_object.go: error parsing update data provided: %v", err.Error())
+			return &obj, fmt.Errorf("error parsing update data provided: %v", err.Error())
 		}
 	}
 
 	if opts.DestroyData != "" {
-		if opts.Debug {
-			log.Printf("api_object.go: Parsing destroy data: '%s'", opts.DestroyData)
-		}
+		tflog.Debug(ctx, "Parsing destroy data", map[string]interface{}{"destroyData": opts.DestroyData})
 
 		err := json.Unmarshal([]byte(opts.DestroyData), &obj.destroyData)
 		if err != nil {
-			return &obj, fmt.Errorf("api_object.go: error parsing destroy data provided: %v", err.Error())
+			return &obj, fmt.Errorf("error parsing destroy data provided: %v", err.Error())
 		}
 	}
 
-	if opts.Debug {
-		log.Printf("api_object.go: Constructed object: %s", obj.String())
-	}
+	tflog.Debug(ctx, "Constructed object", map[string]interface{}{"object": obj.String()})
+
 	return &obj, nil
 }
 
@@ -232,9 +219,8 @@ Centralized function to ensure that our data as managed by
 the api_object is updated with data that has come back from the API
 */
 func (obj *APIObject) updateState(state string) error {
-	if obj.debug {
-		log.Printf("api_object.go: Updating API object state to '%s'\n", state)
-	}
+	ctx := context.Background()
+	tflog.Debug(ctx, "Updating API object state to '%s'\n", map[string]interface{}{"state": state})
 
 	err := json.Unmarshal([]byte(state), &obj.apiData)
 	if err != nil {
@@ -248,28 +234,25 @@ func (obj *APIObject) updateState(state string) error {
 	if obj.ID == "" {
 		val, err := GetStringAtKey(obj.apiData, obj.IDAttribute, obj.debug)
 		if err != nil {
-			return fmt.Errorf("api_object.go: Error extracting ID from data element: %s", err)
+			return fmt.Errorf("error extracting ID from data element: %s", err)
 		}
 		obj.ID = val
-	} else if obj.debug {
-		log.Printf("api_object.go: Not updating id. It is already set to '%s'\n", obj.ID)
+	} else {
+		tflog.Debug(ctx, "Not updating id. It is already set to '%s'\n", map[string]interface{}{"id": obj.ID})
 	}
 
 	/* Any keys that come from the data we want to copy are done here */
 	if len(obj.apiClient.copyKeys) > 0 {
 		for _, key := range obj.apiClient.copyKeys {
-			if obj.debug {
-				log.Printf("api_object.go: Copying key '%s' from api_data (%v) to data (%v)\n", key, obj.apiData[key], obj.data[key])
-			}
+			tflog.Debug(ctx, "Copying key from api_data to data\n", map[string]interface{}{"key": key, "new": obj.apiData[key], "old": obj.data[key]})
 			obj.data[key] = obj.apiData[key]
 		}
-	} else if obj.debug {
-		log.Printf("api_object.go: copy_keys is empty - not attempting to copy data")
+	} else {
+		tflog.Debug(ctx, "copy_keys is empty - not attempting to copy data", nil)
 	}
 
-	if obj.debug {
-		log.Printf("api_object.go: final object after synchronization of state:\n%+v\n", obj.String())
-	}
+	tflog.Debug(ctx, "final object after synchronization of state", map[string]interface{}{"object": obj.String()})
+
 	return err
 }
 
@@ -286,9 +269,7 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 
 	postPath := obj.postPath
 	if obj.queryString != "" {
-		if obj.debug {
-			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
-		}
+		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 		postPath = fmt.Sprintf("%s?%s", obj.postPath, obj.queryString)
 	}
 
@@ -299,10 +280,10 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 
 	/* We will need to sync state as well as get the object's ID */
 	if obj.apiClient.writeReturnsObject || obj.apiClient.createReturnsObject {
-		if obj.debug {
-			log.Printf("api_object.go: Parsing response from POST to update internal structures (write_returns_object=%t, create_returns_object=%t)...\n",
-				obj.apiClient.writeReturnsObject, obj.apiClient.createReturnsObject)
-		}
+		tflog.Debug(ctx, "Parsing response from POST to update internal structures", map[string]interface{}{
+			"write_returns_object":  obj.apiClient.writeReturnsObject,
+			"create_returns_object": obj.apiClient.createReturnsObject,
+		})
 		err = obj.updateState(resultString)
 		/* Yet another failsafe. In case something terrible went wrong internally,
 		   bail out so the user at least knows that the ID did not get set. */
@@ -310,10 +291,10 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 			return fmt.Errorf("internal validation failed; object ID is not set, but *may* have been created; this should never happen")
 		}
 	} else {
-		if obj.debug {
-			log.Printf("api_object.go: Requesting created object from API (write_returns_object=%t, create_returns_object=%t)...\n",
-				obj.apiClient.writeReturnsObject, obj.apiClient.createReturnsObject)
-		}
+		tflog.Debug(ctx, "Requesting created object from API", map[string]interface{}{
+			"write_returns_object":  obj.apiClient.writeReturnsObject,
+			"create_returns_object": obj.apiClient.createReturnsObject,
+		})
 		err = obj.ReadObject(ctx)
 	}
 	return err
@@ -326,9 +307,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 
 	getPath := obj.getPath
 	if obj.queryString != "" {
-		if obj.debug {
-			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
-		}
+		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
 	}
 
@@ -336,15 +315,13 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	if len(obj.readData) > 0 {
 		readData, _ := json.Marshal(obj.readData)
 		send = string(readData)
-		if obj.debug {
-			log.Printf("api_object.go: Using read data '%s'", send)
-		}
+		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
 	}
 
 	resultString, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send)
 	if err != nil {
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
-			log.Printf("api_object.go: 404 error while refreshing state for '%s' at path '%s'. Removing from state.", obj.ID, obj.getPath)
+			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.getPath})
 			obj.ID = ""
 			return nil
 		}
@@ -355,29 +332,25 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	searchValue := obj.readSearch["search_value"]
 
 	if searchKey != "" && searchValue != "" {
-
 		obj.searchPath = strings.Replace(obj.getPath, "{id}", obj.ID, -1)
 
 		queryString := obj.readSearch["query_string"]
 		if obj.queryString != "" {
-			if obj.debug {
-				log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
-			}
+			tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 			queryString = fmt.Sprintf("%s&%s", obj.readSearch["query_string"], obj.queryString)
 		}
+
 		searchData := ""
 		if len(obj.readSearch["search_data"]) > 0 {
 			tmpData, _ := json.Marshal(obj.readSearch["search_data"])
 			searchData = string(tmpData)
-			if obj.debug {
-				log.Printf("api_object.go: Using search data '%s'", searchData)
-			}
+			tflog.Debug(ctx, "Using search data", map[string]interface{}{"search_data": searchData})
 		}
 
 		resultsKey := obj.readSearch["results_key"]
 		objFound, err := obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, searchData)
 		if err != nil || objFound == nil {
-			log.Printf("api_object.go: Search did not find object with the '%s' key = '%s'", searchKey, searchValue)
+			tflog.Info(ctx, "Search did not find object", map[string]interface{}{"search_key": searchKey, "search_value": searchValue})
 			obj.ID = ""
 			return nil
 		}
@@ -397,9 +370,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	if len(obj.updateData) > 0 {
 		updateData, _ := json.Marshal(obj.updateData)
 		send = string(updateData)
-		if obj.debug {
-			log.Printf("api_object.go: Using update data '%s'", send)
-		}
+		tflog.Debug(ctx, "Using update data", map[string]interface{}{"update_data": send})
 	} else {
 		b, _ := json.Marshal(obj.data)
 		send = string(b)
@@ -407,9 +378,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 
 	putPath := obj.putPath
 	if obj.queryString != "" {
-		if obj.debug {
-			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
-		}
+		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 		putPath = fmt.Sprintf("%s?%s", obj.putPath, obj.queryString)
 	}
 
@@ -419,14 +388,10 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	}
 
 	if obj.apiClient.writeReturnsObject {
-		if obj.debug {
-			log.Printf("api_object.go: Parsing response from PUT to update internal structures (write_returns_object=true)...\n")
-		}
+		tflog.Debug(ctx, "Parsing response from PUT to update internal structures", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
 		err = obj.updateState(resultString)
 	} else {
-		if obj.debug {
-			log.Printf("api_object.go: Requesting updated object from API (write_returns_object=false)...\n")
-		}
+		tflog.Debug(ctx, "Requesting updated object from API", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
 		err = obj.ReadObject(ctx)
 	}
 	return err
@@ -434,15 +399,13 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 
 func (obj *APIObject) DeleteObject(ctx context.Context) error {
 	if obj.ID == "" {
-		log.Printf("WARNING: Attempting to delete an object that has no id set. Assuming this is OK.\n")
+		tflog.Warn(ctx, "Attempting to delete an object that has no id set. Assuming this is OK.", map[string]interface{}{})
 		return nil
 	}
 
 	deletePath := obj.deletePath
 	if obj.queryString != "" {
-		if obj.debug {
-			log.Printf("api_object.go: Adding query string '%s'", obj.queryString)
-		}
+		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 		deletePath = fmt.Sprintf("%s?%s", obj.deletePath, obj.queryString)
 	}
 
@@ -450,9 +413,7 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 	if len(obj.destroyData) > 0 {
 		destroyData, _ := json.Marshal(obj.destroyData)
 		send = string(destroyData)
-		if obj.debug {
-			log.Printf("api_object.go: Using destroy data '%s'", string(destroyData))
-		}
+		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
 	}
 
 	_, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send)
@@ -473,15 +434,11 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	*/
 	searchPath := obj.searchPath
 	if queryString != "" {
-		if obj.debug {
-			log.Printf("api_object.go: Adding query string '%s'", queryString)
-		}
+		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": queryString})
 		searchPath = fmt.Sprintf("%s?%s", obj.searchPath, queryString)
 	}
 
-	if obj.debug {
-		log.Printf("api_object.go: Calling API on path '%s'", searchPath)
-	}
+	tflog.Debug(ctx, "Calling API on path", map[string]interface{}{"path": searchPath})
 	resultString, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData)
 	if err != nil {
 		return objFound, err
@@ -490,9 +447,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	/*
 	   Parse it seeking JSON data
 	*/
-	if obj.debug {
-		log.Printf("api_object.go: Response received... parsing")
-	}
+	tflog.Debug(ctx, "Response received... parsing", nil)
 	var result interface{}
 	err = json.Unmarshal([]byte(resultString), &result)
 	if err != nil {
@@ -502,28 +457,24 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	if resultsKey != "" {
 		var tmp interface{}
 
-		if obj.debug {
-			log.Printf("api_object.go: Locating '%s' in the results", resultsKey)
-		}
+		tflog.Debug(ctx, "Locating results_key in the results", map[string]interface{}{"results_key": resultsKey})
 
 		/* First verify the data we got back is a hash */
 		if _, ok = result.(map[string]interface{}); !ok {
-			return objFound, fmt.Errorf("api_object.go: The results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", searchPath, resultsKey)
+			return objFound, fmt.Errorf("the results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", searchPath, resultsKey)
 		}
 
 		tmp, err = GetObjectAtKey(result.(map[string]interface{}), resultsKey, obj.debug)
 		if err != nil {
-			return objFound, fmt.Errorf("api_object.go: Error finding results_key: %s", err)
+			return objFound, fmt.Errorf("error finding results_key: %s", err)
 		}
 		if dataArray, ok = tmp.([]interface{}); !ok {
-			return objFound, fmt.Errorf("api_object.go: The data at results_key location '%s' is not an array. It is a '%s'", resultsKey, reflect.TypeOf(tmp))
+			return objFound, fmt.Errorf("the data at results_key location '%s' is not an array. It is a '%s'", resultsKey, reflect.TypeOf(tmp))
 		}
 	} else {
-		if obj.debug {
-			log.Printf("api_object.go: results_key is not set - coaxing data to array of interfaces")
-		}
+		tflog.Debug(ctx, "results_key is not set - coaxing data to array of interfaces", nil)
 		if dataArray, ok = result.([]interface{}); !ok {
-			return objFound, fmt.Errorf("api_object.go: The results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", searchPath, reflect.TypeOf(result))
+			return objFound, fmt.Errorf("the results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", searchPath, reflect.TypeOf(result))
 		}
 	}
 
@@ -532,13 +483,11 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		var hash map[string]interface{}
 
 		if hash, ok = item.(map[string]interface{}); !ok {
-			return objFound, fmt.Errorf("api_object.go: The elements being searched for data are not a map of key value pairs")
+			return objFound, fmt.Errorf("the elements being searched for data are not a map of key value pairs")
 		}
 
-		if obj.debug {
-			log.Printf("api_object.go: Examining %v", hash)
-			log.Printf("api_object.go:   Comparing '%s' to the value in '%s'", searchValue, searchKey)
-		}
+		tflog.Debug(ctx, "Examining item in results array", map[string]interface{}{"item": hash})
+		tflog.Debug(ctx, "Comparing search value to item value", map[string]interface{}{"search_value": searchValue, "search_key": searchKey})
 
 		tmp, err := GetStringAtKey(hash, searchKey, obj.debug)
 		if err != nil {
@@ -553,9 +502,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 				return objFound, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.IDAttribute, err)
 			}
 
-			if obj.debug {
-				log.Printf("api_object.go: Found ID '%s'", obj.ID)
-			}
+			tflog.Debug(ctx, "Found ID '%s'", map[string]interface{}{"id": obj.ID})
 
 			/* But there is no id attribute??? */
 			if obj.ID == "" {
