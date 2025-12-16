@@ -2,54 +2,8 @@ package restapi
 
 import (
 	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
-
-	"context"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
-
-func testAccCheckRestapiObjectExists(n string, id string, client *APIClient) resource.TestCheckFunc {
-	ctx := context.Background()
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			keys := make([]string, 0, len(s.RootModule().Resources))
-			for k := range s.RootModule().Resources {
-				keys = append(keys, k)
-			}
-			return fmt.Errorf("RestAPI object not found in terraform state: %s. Found: %s", n, strings.Join(keys, ", "))
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("RestAPI object id not set in terraform")
-		}
-
-		/* Make a throw-away API object to read from the API */
-		path := "/api/objects"
-		opts := &apiObjectOpts{
-			path:        path,
-			id:          id,
-			idAttribute: "id",
-			data:        "{}",
-			debug:       true,
-		}
-		obj, err := NewAPIObject(client, opts)
-		if err != nil {
-			return err
-		}
-
-		err = obj.readObject(ctx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
 
 func TestGetStringAtKey(t *testing.T) {
 	debug := false

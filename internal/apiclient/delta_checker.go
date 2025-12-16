@@ -5,19 +5,23 @@ import (
 	"strings"
 )
 
+func (obj *APIObject) GetDelta(ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
+	return getDelta(obj.data, obj.apiData, ignoreList)
+}
+
 /*
  * Performs a deep comparison of two maps - the resource as recorded in state, and the resource as returned by the API.
  * Accepts a third argument that is a set of fields that are to be ignored when looking for differences.
  * Returns 1. the recordedResource overlaid with fields that have been modified in actualResource but not ignored, and 2. a bool true if there were any changes.
  */
-func getDelta(recordedResource map[string]interface{}, actualResource map[string]interface{}, ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
+func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
 	modifiedResource = map[string]interface{}{}
 	hasChanges = false
 
 	// Keep track of keys we've already checked in actualResource to reduce work when checking keys in actualResource
 	checkedKeys := map[string]struct{}{}
 
-	for key, valRecorded := range recordedResource {
+	for key, valRecorded := range recorded {
 
 		checkedKeys[key] = struct{}{}
 
@@ -27,7 +31,7 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 			continue
 		}
 
-		valActual, actualHasKey := actualResource[key]
+		valActual, actualHasKey := actual[key]
 
 		if valRecorded == nil {
 			// A JSON null was put in input data, confirm the result is either not set or is also null
@@ -71,7 +75,7 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 
 	}
 
-	for key, valActual := range actualResource {
+	for key, valActual := range actual {
 		// We may have already compared this key with recordedResource
 		_, alreadyChecked := checkedKeys[key]
 		if alreadyChecked {

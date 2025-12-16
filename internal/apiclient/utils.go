@@ -10,14 +10,15 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+// SetResourceState sets terraform resource data from APIObject
 // After any operation that returns API data, we'll stuff all the k,v pairs into the api_data map so users can consume the values elsewhere if they'd like
-func setResourceState(obj *APIObject, d *schema.ResourceData) {
+func SetResourceState(obj *APIObject, d *schema.ResourceData) {
 	apiData := make(map[string]string)
 	for k, v := range obj.apiData {
 		apiData[k] = fmt.Sprintf("%v", v)
 	}
 	d.Set("api_data", apiData)
-	d.Set("api_response", obj.apiResponse)
+	d.Set("api_response", obj.APIResponse)
 }
 
 // GetStringAtKey uses GetObjectAtKey to verify the resulting object is either a JSON string or Number and returns it as a string
@@ -146,7 +147,8 @@ func GetEnvOrDefault(k string, defaultvalue string) string {
 	return v
 }
 
-func expandStringSet(configured []interface{}) []string {
+// ExpandStringSet converts a slice of interfaces to a slice of strings
+func ExpandStringSet(configured []interface{}) []string {
 	return expandStringList(configured)
 }
 

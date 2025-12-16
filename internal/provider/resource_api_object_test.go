@@ -12,15 +12,19 @@ package restapi
   "github.com/hashicorp/terraform/config"
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 // example.Widget represents a concrete Go type that represents an API resource
@@ -31,20 +35,20 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 	svr := fakeserver.NewFakeServer(8082, apiServerObjects, true, debug, "")
 	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
-	opt := &apiClientOpt{
-		uri:                 "http://127.0.0.1:8082/",
-		insecure:            false,
-		username:            "",
-		password:            "",
-		headers:             make(map[string]string),
-		timeout:             2,
-		idAttribute:         "id",
-		copyKeys:            make([]string, 0),
-		writeReturnsObject:  false,
-		createReturnsObject: false,
-		debug:               debug,
+	opt := &apiclient.APIClientOpt{
+		URI:                 "http://127.0.0.1:8082/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  false,
+		CreateReturnsObject: false,
+		Debug:               debug,
 	}
-	client, err := NewAPIClient(opt)
+	client, err := apiclient.NewAPIClient(opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,6 +110,45 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 	})
 
 	svr.Shutdown()
+}
+
+func testAccCheckRestapiObjectExists(n string, id string, client *apiclient.APIClient) resource.TestCheckFunc {
+	ctx := context.Background()
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			keys := make([]string, 0, len(s.RootModule().Resources))
+			for k := range s.RootModule().Resources {
+				keys = append(keys, k)
+			}
+			return fmt.Errorf("RestAPI object not found in terraform state: %s. Found: %s", n, strings.Join(keys, ", "))
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("RestAPI object id not set in terraform")
+		}
+
+		/* Make a throw-away API object to read from the API */
+		path := "/api/objects"
+		opts := &apiclient.APIObjectOpts{
+			Path:        path,
+			ID:          id,
+			IDAttribute: "id",
+			Data:        "{}",
+			Debug:       true,
+		}
+		obj, err := apiclient.NewAPIObject(client, opts)
+		if err != nil {
+			return err
+		}
+
+		err = obj.ReadObject(ctx)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
 }
 
 // This function generates a terraform JSON configuration from

@@ -40,19 +40,19 @@ func TestAPIClient(t *testing.T) {
 	setupAPIClientServer()
 
 	/* Notice the intentional trailing / */
-	opt := &apiClientOpt{
-		uri:                 "http://127.0.0.1:8083/",
-		insecure:            false,
-		username:            "",
-		password:            "",
-		headers:             make(map[string]string),
-		timeout:             2,
-		idAttribute:         "id",
-		copyKeys:            make([]string, 0),
-		writeReturnsObject:  false,
-		createReturnsObject: false,
-		rateLimit:           1,
-		debug:               debug,
+	opt := &APIClientOpt{
+		URI:                 "http://127.0.0.1:8083/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  false,
+		CreateReturnsObject: false,
+		RateLimit:           1,
+		Debug:               debug,
 	}
 	client, _ := NewAPIClient(opt)
 
@@ -62,22 +62,22 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		log.Printf("api_client_test.go: Testing standard OK request\n")
 	}
-	res, err = client.sendRequest(ctx, "GET", "/ok", "")
-	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
+	res, err = client.SendRequest(ctx, "GET", "/ok", "")
+	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	if debug {
 		log.Printf("api_client_test.go: Testing redirect request\n")
 	}
-	res, err = client.sendRequest(ctx, "GET", "/redirect", "")
-	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
+	res, err = client.SendRequest(ctx, "GET", "/redirect", "")
+	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	/* Verify timeout works */
 	if debug {
 		log.Printf("api_client_test.go: Testing timeout aborts requests\n")
 	}
-	_, err = client.sendRequest(ctx, "GET", "/slow", "")
+	_, err = client.SendRequest(ctx, "GET", "/slow", "")
 	assert.Error(t, err, "client_test.go: Timeout should trigger on slow request")
 
 	if debug {
@@ -86,7 +86,7 @@ func TestAPIClient(t *testing.T) {
 	startTime := time.Now().Unix()
 
 	for range 4 {
-		client.sendRequest(ctx, "GET", "/ok", "")
+		client.SendRequest(ctx, "GET", "/ok", "")
 	}
 
 	duration := time.Now().Unix() - startTime
@@ -105,20 +105,20 @@ func TestAPIClient(t *testing.T) {
 	defer shutdownAPIClientTLSServer()
 	defer os.Remove(rootCAFilePath)
 
-	httpsOpt := &apiClientOpt{
-		uri:                 "https://127.0.0.1:8443/",
-		insecure:            false,
-		username:            "",
-		password:            "",
-		headers:             make(map[string]string),
-		timeout:             2,
-		idAttribute:         "id",
-		copyKeys:            make([]string, 0),
-		writeReturnsObject:  false,
-		createReturnsObject: false,
-		rateLimit:           1,
-		rootCAFile:          rootCAFilePath,
-		debug:               debug,
+	httpsOpt := &APIClientOpt{
+		URI:                 "https://127.0.0.1:8443/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  false,
+		CreateReturnsObject: false,
+		RateLimit:           1,
+		RootCAFile:          rootCAFilePath,
+		Debug:               debug,
 	}
 	httpsClient, httpsClientErr := NewAPIClient(httpsOpt)
 
@@ -126,7 +126,7 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		log.Printf("api_client_test.go: Testing HTTPS standard OK request\n")
 	}
-	res, err = httpsClient.sendRequest(ctx, "GET", "/ok", "")
+	res, err = httpsClient.SendRequest(ctx, "GET", "/ok", "")
 	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 }

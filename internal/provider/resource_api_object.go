@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,12 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRestAPI() *schema.Resource {
 	// Consider data sensitive if env variables is set to true.
-	isDataSensitive, _ := strconv.ParseBool(GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
+	isDataSensitive, _ := strconv.ParseBool(apiclient.GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
 
 	return &schema.Resource{
 		Create: resourceRestAPICreate,
@@ -222,6 +225,7 @@ Since there is nothing in the ResourceData structure other
 	from the API
 */
 func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported []*schema.ResourceData, err error) {
+	ctx := context.TODO()
 	input := d.Id()
 
 	hasTrailingSlash := strings.HasSuffix(input, "/")
@@ -257,13 +261,11 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 	if err != nil {
 		return imported, err
 	}
-	if obj.debug {
-		log.Printf("resource_api_object.go: Import routine called. Object built:\n%s\n", obj.toString())
-	}
+	tflog.Debug(ctx, "resource_api_object.go: Import routine called.", map[string]interface{}{"object": obj.String()})
 
-	err = obj.readObject()
+	err = obj.ReadObject(context.TODO())
 	if err == nil {
-		setResourceState(obj, d)
+		apiclient.SetResourceState(obj, d)
 		/* Data that we set in the state above must be passed along
 		   as an item in the stack of imported data */
 		imported = append(imported, d)
@@ -273,26 +275,27 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 }
 
 func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
+	ctx := context.TODO()
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		return err
 	}
-	if obj.debug {
-		log.Printf("resource_api_object.go: Create routine called. Object built:\n%s\n", obj.toString())
-	}
 
-	err = obj.createObject()
+	tflog.Debug(ctx, "resource_api_object.go: Create routine called", map[string]interface{}{"object": obj.String()})
+
+	err = obj.CreateObject(context.TODO())
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
-		d.SetId(obj.id)
-		setResourceState(obj, d)
+		d.SetId(obj.ID)
+		apiclient.SetResourceState(obj, d)
 		/* Only set during create for APIs that don't return sensitive data on subsequent retrieval */
-		d.Set("create_response", obj.apiResponse)
+		d.Set("create_response", obj.APIResponse)
 	}
 	return err
 }
 
 func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
+	ctx := context.TODO()
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		if strings.Contains(err.Error(), "error parsing data provided") {
@@ -303,17 +306,15 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if obj.debug {
-		log.Printf("resource_api_object.go: Read routine called. Object built:\n%s\n", obj.toString())
-	}
+	tflog.Debug(ctx, "resource_api_object.go: Read routine called", map[string]interface{}{"object": obj.String()})
 
-	err = obj.readObject()
+	err = obj.ReadObject(ctx)
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
-		log.Printf("resource_api_object.go: Read resource. Returned id is '%s'\n", obj.id)
-		d.SetId(obj.id)
+		log.Printf("resource_api_object.go: Read resource. Returned id is '%s'\n", obj.ID)
+		d.SetId(obj.ID)
 
-		setResourceState(obj, d)
+		apiclient.SetResourceState(obj, d)
 
 		// Check whether the remote resource has changed.
 		if !(d.Get("ignore_all_server_changes")).(bool) {
@@ -327,7 +328,7 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 
 			// This checks if there were any changes to the remote resource that will need to be corrected
 			// by comparing the current state with the response returned by the api.
-			modifiedResource, hasDifferences := getDelta(obj.data, obj.apiData, ignoreList)
+			modifiedResource, hasDifferences := obj.GetDelta(ignoreList)
 
 			if hasDifferences {
 				log.Printf("resource_api_object.go: Found differences in remote resource\n")
@@ -345,6 +346,7 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
+	ctx := context.TODO()
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		d.Partial(true)
@@ -353,21 +355,19 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	/* If copy_keys is not empty, we have to grab the latest
 	   data so we can copy anything needed before the update */
-	client := meta.(*APIClient)
-	if len(client.copyKeys) > 0 {
-		err = obj.readObject()
+	client := meta.(*apiclient.APIClient)
+	if client.CopyKeysEnabled() {
+		err = obj.ReadObject(ctx)
 		if err != nil {
 			return err
 		}
 	}
 
-	if obj.debug {
-		log.Printf("resource_api_object.go: Update routine called. Object built:\n%s\n", obj.toString())
-	}
+	tflog.Debug(ctx, "resource_api_object.go: Update routine called", map[string]interface{}{"object": obj.String()})
 
-	err = obj.updateObject()
+	err = obj.UpdateObject(ctx)
 	if err == nil {
-		setResourceState(obj, d)
+		apiclient.SetResourceState(obj, d)
 	} else {
 		d.Partial(true)
 	}
@@ -375,18 +375,18 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
+	ctx := context.TODO()
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		return err
 	}
-	if obj.debug {
-		log.Printf("resource_api_object.go: Delete routine called. Object built:\n%s\n", obj.toString())
-	}
+	tflog.Debug(ctx, "resource_api_object.go: Delete routine called. Object built", map[string]interface{}{"object": obj.String()})
 
-	err = obj.deleteObject()
+	err = obj.DeleteObject(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			/* 404 means it doesn't exist. Call that good enough */
+			// TODO: Coax this to a specific error type we can check for instead of magic strings
 			err = nil
 		}
 	}
@@ -394,6 +394,7 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists bool, err error) {
+	ctx := context.TODO()
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
 		if strings.Contains(err.Error(), "error parsing data provided") {
@@ -404,13 +405,11 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 		}
 	}
 
-	if obj.debug {
-		log.Printf("resource_api_object.go: Exists routine called. Object built: %s\n", obj.toString())
-	}
+	tflog.Debug(ctx, "resource_api_object.go: Exists routine called. Object built", map[string]interface{}{"object": obj.String()})
 
 	/* Assume all errors indicate the object just doesn't exist.
 	This may not be a good assumption... */
-	err = obj.readObject()
+	err = obj.ReadObject(ctx)
 	if err == nil {
 		exists = true
 	}
@@ -424,7 +423,7 @@ Simple helper routine to build an api_object struct
 	terraform cannot just reuse objects, so each CRUD operation
 	results in a new object created
 */
-func makeAPIObject(d *schema.ResourceData, meta interface{}) (*APIObject, error) {
+func makeAPIObject(d *schema.ResourceData, meta interface{}) (*apiclient.APIObject, error) {
 	opts, err := buildAPIObjectOpts(d)
 	if err != nil {
 		return nil, err
@@ -439,73 +438,73 @@ func makeAPIObject(d *schema.ResourceData, meta interface{}) (*APIObject, error)
 	}
 	log.Printf("resource_rest_api.go: Constructing new APIObject in makeAPIObject (called by %s)", caller)
 
-	obj, err := NewAPIObject(meta.(*APIClient), opts)
+	obj, err := apiclient.NewAPIObject(meta.(*apiclient.APIClient), opts)
 
 	return obj, err
 }
 
-func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
-	opts := &apiObjectOpts{
-		path: d.Get("path").(string),
+func buildAPIObjectOpts(d *schema.ResourceData) (*apiclient.APIObjectOpts, error) {
+	opts := &apiclient.APIObjectOpts{
+		Path: d.Get("path").(string),
 	}
 
 	/* Allow user to override provider-level id_attribute */
 	if v, ok := d.GetOk("id_attribute"); ok {
-		opts.idAttribute = v.(string)
+		opts.IDAttribute = v.(string)
 	}
 
 	/* Allow user to specify the ID manually */
 	if v, ok := d.GetOk("object_id"); ok {
-		opts.id = v.(string)
+		opts.ID = v.(string)
 	} else {
 		/* If not specified, see if terraform has an ID */
-		opts.id = d.Id()
+		opts.ID = d.Id()
 	}
 
-	log.Printf("resource_rest_api.go: buildAPIObjectOpts routine called for id '%s'\n", opts.id)
+	log.Printf("resource_rest_api.go: buildAPIObjectOpts routine called for id '%s'\n", opts.ID)
 
 	if v, ok := d.GetOk("create_path"); ok {
-		opts.postPath = v.(string)
+		opts.PostPath = v.(string)
 	}
 	if v, ok := d.GetOk("read_path"); ok {
-		opts.getPath = v.(string)
+		opts.GetPath = v.(string)
 	}
 	if v, ok := d.GetOk("update_path"); ok {
-		opts.putPath = v.(string)
+		opts.PutPath = v.(string)
 	}
 	if v, ok := d.GetOk("create_method"); ok {
-		opts.createMethod = v.(string)
+		opts.CreateMethod = v.(string)
 	}
 	if v, ok := d.GetOk("read_method"); ok {
-		opts.readMethod = v.(string)
+		opts.ReadMethod = v.(string)
 	}
 	if v, ok := d.GetOk("read_data"); ok {
-		opts.readData = v.(string)
+		opts.ReadData = v.(string)
 	}
 	if v, ok := d.GetOk("update_method"); ok {
-		opts.updateMethod = v.(string)
+		opts.UpdateMethod = v.(string)
 	}
 	if v, ok := d.GetOk("update_data"); ok {
-		opts.updateData = v.(string)
+		opts.UpdateData = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
-		opts.destroyMethod = v.(string)
+		opts.DestroyMethod = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_data"); ok {
-		opts.destroyData = v.(string)
+		opts.DestroyData = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_path"); ok {
-		opts.deletePath = v.(string)
+		opts.DestroyPath = v.(string)
 	}
 	if v, ok := d.GetOk("query_string"); ok {
-		opts.queryString = v.(string)
+		opts.QueryString = v.(string)
 	}
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
-	opts.readSearch = readSearch
+	opts.ReadSearch = readSearch
 
-	opts.data = d.Get("data").(string)
-	opts.debug = d.Get("debug").(bool)
+	opts.Data = d.Get("data").(string)
+	opts.Debug = d.Get("debug").(bool)
 
 	return opts, nil
 }

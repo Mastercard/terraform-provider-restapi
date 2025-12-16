@@ -1,9 +1,11 @@
 package restapi
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -88,7 +90,7 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	searchPath := d.Get("search_path").(string)
 	queryString := d.Get("query_string").(string)
 	debug := d.Get("debug").(bool)
-	client := meta.(*APIClient)
+	client := meta.(*apiclient.APIClient)
 	if debug {
 		log.Printf("datasource_api_object.go: Data routine called.")
 	}
@@ -117,20 +119,20 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("datasource_api_object.go:\npath: %s\nsearch_path: %s\nquery_string: %s\nsearch_key: %s\nsearch_value: %s\nresults_key: %s\nid_attribute: %s", path, searchPath, queryString, searchKey, searchValue, resultsKey, idAttribute)
 	}
 
-	opts := &apiObjectOpts{
-		path:        path,
-		searchPath:  searchPath,
-		debug:       debug,
-		queryString: readQueryString,
-		idAttribute: idAttribute,
+	opts := &apiclient.APIObjectOpts{
+		Path:        path,
+		SearchPath:  searchPath,
+		Debug:       debug,
+		QueryString: readQueryString,
+		IDAttribute: idAttribute,
 	}
 
-	obj, err := NewAPIObject(client, opts)
+	obj, err := apiclient.NewAPIObject(client, opts)
 	if err != nil {
 		return err
 	}
 
-	if _, err := obj.findObject(queryString, searchKey, searchValue, resultsKey, send); err != nil {
+	if _, err := obj.FindObject(context.TODO(), queryString, searchKey, searchValue, resultsKey, send); err != nil {
 		return err
 	}
 
@@ -139,14 +141,14 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("datasource_api_object.go: Attempting to construct api_object to refresh data")
 	}
 
-	d.SetId(obj.id)
+	d.SetId(obj.ID)
 
-	err = obj.readObject()
+	err = obj.ReadObject(context.TODO())
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
-		log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.id)
-		d.SetId(obj.id)
-		setResourceState(obj, d)
+		log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.ID)
+		d.SetId(obj.ID)
+		apiclient.SetResourceState(obj, d)
 	}
 	return err
 }

@@ -1,10 +1,12 @@
 package restapi
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/url"
 
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -218,7 +220,7 @@ func Provider() *schema.Provider {
 }
 
 func configureProvider(d *schema.ResourceData) (interface{}, error) {
-
+	ctx := context.Background()
 	/* As "data-safe" as terraform says it is, you'd think
 	   it would have already coaxed this to a slice FOR me */
 	copyKeys := make([]string, 0)
@@ -235,42 +237,42 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		}
 	}
 
-	opt := &apiClientOpt{
-		uri:                 d.Get("uri").(string),
-		insecure:            d.Get("insecure").(bool),
-		username:            d.Get("username").(string),
-		password:            d.Get("password").(string),
-		headers:             headers,
-		useCookies:          d.Get("use_cookies").(bool),
-		timeout:             d.Get("timeout").(int),
-		idAttribute:         d.Get("id_attribute").(string),
-		copyKeys:            copyKeys,
-		writeReturnsObject:  d.Get("write_returns_object").(bool),
-		createReturnsObject: d.Get("create_returns_object").(bool),
-		xssiPrefix:          d.Get("xssi_prefix").(string),
-		rateLimit:           d.Get("rate_limit").(float64),
-		debug:               d.Get("debug").(bool),
+	opt := &apiclient.APIClientOpt{
+		URI:                 d.Get("uri").(string),
+		Insecure:            d.Get("insecure").(bool),
+		Username:            d.Get("username").(string),
+		Password:            d.Get("password").(string),
+		Headers:             headers,
+		UseCookies:          d.Get("use_cookies").(bool),
+		Timeout:             d.Get("timeout").(int),
+		IDAttribute:         d.Get("id_attribute").(string),
+		CopyKeys:            copyKeys,
+		WriteReturnsObject:  d.Get("write_returns_object").(bool),
+		CreateReturnsObject: d.Get("create_returns_object").(bool),
+		XSSIPrefix:          d.Get("xssi_prefix").(string),
+		RateLimit:           d.Get("rate_limit").(float64),
+		Debug:               d.Get("debug").(bool),
 	}
 
 	if v, ok := d.GetOk("create_method"); ok {
-		opt.createMethod = v.(string)
+		opt.CreateMethod = v.(string)
 	}
 	if v, ok := d.GetOk("read_method"); ok {
-		opt.readMethod = v.(string)
+		opt.ReadMethod = v.(string)
 	}
 	if v, ok := d.GetOk("update_method"); ok {
-		opt.updateMethod = v.(string)
+		opt.UpdateMethod = v.(string)
 	}
 	if v, ok := d.GetOk("destroy_method"); ok {
-		opt.destroyMethod = v.(string)
+		opt.DestroyMethod = v.(string)
 	}
 	if v, ok := d.GetOk("oauth_client_credentials"); ok {
 		oauthConfig := v.([]interface{})[0].(map[string]interface{})
 
-		opt.oauthClientID = oauthConfig["oauth_client_id"].(string)
-		opt.oauthClientSecret = oauthConfig["oauth_client_secret"].(string)
-		opt.oauthTokenURL = oauthConfig["oauth_token_endpoint"].(string)
-		opt.oauthScopes = expandStringSet(oauthConfig["oauth_scopes"].([]interface{}))
+		opt.OAuthClientID = oauthConfig["oauth_client_id"].(string)
+		opt.OAuthClientSecret = oauthConfig["oauth_client_secret"].(string)
+		opt.OAuthTokenURL = oauthConfig["oauth_token_endpoint"].(string)
+		opt.OAuthScopes = apiclient.ExpandStringSet(oauthConfig["oauth_scopes"].([]interface{}))
 
 		if tmp, ok := oauthConfig["endpoint_params"]; ok {
 			m := tmp.(map[string]interface{})
@@ -278,33 +280,37 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 			for k, val := range m {
 				setVals.Add(k, val.(string))
 			}
-			opt.oauthEndpointParams = setVals
+			opt.OAuthEndpointParams = setVals
 		}
 	}
 	if v, ok := d.GetOk("cert_file"); ok {
-		opt.certFile = v.(string)
+		opt.CertFile = v.(string)
 	}
 	if v, ok := d.GetOk("key_file"); ok {
-		opt.keyFile = v.(string)
+		opt.KeyFile = v.(string)
 	}
 	if v, ok := d.GetOk("cert_string"); ok {
-		opt.certString = v.(string)
+		opt.CertString = v.(string)
 	}
 	if v, ok := d.GetOk("key_string"); ok {
-		opt.keyString = v.(string)
+		opt.KeyString = v.(string)
 	}
 	if v, ok := d.GetOk("root_ca_file"); ok {
-		opt.rootCAFile = v.(string)
+		opt.RootCAFile = v.(string)
 	}
 	if v, ok := d.GetOk("root_ca_string"); ok {
-		opt.rootCAString = v.(string)
+		opt.RootCAString = v.(string)
 
 	}
-	client, err := NewAPIClient(opt)
+	client, err := apiclient.NewAPIClient(opt)
 
 	if v, ok := d.GetOk("test_path"); ok {
 		testPath := v.(string)
-		_, err := client.sendRequest(client.readMethod, testPath, "")
+		readMethod := opt.ReadMethod
+		if readMethod == "" {
+			readMethod = "GET"
+		}
+		_, err := client.SendRequest(ctx, readMethod, testPath, "")
 		if err != nil {
 			return client, fmt.Errorf("a test request to %v after setting up the provider did not return an OK response - is your configuration correct? %v", testPath, err)
 		}

@@ -25,39 +25,39 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type apiClientOpt struct {
-	uri                 string
-	insecure            bool
-	username            string
-	password            string
-	headers             map[string]string
-	timeout             int
-	idAttribute         string
-	createMethod        string
-	readMethod          string
-	readData            string
-	updateMethod        string
-	updateData          string
-	destroyMethod       string
-	destroyData         string
-	copyKeys            []string
-	writeReturnsObject  bool
-	createReturnsObject bool
-	xssiPrefix          string
-	useCookies          bool
-	rateLimit           float64
-	oauthClientID       string
-	oauthClientSecret   string
-	oauthScopes         []string
-	oauthTokenURL       string
-	oauthEndpointParams url.Values
-	certFile            string
-	keyFile             string
-	rootCAFile          string
-	certString          string
-	keyString           string
-	rootCAString        string
-	debug               bool
+type APIClientOpt struct {
+	URI                 string
+	Insecure            bool
+	Username            string
+	Password            string
+	Headers             map[string]string
+	Timeout             int
+	IDAttribute         string
+	CreateMethod        string
+	ReadMethod          string
+	ReadData            string
+	UpdateMethod        string
+	UpdateData          string
+	DestroyMethod       string
+	DestroyData         string
+	CopyKeys            []string
+	WriteReturnsObject  bool
+	CreateReturnsObject bool
+	XSSIPrefix          string
+	UseCookies          bool
+	RateLimit           float64
+	OAuthClientID       string
+	OAuthClientSecret   string
+	OAuthScopes         []string
+	OAuthTokenURL       string
+	OAuthEndpointParams url.Values
+	CertFile            string
+	KeyFile             string
+	RootCAFile          string
+	CertString          string
+	KeyString           string
+	RootCAString        string
+	Debug               bool
 }
 
 /*APIClient is a HTTP client with additional controlling fields*/
@@ -86,53 +86,53 @@ type APIClient struct {
 }
 
 // NewAPIClient makes a new api client for RESTful calls
-func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
+func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 	ctx := context.Background()
-	if opt.debug {
+	if opt.Debug {
 		log.Printf("api_client.go: Constructing debug api_client\n")
 	}
 
-	if opt.uri == "" {
+	if opt.URI == "" {
 		return nil, errors.New("uri must be set to construct an API client")
 	}
 
 	/* Sane default */
-	if opt.idAttribute == "" {
-		opt.idAttribute = "id"
+	if opt.IDAttribute == "" {
+		opt.IDAttribute = "id"
 	}
 
 	/* Remove any trailing slashes since we will append
 	   to this URL with our own root-prefixed location */
-	opt.uri = strings.TrimSuffix(opt.uri, "/")
+	opt.URI = strings.TrimSuffix(opt.URI, "/")
 
-	if opt.createMethod == "" {
-		opt.createMethod = "POST"
+	if opt.CreateMethod == "" {
+		opt.CreateMethod = "POST"
 	}
-	if opt.readMethod == "" {
-		opt.readMethod = "GET"
+	if opt.ReadMethod == "" {
+		opt.ReadMethod = "GET"
 	}
-	if opt.updateMethod == "" {
-		opt.updateMethod = "PUT"
+	if opt.UpdateMethod == "" {
+		opt.UpdateMethod = "PUT"
 	}
-	if opt.destroyMethod == "" {
-		opt.destroyMethod = "DELETE"
+	if opt.DestroyMethod == "" {
+		opt.DestroyMethod = "DELETE"
 	}
 
 	tlsConfig := &tls.Config{
 		/* Disable TLS verification if requested */
-		InsecureSkipVerify: opt.insecure,
+		InsecureSkipVerify: opt.Insecure,
 	}
 
-	if opt.certString != "" && opt.keyString != "" {
-		cert, err := tls.X509KeyPair([]byte(opt.certString), []byte(opt.keyString))
+	if opt.CertString != "" && opt.KeyString != "" {
+		cert, err := tls.X509KeyPair([]byte(opt.CertString), []byte(opt.KeyString))
 		if err != nil {
 			return nil, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	if opt.certFile != "" && opt.keyFile != "" {
-		cert, err := tls.LoadX509KeyPair(opt.certFile, opt.keyFile)
+	if opt.CertFile != "" && opt.KeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile)
 		if err != nil {
 			return nil, err
 		}
@@ -140,20 +140,20 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 	}
 
 	// Load root CA
-	if opt.rootCAFile != "" || opt.rootCAString != "" {
+	if opt.RootCAFile != "" || opt.RootCAString != "" {
 		caCertPool := x509.NewCertPool()
 		var rootCA []byte
 		var err error
 
-		if opt.rootCAFile != "" {
-			tflog.Debug(ctx, "api_client.go: Reading root CA file", map[string]interface{}{"rootCAFile": opt.rootCAFile})
-			rootCA, err = os.ReadFile(opt.rootCAFile)
+		if opt.RootCAFile != "" {
+			tflog.Debug(ctx, "api_client.go: Reading root CA file", map[string]interface{}{"rootCAFile": opt.RootCAFile})
+			rootCA, err = os.ReadFile(opt.RootCAFile)
 			if err != nil {
 				return nil, fmt.Errorf("could not read root CA file: %v", err)
 			}
 		} else {
 			tflog.Debug(ctx, "api_client.go: Using provided root CA string")
-			rootCA = []byte(opt.rootCAString)
+			rootCA = []byte(opt.RootCAString)
 		}
 
 		if !caCertPool.AppendCertsFromPEM(rootCA) {
@@ -169,50 +169,50 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 
 	var cookieJar http.CookieJar
 
-	if opt.useCookies {
+	if opt.UseCookies {
 		cookieJar, _ = cookiejar.New(nil)
 	}
 
-	rateLimit := rate.Limit(opt.rateLimit)
-	bucketSize := int(math.Max(math.Round(opt.rateLimit), 1))
-	tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.rateLimit, "bucketSize": bucketSize})
+	rateLimit := rate.Limit(opt.RateLimit)
+	bucketSize := int(math.Max(math.Round(opt.RateLimit), 1))
+	tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.RateLimit, "bucketSize": bucketSize})
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
 	httpClient := cleanhttp.DefaultClient()
-	httpClient.Timeout = time.Second * time.Duration(opt.timeout)
+	httpClient.Timeout = time.Second * time.Duration(opt.Timeout)
 	httpClient.Transport = tr
 	httpClient.Jar = cookieJar
 
 	client := APIClient{
 		httpClient:          httpClient,
 		rateLimiter:         rateLimiter,
-		uri:                 opt.uri,
-		insecure:            opt.insecure,
-		username:            opt.username,
-		password:            opt.password,
-		headers:             opt.headers,
-		idAttribute:         opt.idAttribute,
-		createMethod:        opt.createMethod,
-		readMethod:          opt.readMethod,
-		readData:            opt.readData,
-		updateMethod:        opt.updateMethod,
-		updateData:          opt.updateData,
-		destroyMethod:       opt.destroyMethod,
-		destroyData:         opt.destroyData,
-		copyKeys:            opt.copyKeys,
-		writeReturnsObject:  opt.writeReturnsObject,
-		createReturnsObject: opt.createReturnsObject,
-		xssiPrefix:          opt.xssiPrefix,
-		debug:               opt.debug,
+		uri:                 opt.URI,
+		insecure:            opt.Insecure,
+		username:            opt.Username,
+		password:            opt.Password,
+		headers:             opt.Headers,
+		idAttribute:         opt.IDAttribute,
+		createMethod:        opt.CreateMethod,
+		readMethod:          opt.ReadMethod,
+		readData:            opt.ReadData,
+		updateMethod:        opt.UpdateMethod,
+		updateData:          opt.UpdateData,
+		destroyMethod:       opt.DestroyMethod,
+		destroyData:         opt.DestroyData,
+		copyKeys:            opt.CopyKeys,
+		writeReturnsObject:  opt.WriteReturnsObject,
+		createReturnsObject: opt.CreateReturnsObject,
+		xssiPrefix:          opt.XSSIPrefix,
+		debug:               opt.Debug,
 	}
 
-	if opt.oauthClientID != "" && opt.oauthClientSecret != "" && opt.oauthTokenURL != "" {
+	if opt.OAuthClientID != "" && opt.OAuthClientSecret != "" && opt.OAuthTokenURL != "" {
 		client.oauthConfig = &clientcredentials.Config{
-			ClientID:       opt.oauthClientID,
-			ClientSecret:   opt.oauthClientSecret,
-			TokenURL:       opt.oauthTokenURL,
-			Scopes:         opt.oauthScopes,
-			EndpointParams: opt.oauthEndpointParams,
+			ClientID:       opt.OAuthClientID,
+			ClientSecret:   opt.OAuthClientSecret,
+			TokenURL:       opt.OAuthTokenURL,
+			Scopes:         opt.OAuthScopes,
+			EndpointParams: opt.OAuthEndpointParams,
 		}
 	}
 
@@ -241,12 +241,12 @@ func (client *APIClient) String() string {
 	return buffer.String()
 }
 
-/*
-Helper function that handles sending/receiving and handling
+func (client *APIClient) CopyKeysEnabled() bool {
+	return len(client.copyKeys) > 0
+}
 
-	of HTTP data in and out.
-*/
-func (client *APIClient) sendRequest(ctx context.Context, method string, path string, data string) (string, error) {
+// SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
+func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string) (string, error) {
 	fullURI := client.uri + path
 	var req *http.Request
 	var err error

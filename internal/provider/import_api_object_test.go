@@ -1,38 +1,41 @@
 package restapi
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccRestApiObject_importBasic(t *testing.T) {
+	ctx := context.Background()
 	debug := false
 	apiServerObjects := make(map[string]map[string]interface{})
 
 	svr := fakeserver.NewFakeServer(8082, apiServerObjects, true, debug, "")
 	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
-	opt := &apiClientOpt{
-		uri:                 "http://127.0.0.1:8082/",
-		insecure:            false,
-		username:            "",
-		password:            "",
-		headers:             make(map[string]string),
-		timeout:             2,
-		idAttribute:         "id",
-		copyKeys:            make([]string, 0),
-		writeReturnsObject:  false,
-		createReturnsObject: false,
-		debug:               debug,
+	opt := &apiclient.APIClientOpt{
+		URI:                 "http://127.0.0.1:8082/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  false,
+		CreateReturnsObject: false,
+		Debug:               debug,
 	}
-	client, err := NewAPIClient(opt)
+	client, err := apiclient.NewAPIClient(opt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client.sendRequest("POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`)
+	client.SendRequest(ctx, "POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`)
 
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testAccProviders,
