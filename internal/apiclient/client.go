@@ -12,11 +12,14 @@ import (
 	"math"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/time/rate"
@@ -84,6 +87,7 @@ type APIClient struct {
 
 // NewAPIClient makes a new api client for RESTful calls
 func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
+	ctx := context.Background()
 	if opt.debug {
 		log.Printf("api_client.go: Constructing debug api_client\n")
 	}
@@ -142,22 +146,18 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		var err error
 
 		if opt.rootCAFile != "" {
-			if opt.debug {
-				log.Printf("api_client.go: Reading root CA file: %s\n", opt.rootCAFile)
-			}
+			tflog.Debug(ctx, "api_client.go: Reading root CA file", map[string]interface{}{"rootCAFile": opt.rootCAFile})
 			rootCA, err = os.ReadFile(opt.rootCAFile)
 			if err != nil {
 				return nil, fmt.Errorf("could not read root CA file: %v", err)
 			}
 		} else {
-			if opt.debug {
-				log.Printf("api_client.go: Using provided root CA string\n")
-			}
+			tflog.Debug(ctx, "api_client.go: Using provided root CA string")
 			rootCA = []byte(opt.rootCAString)
 		}
 
 		if !caCertPool.AppendCertsFromPEM(rootCA) {
-			return nil, errors.New("failed to append root CA certificate")
+			return nil, errors.New("failed to append root CA certificate(s)")
 		}
 		tlsConfig.RootCAs = caCertPool
 	}
@@ -175,15 +175,16 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 
 	rateLimit := rate.Limit(opt.rateLimit)
 	bucketSize := int(math.Max(math.Round(opt.rateLimit), 1))
-	log.Printf("limit: %f bucket: %d", opt.rateLimit, bucketSize)
+	tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.rateLimit, "bucketSize": bucketSize})
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
+	httpClient := cleanhttp.DefaultClient()
+	httpClient.Timeout = time.Second * time.Duration(opt.timeout)
+	httpClient.Transport = tr
+	httpClient.Jar = cookieJar
+
 	client := APIClient{
-		httpClient: &http.Client{
-			Timeout:   time.Second * time.Duration(opt.timeout),
-			Transport: tr,
-			Jar:       cookieJar,
-		},
+		httpClient:          httpClient,
 		rateLimiter:         rateLimiter,
 		uri:                 opt.uri,
 		insecure:            opt.insecure,
@@ -215,15 +216,13 @@ func NewAPIClient(opt *apiClientOpt) (*APIClient, error) {
 		}
 	}
 
-	if opt.debug {
-		log.Printf("api_client.go: Constructed client:\n%s", client.toString())
-	}
+	tflog.Debug(ctx, "api_client.go: Constructed client", map[string]interface{}{"details": client.String()})
 	return &client, nil
 }
 
 // Convert the important bits about this object to string representation
 // This is useful for debugging.
-func (client *APIClient) toString() string {
+func (client *APIClient) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("uri: %s\n", client.uri))
 	buffer.WriteString(fmt.Sprintf("insecure: %t\n", client.insecure))
@@ -247,14 +246,12 @@ Helper function that handles sending/receiving and handling
 
 	of HTTP data in and out.
 */
-func (client *APIClient) sendRequest(method string, path string, data string) (string, error) {
+func (client *APIClient) sendRequest(ctx context.Context, method string, path string, data string) (string, error) {
 	fullURI := client.uri + path
 	var req *http.Request
 	var err error
 
-	if client.debug {
-		log.Printf("api_client.go: method='%s', path='%s', full uri (derived)='%s', data='%s'\n", method, path, fullURI, data)
-	}
+	tflog.Debug(ctx, "api_client.go: Sending request", map[string]interface{}{"method": method, "path": path, "fullURI": fullURI, "data": data})
 
 	buffer := bytes.NewBuffer([]byte(data))
 
@@ -268,14 +265,8 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 			req.Header.Set("Content-Type", "application/json")
 		}
 	}
-
 	if err != nil {
-		log.Fatal(err)
-		return "", err
-	}
-
-	if client.debug {
-		log.Printf("api_client.go: Sending HTTP request to %s...\n", req.URL)
+		return "", fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	/* Allow for tokens or other pre-created secrets */
@@ -301,56 +292,29 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 	}
 
 	if client.debug {
-		log.Printf("api_client.go: Request headers:\n")
-		for name, headers := range req.Header {
-			for _, h := range headers {
-				log.Printf("api_client.go:   %v: %v", name, h)
-			}
-		}
-
-		log.Printf("api_client.go: BODY:\n")
-		body := "<none>"
-		if req.Body != nil {
-			body = string(data)
-		}
-		log.Printf("%s\n", body)
+		fmt.Println(httputil.DumpRequest(req, true))
 	}
 
 	if client.rateLimiter != nil {
-		// Rate limiting
-		if client.debug {
-			log.Printf("Waiting for rate limit availability\n")
-		}
-		_ = client.rateLimiter.Wait(context.Background())
+		tflog.Debug(ctx, "Waiting for rate limit availability")
+		_ = client.rateLimiter.Wait(ctx)
 	}
 
 	resp, err := client.httpClient.Do(req)
-
 	if err != nil {
-		//log.Printf("api_client.go: Error detected: %s\n", err)
 		return "", err
 	}
 
 	if client.debug {
-		log.Printf("api_client.go: Response code: %d\n", resp.StatusCode)
-		log.Printf("api_client.go: Response headers:\n")
-		for name, headers := range resp.Header {
-			for _, h := range headers {
-				log.Printf("api_client.go:   %v: %v", name, h)
-			}
-		}
+		fmt.Println(httputil.DumpResponse(resp, true))
 	}
 
 	bodyBytes, err2 := io.ReadAll(resp.Body)
 	resp.Body.Close()
-
 	if err2 != nil {
 		return "", err2
 	}
 	body := strings.TrimPrefix(string(bodyBytes), client.xssiPrefix)
-	if client.debug {
-		log.Printf("api_client.go: BODY:\n%s\n", body)
-	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
@@ -361,5 +325,4 @@ func (client *APIClient) sendRequest(method string, path string, data string) (s
 	}
 
 	return body, nil
-
 }

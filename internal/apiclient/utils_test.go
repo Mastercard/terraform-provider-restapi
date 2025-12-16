@@ -6,11 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func testAccCheckRestapiObjectExists(n string, id string, client *APIClient) resource.TestCheckFunc {
+	ctx := context.Background()
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -39,7 +42,7 @@ func testAccCheckRestapiObjectExists(n string, id string, client *APIClient) res
 			return err
 		}
 
-		err = obj.readObject()
+		err = obj.readObject(ctx)
 		if err != nil {
 			return err
 		}

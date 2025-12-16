@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -15,6 +16,9 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -28,6 +32,7 @@ var (
 
 func TestAPIClient(t *testing.T) {
 	debug := false
+	ctx := context.Background()
 
 	if debug {
 		log.Println("client_test.go: Starting HTTP server")
@@ -57,47 +62,35 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		log.Printf("api_client_test.go: Testing standard OK request\n")
 	}
-	res, err = client.sendRequest("GET", "/ok", "")
-	if err != nil {
-		t.Fatalf("client_test.go: %s", err)
-	}
-	if res != "It works!" {
-		t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
-	}
+	res, err = client.sendRequest(ctx, "GET", "/ok", "")
+	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
+	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	if debug {
 		log.Printf("api_client_test.go: Testing redirect request\n")
 	}
-	res, err = client.sendRequest("GET", "/redirect", "")
-	if err != nil {
-		t.Fatalf("client_test.go: %s", err)
-	}
-	if res != "It works!" {
-		t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
-	}
+	res, err = client.sendRequest(ctx, "GET", "/redirect", "")
+	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
+	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	/* Verify timeout works */
 	if debug {
 		log.Printf("api_client_test.go: Testing timeout aborts requests\n")
 	}
-	_, err = client.sendRequest("GET", "/slow", "")
-	if err == nil {
-		t.Fatalf("client_test.go: Timeout did not trigger on slow request")
-	}
+	_, err = client.sendRequest(ctx, "GET", "/slow", "")
+	assert.Error(t, err, "client_test.go: Timeout should trigger on slow request")
 
 	if debug {
 		log.Printf("api_client_test.go: Testing rate limited OK request\n")
 	}
 	startTime := time.Now().Unix()
 
-	for i := 0; i < 4; i++ {
-		client.sendRequest("GET", "/ok", "")
+	for range 4 {
+		client.sendRequest(ctx, "GET", "/ok", "")
 	}
 
 	duration := time.Now().Unix() - startTime
-	if duration < 3 {
-		t.Fatalf("client_test.go: requests not delayed\n")
-	}
+	assert.GreaterOrEqual(t, duration, int64(3), "client_test.go: requests should be delayed")
 
 	if debug {
 		log.Println("client_test.go: Stopping HTTP server")
@@ -129,19 +122,13 @@ func TestAPIClient(t *testing.T) {
 	}
 	httpsClient, httpsClientErr := NewAPIClient(httpsOpt)
 
-	if httpsClientErr != nil {
-		t.Fatalf("client_test.go: %s", httpsClientErr)
-	}
+	require.NoError(t, httpsClientErr, "client_test.go: NewAPIClient should not return an error")
 	if debug {
 		log.Printf("api_client_test.go: Testing HTTPS standard OK request\n")
 	}
-	res, err = httpsClient.sendRequest("GET", "/ok", "")
-	if err != nil {
-		t.Fatalf("client_test.go: %s", err)
-	}
-	if res != "It works!" {
-		t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
-	}
+	res, err = httpsClient.sendRequest(ctx, "GET", "/ok", "")
+	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
+	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 }
 
 func setupAPIClientServer() {
