@@ -256,6 +256,89 @@ var deltaTestCases = []deltaTestCase{
 		ignoreList:     []string{},
 		resultHasDelta: true,
 	},
+
+	// NEW: Test cases for list item ignoring with [] syntax
+	{
+		testCase:       "Server changes a sub-value in a list of objects (ignored with [])",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"key": "bar", "val": "x"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "foo", "val": "Y"}, {"key": "bar", "val": "Z"}}},
+		ignoreList:     []string{"list[].val"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Server changes a sub-value in a list but we watch another field",
+		o1:             MapAny{"list": []MapAny{{"key": "foo", "val": "x"}, {"key": "bar", "val": "x"}}},
+		o2:             MapAny{"list": []MapAny{{"key": "FOO", "val": "Y"}, {"key": "BAR", "val": "Z"}}},
+		ignoreList:     []string{"list[].val"},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Server adds a field to list items (ignored with [])",
+		o1:             MapAny{"items": []MapAny{{"name": "a"}, {"name": "b"}}},
+		o2:             MapAny{"items": []MapAny{{"name": "a", "added": "new"}, {"name": "b", "added": "new"}}},
+		ignoreList:     []string{"items[].added"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Server changes nested field in list items (ignored with [])",
+		o1:             MapAny{"items": []MapAny{{"data": MapAny{"secret": "x"}}, {"data": MapAny{"secret": "y"}}}},
+		o2:             MapAny{"items": []MapAny{{"data": MapAny{"secret": "CHANGED"}}, {"data": MapAny{"secret": "CHANGED"}}}},
+		ignoreList:     []string{"items[].data.secret"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "List length changes (not ignoreable)",
+		o1:             MapAny{"list": []MapAny{{"val": "x"}}},
+		o2:             MapAny{"list": []MapAny{{"val": "x"}, {"val": "y"}}},
+		ignoreList:     []string{"list[].val"},
+		resultHasDelta: true,
+	},
+
+	// NEW: Test cases for keys containing dots
+	{
+		testCase:       "Ignore a key containing a dot",
+		o1:             MapAny{"@odata.etag": "v1", "name": "foo"},
+		o2:             MapAny{"@odata.etag": "v2", "name": "foo"},
+		ignoreList:     []string{"@odata.etag"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Server adds a key containing a dot (ignored)",
+		o1:             MapAny{"name": "foo"},
+		o2:             MapAny{"name": "foo", "@odata.context": "http://example.com"},
+		ignoreList:     []string{"@odata.context"},
+		resultHasDelta: false,
+	},
+
+	{
+		testCase:       "Dotted key not in ignore list should detect changes",
+		o1:             MapAny{"@odata.etag": "v1", "name": "foo"},
+		o2:             MapAny{"@odata.etag": "v2", "name": "foo"},
+		ignoreList:     []string{},
+		resultHasDelta: true,
+	},
+
+	{
+		testCase:       "Nested object with dotted keys (ignored)",
+		o1:             MapAny{"metadata": MapAny{"@odata.type": "old"}},
+		o2:             MapAny{"metadata": MapAny{"@odata.type": "new"}},
+		ignoreList:     []string{"metadata.@odata.type"},
+		resultHasDelta: false,
+	},
+
+	// Combined test: Azure-like scenario from GitHub issue
+	{
+		testCase:       "Azure-style response with @odata fields and credentials (ignored)",
+		o1:             MapAny{"name": "datasource", "credentials": MapAny{"connectionString": nil}},
+		o2:             MapAny{"name": "datasource", "@odata.etag": "\"0x12345\"", "credentials": MapAny{"connectionString": "ResourceId=/sub/..."}},
+		ignoreList:     []string{"@odata.etag", "credentials.connectionString"},
+		resultHasDelta: false,
+	},
 }
 
 /*

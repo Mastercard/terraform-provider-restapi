@@ -39,7 +39,7 @@ resource "restapi_object" "Foo2" {
 - `force_new` (List of String) Any changes to these values will result in recreating the resource instead of updating.
 - `id_attribute` (String) Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)
 - `ignore_all_server_changes` (Boolean) By default Terraform will attempt to revert changes to remote resources. Set this to 'true' to ignore any remote changes. Default: false
-- `ignore_changes_to` (List of String) A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. To ignore changes to nested fields, use the dot syntax: 'metadata.timestamp'
+- `ignore_changes_to` (List of String) A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. Syntax options: (1) Use dot notation for nested fields: 'metadata.timestamp', (2) Use '[]' to ignore fields within list items: 'items[].secretField', (3) Keys containing dots (like '@odata.etag') are matched exactly before attempting path descent.
 - `object_id` (String) Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
 - `query_string` (String) Query string to be included in the path
 - `read_data` (String) Valid JSON object to pass during read requests.

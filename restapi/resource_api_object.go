@@ -199,7 +199,7 @@ func resourceRestAPI() *schema.Resource {
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Optional:    true,
-				Description: "A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. To ignore changes to nested fields, use the dot syntax: 'metadata.timestamp'",
+				Description: "A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. Syntax options: (1) Use dot notation for nested fields: 'metadata.timestamp', (2) Use '[]' to ignore fields within list items: 'items[].secretField', (3) Keys containing dots (like '@odata.etag') are matched exactly before attempting path descent.",
 				Sensitive:   isDataSensitive,
 				// TODO ValidateFunc not supported for lists, but should probably validate that the ignore paths are valid
 			},
