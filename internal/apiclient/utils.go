@@ -23,8 +23,8 @@ func SetResourceState(obj *APIObject, d *schema.ResourceData) {
 }
 
 // GetStringAtKey uses GetObjectAtKey to verify the resulting object is either a JSON string or Number and returns it as a string
-func GetStringAtKey(data map[string]interface{}, path string, debug bool) (string, error) {
-	res, err := GetObjectAtKey(data, path, debug)
+func GetStringAtKey(data map[string]interface{}, path string) (string, error) {
+	res, err := GetObjectAtKey(data, path)
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +59,7 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 // Result:
 // attrs/id => 1234
 // config/foo => "abc"
-func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (interface{}, error) {
+func GetObjectAtKey(data map[string]interface{}, path string) (interface{}, error) {
 	ctx := context.TODO()
 	hash := data
 

@@ -232,6 +232,7 @@ func (client *APIClient) String() string {
 	for k, v := range client.headers {
 		buffer.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
 	}
+	buffer.WriteString("copy_keys:\n")
 	for _, n := range client.copyKeys {
 		buffer.WriteString(fmt.Sprintf("  %s", n))
 	}
@@ -289,6 +290,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.debug {
+		fmt.Println("----- HTTP Request -----")
 		fmt.Println(httputil.DumpRequest(req, true))
 	}
 
@@ -303,6 +305,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.debug {
+		fmt.Println("----- HTTP Response -----")
 		fmt.Println(httputil.DumpResponse(resp, true))
 	}
 
