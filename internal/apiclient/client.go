@@ -59,7 +59,7 @@ type APIClientOpt struct {
 	Debug               bool
 }
 
-/*APIClient is a HTTP client with additional controlling fields*/
+// APIClient is a HTTP client with additional controlling fields
 type APIClient struct {
 	httpClient          *http.Client
 	uri                 string
@@ -93,13 +93,13 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		return nil, errors.New("uri must be set to construct an API client")
 	}
 
-	/* Sane default */
+	// Sane default
 	if opt.IDAttribute == "" {
 		opt.IDAttribute = "id"
 	}
 
-	/* Remove any trailing slashes since we will append
-	   to this URL with our own root-prefixed location */
+	// Remove any trailing slashes since we will append
+	// to this URL with our own root-prefixed location
 	opt.URI = strings.TrimSuffix(opt.URI, "/")
 
 	if opt.CreateMethod == "" {
@@ -116,7 +116,7 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 	}
 
 	tlsConfig := &tls.Config{
-		/* Disable TLS verification if requested */
+		// Disable TLS verification if requested
 		InsecureSkipVerify: opt.Insecure,
 	}
 
@@ -257,7 +257,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	} else {
 		req, err = http.NewRequest(method, fullURI, buffer)
 
-		/* Default of application/json, but allow headers array to overwrite later */
+		// Default of application/json, but allow headers array to overwrite later
 		if err == nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
@@ -266,7 +266,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 		return "", fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
-	/* Allow for tokens or other pre-created secrets */
+	// Allow for tokens or other pre-created secrets
 	if len(client.headers) > 0 {
 		for n, v := range client.headers {
 			req.Header.Set(n, v)
@@ -284,7 +284,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.username != "" && client.password != "" {
-		/* ... and fall back to basic auth if configured */
+		// ... and fall back to basic auth if configured
 		req.SetBasicAuth(client.username, client.password)
 	}
 

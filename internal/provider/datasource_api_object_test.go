@@ -1,11 +1,9 @@
 package restapi
 
-/*
-  See:
-  https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
-  https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
-  https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
-*/
+// See:
+//   https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
+//   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
+//   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
 
 import (
 	"context"
@@ -44,7 +42,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	/* Send a simple object */
+	// Send a simple object
 	client.SendRequest(ctx, "POST", "/api/objects", `
     {
       "id": "1234",
@@ -76,20 +74,19 @@ func TestAccRestapiobject_Basic(t *testing.T) {
     }
   `)
 
-	/* Send a complex object that we will pretend is the results of a search
-	client.send_request("POST", "/api/objects", `
-	  {
-	    "id": "people",
-	    "results": {
-	      "number": 2,
-	      "list": [
-	        { "id": "1234", "first": "Foo", "last": "Bar" },
-	        { "id": "4321", "first": "Foo", "last": "Baz" }
-	      ]
-	    }
-	  }
-	`)
-	*/
+	// Send a complex object that we will pretend is the results of a search
+	// client.send_request("POST", "/api/objects", `
+	//   {
+	//     "id": "people",
+	//     "results": {
+	//       "number": 2,
+	//       "list": [
+	//         { "id": "1234", "first": "Foo", "last": "Bar" },
+	//         { "id": "4321", "first": "Foo", "last": "Baz" }
+	//       ]
+	//     }
+	//   }
+	// `)
 
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testAccProviders,
@@ -130,7 +127,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 				),
 			},
 			{
-				/* Similar to the first, but also with a query string */
+				// Similar to the first, but also with a query string
 				Config: fmt.Sprintf(`
             data "restapi_object" "Baz" {
                path = "/api/objects"
@@ -148,7 +145,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 				),
 			},
 			{
-				/* Perform a test that mimicks a search (this will exercise search_path and results_key */
+				// Perform a test that mimicks a search (this will exercise search_path and results_key
 				Config: fmt.Sprintf(`
 			         data "restapi_object" "Baz" {
 			            path = "/api/objects"

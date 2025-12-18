@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-/*Provider implements the REST API provider*/
+// Provider implements the REST API provider
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
@@ -207,9 +207,9 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			/* Could only get terraform to recognize this resource if
-			         the name began with the provider's name and had at least
-				 one underscore. This is not documented anywhere I could find */
+			// Could only get terraform to recognize this resource if
+			// the name began with the provider's name and had at least
+			// one underscore. This is not documented anywhere I could find
 			"restapi_object": resourceRestAPI(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
@@ -221,8 +221,8 @@ func Provider() *schema.Provider {
 
 func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	ctx := context.Background()
-	/* As "data-safe" as terraform says it is, you'd think
-	   it would have already coaxed this to a slice FOR me */
+	// As "data-safe" as terraform says it is, you'd think
+	// it would have already coaxed this to a slice FOR me
 	copyKeys := make([]string, 0)
 	if iCopyKeys := d.Get("copy_keys"); iCopyKeys != nil {
 		for _, v := range iCopyKeys.([]interface{}) {

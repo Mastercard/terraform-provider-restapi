@@ -211,18 +211,16 @@ func resourceRestAPI() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
-		}, /* End schema */
+		}, // End schema
 
 	}
 }
 
-/*
-Since there is nothing in the ResourceData structure other
-
-	than the "id" passed on the command line, we have to use an opinionated
-	view of the API paths to figure out how to read that object
-	from the API
-*/
+// resourceRestAPIImport imports an existing API object into Terraform state.
+// Since there is nothing in the ResourceData structure other
+// than the "id" passed on the command line, we have to use an opinionated
+// view of the API paths to figure out how to read that object
+// from the API
 func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported []*schema.ResourceData, err error) {
 	ctx := context.TODO()
 	input := d.Id()
@@ -252,8 +250,8 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 	d.Set("data", fmt.Sprintf(`{ "id": "%s" }`, id))
 	d.SetId(id)
 
-	/* Troubleshooting is hard enough. Emit log messages so TF_LOG
-	   has useful information in case an import isn't working */
+	// Troubleshooting is hard enough. Emit log messages so TF_LOG
+	// has useful information in case an import isn't working
 	d.Set("debug", true)
 
 	obj, err := makeAPIObject(d, meta)
@@ -265,8 +263,8 @@ func resourceRestAPIImport(d *schema.ResourceData, meta interface{}) (imported [
 	err = obj.ReadObject(context.TODO())
 	if err == nil {
 		apiclient.SetResourceState(obj, d)
-		/* Data that we set in the state above must be passed along
-		   as an item in the stack of imported data */
+		// Data that we set in the state above must be passed along
+		// as an item in the stack of imported data
 		imported = append(imported, d)
 	}
 
@@ -284,10 +282,10 @@ func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 
 	err = obj.CreateObject(context.TODO())
 	if err == nil {
-		/* Setting terraform ID tells terraform the object was created or it exists */
+		// Setting terraform ID tells terraform the object was created or it exists
 		d.SetId(obj.ID)
 		apiclient.SetResourceState(obj, d)
-		/* Only set during create for APIs that don't return sensitive data on subsequent retrieval */
+		// Only set during create for APIs that don't return sensitive data on subsequent retrieval
 		d.Set("create_response", obj.APIResponse)
 	}
 	return err
@@ -309,7 +307,7 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 
 	err = obj.ReadObject(ctx)
 	if err == nil {
-		/* Setting terraform ID tells terraform the object was created or it exists */
+		// Setting terraform ID tells terraform the object was created or it exists
 		tflog.Debug(ctx, "Read resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
 		d.SetId(obj.ID)
 
@@ -352,8 +350,8 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	/* If copy_keys is not empty, we have to grab the latest
-	   data so we can copy anything needed before the update */
+	// If copy_keys is not empty, we have to grab the latest
+	// data so we can copy anything needed before the update
 	client := meta.(*apiclient.APIClient)
 	if client.CopyKeysEnabled() {
 		err = obj.ReadObject(ctx)
@@ -384,7 +382,7 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 	err = obj.DeleteObject(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
-			/* 404 means it doesn't exist. Call that good enough */
+			// 404 means it doesn't exist. Call that good enough
 			// TODO: Coax this to a specific error type we can check for instead of magic strings
 			err = nil
 		}
@@ -406,8 +404,8 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 
 	tflog.Debug(ctx, "Exists routine called. Object built", map[string]interface{}{"object": obj.String()})
 
-	/* Assume all errors indicate the object just doesn't exist.
-	This may not be a good assumption... */
+	// Assume all errors indicate the object just doesn't exist.
+	// This may not be a good assumption...
 	err = obj.ReadObject(ctx)
 	if err == nil {
 		exists = true
@@ -415,13 +413,10 @@ func resourceRestAPIExists(d *schema.ResourceData, meta interface{}) (exists boo
 	return exists, err
 }
 
-/*
-Simple helper routine to build an api_object struct
-
-	for the various calls terraform will use. Unfortunately,
-	terraform cannot just reuse objects, so each CRUD operation
-	results in a new object created
-*/
+// makeAPIObject is a helper routine to build an api_object struct
+// for the various calls terraform will use. Unfortunately,
+// terraform cannot just reuse objects, so each CRUD operation
+// results in a new object created
 func makeAPIObject(d *schema.ResourceData, meta interface{}) (*apiclient.APIObject, error) {
 	ctx := context.TODO()
 	opts, err := buildAPIObjectOpts(d)
@@ -449,16 +444,16 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiclient.APIObjectOpts, error
 		Path: d.Get("path").(string),
 	}
 
-	/* Allow user to override provider-level id_attribute */
+	// Allow user to override provider-level id_attribute
 	if v, ok := d.GetOk("id_attribute"); ok {
 		opts.IDAttribute = v.(string)
 	}
 
-	/* Allow user to specify the ID manually */
+	// Allow user to specify the ID manually
 	if v, ok := d.GetOk("object_id"); ok {
 		opts.ID = v.(string)
 	} else {
-		/* If not specified, see if terraform has an ID */
+		// If not specified, see if terraform has an ID
 		opts.ID = d.Id()
 	}
 

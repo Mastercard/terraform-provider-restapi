@@ -1,16 +1,10 @@
 package restapi
 
-/*
-  See:
-  https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
-  https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
-  https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
-*/
+// See:
+//   https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
+//   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
+//   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
 
-/*
-  "log"
-  "github.com/hashicorp/terraform/config"
-*/
 import (
 	"context"
 	"encoding/json"
@@ -72,7 +66,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("restapi_object.Foo", "create_response", "{\"first\":\"Foo\",\"id\":\"1234\",\"last\":\"Bar\"}"),
 				),
 			},
-			/* Try updating the object and check create_response is unmodified */
+			// Try updating the object and check create_response is unmodified
 			{
 				Config: generateTestResource(
 					"Foo",
@@ -88,9 +82,8 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("restapi_object.Foo", "create_response", "{\"first\":\"Foo\",\"id\":\"1234\",\"last\":\"Bar\"}"),
 				),
 			},
-			/* Make a complex object with id_attribute as a child of another key
-			   Note that we have to pass "id" just so fakeserver won't get angry at us
-			*/
+			// Make a complex object with id_attribute as a child of another key
+			// Note that we have to pass "id" just so fakeserver won't get angry at us
 			{
 				Config: generateTestResource(
 					"Bar",
@@ -128,7 +121,7 @@ func testAccCheckRestapiObjectExists(n string, id string, client *apiclient.APIC
 			return fmt.Errorf("RestAPI object id not set in terraform")
 		}
 
-		/* Make a throw-away API object to read from the API */
+		// Make a throw-away API object to read from the API
 		path := "/api/objects"
 		opts := &apiclient.APIObjectOpts{
 			Path:        path,

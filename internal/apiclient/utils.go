@@ -29,7 +29,7 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 		return "", err
 	}
 
-	/* JSON supports strings, numbers, objects and arrays. Allow a string OR number here */
+	// JSON supports strings, numbers, objects and arrays. Allow a string OR number here
 	switch tmp := res.(type) {
 	case string:
 		return tmp, nil
@@ -43,23 +43,22 @@ func GetStringAtKey(data map[string]interface{}, path string, debug bool) (strin
 }
 
 // GetObjectAtKey is a handy helper that will dig through a map and find something at the defined key. The returned data is not type checked.
-/*
-	 Example:
-	 Given:
-	 {
-	   "attrs": {
-	     "id": 1234
-	   },
-	   "config": {
-	     "foo": "abc",
-	     "bar": "xyz"
-	   }
-	}
-
-Result:
-attrs/id => 1234
-config/foo => "abc"
-*/
+// Example:
+// Given:
+//
+//	{
+//	  "attrs": {
+//	    "id": 1234
+//	  },
+//	  "config": {
+//	    "foo": "abc",
+//	    "bar": "xyz"
+//	  }
+//	}
+//
+// Result:
+// attrs/id => 1234
+// config/foo => "abc"
 func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (interface{}, error) {
 	ctx := context.TODO()
 	hash := data
@@ -70,15 +69,15 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 	tflog.Debug(ctx, "GetObjectAtKey: Locating results_key", map[string]interface{}{"parts": parts})
 
 	for len(parts) > 1 {
-		/* AKA, Slice...*/
+		// AKA, Slice...
 		part, parts = parts[0], parts[1:]
 
-		/* Protect against double slashes by mistake */
+		// Protect against double slashes by mistake
 		if part == "" {
 			continue
 		}
 
-		/* See if this key exists in the hash at this point */
+		// See if this key exists in the hash at this point
 		if _, ok := hash[part]; ok {
 			tflog.Debug(ctx, "GetObjectAtKey: key exists", map[string]interface{}{"key": part})
 			seen += "/" + part
@@ -102,10 +101,10 @@ func GetObjectAtKey(data map[string]interface{}, path string, debug bool) (inter
 
 			return nil, fmt.Errorf("GetObjectAtKey: Failed to find '%s' in returned data structure after finding '%s'. Available: %s", part, seen, strings.Join(GetKeys(hash), ","))
 		}
-	} /* End Loop through parts */
+	} // End Loop through parts
 
-	/* We have found the containing map of the value we want */
-	part = parts[0] /* One last time */
+	// We have found the containing map of the value we want
+	part = parts[0] // One last time
 	if _, ok := hash[part]; !ok {
 		tflog.Debug(ctx, "GetObjectAtKey:  MISSING", map[string]interface{}{"key": part, "available": strings.Join(GetKeys(hash), ",")})
 		return nil, fmt.Errorf("GetObjectAtKey: Resulting map at '%s' does not have key '%s'. Available: %s", seen, part, strings.Join(GetKeys(hash), ","))

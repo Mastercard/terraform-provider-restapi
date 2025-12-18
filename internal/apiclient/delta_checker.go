@@ -9,11 +9,9 @@ func (obj *APIObject) GetDelta(ignoreList []string) (modifiedResource map[string
 	return getDelta(obj.data, obj.apiData, ignoreList)
 }
 
-/*
- * Performs a deep comparison of two maps - the resource as recorded in state, and the resource as returned by the API.
- * Accepts a third argument that is a set of fields that are to be ignored when looking for differences.
- * Returns 1. the recordedResource overlaid with fields that have been modified in actualResource but not ignored, and 2. a bool true if there were any changes.
- */
+// getDelta performs a deep comparison of two maps - the resource as recorded in state, and the resource as returned by the API.
+// Accepts a third argument that is a set of fields that are to be ignored when looking for differences.
+// Returns 1. the recordedResource overlaid with fields that have been modified in actualResource but not ignored, and 2. a bool true if there were any changes.
 func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
 	modifiedResource = map[string]interface{}{}
 	hasChanges = false
@@ -96,10 +94,8 @@ func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ig
 	return modifiedResource, hasChanges
 }
 
-/*
- * Modifies an ignoreList to be relative to a descended path.
- * E.g. given descendPath = "bar", and the ignoreList [foo, bar.alpha, bar.bravo], this returns [alpha, bravo]
- */
+// _descendIgnoreList modifies an ignoreList to be relative to a descended path.
+// E.g. given descendPath = "bar", and the ignoreList [foo, bar.alpha, bar.bravo], this returns [alpha, bravo]
 func _descendIgnoreList(descendPath string, ignoreList []string) []string {
 	newIgnoreList := make([]string, len(ignoreList))
 

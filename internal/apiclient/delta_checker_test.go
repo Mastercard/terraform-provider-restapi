@@ -258,11 +258,7 @@ var deltaTestCases = []deltaTestCase{
 	},
 }
 
-/*
- * Since I'm not super familiar with Go, and most of the hasDelta code is
- * effectively "untyped", I want to make sure my code doesn't fail when
- * comparing certain type combinations
- */
+// generateTypeConversionTests tests many different type combinations
 func generateTypeConversionTests() []deltaTestCase {
 	typeValues := MapAny{
 		"string":     "foo",

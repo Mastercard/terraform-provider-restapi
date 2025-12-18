@@ -34,7 +34,7 @@ type APIObjectOpts struct {
 	Data          string
 }
 
-/*APIObject is the state holding struct for a restapi_object resource*/
+// APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
 	apiClient     *APIClient
 	getPath       string
@@ -52,12 +52,12 @@ type APIObject struct {
 	ID            string
 	IDAttribute   string
 
-	/* Set internally */
-	data        map[string]interface{} /* Data as managed by the user */
-	readData    map[string]interface{} /* Read data as managed by the user */
-	updateData  map[string]interface{} /* Update data as managed by the user */
-	destroyData map[string]interface{} /* Destroy data as managed by the user */
-	apiData     map[string]interface{} /* Data as available from the API */
+	// Set internally
+	data        map[string]interface{} // Data as managed by the user
+	readData    map[string]interface{} // Read data as managed by the user
+	updateData  map[string]interface{} // Update data as managed by the user
+	destroyData map[string]interface{} // Destroy data as managed by the user
+	apiData     map[string]interface{} // Data as available from the API
 	APIResponse string
 }
 
@@ -66,10 +66,10 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	ctx := context.Background()
 	tflog.Debug(ctx, "Constructing api_object", map[string]interface{}{"id": opts.ID})
 
-	/* id_attribute can be set either on the client (to apply for all calls with the server)
-	   or on a per object basis (for only calls to this kind of object).
-	   Permit overridding from the API client here by using the client-wide value only
-	   if a per-object value is not set */
+	// id_attribute can be set either on the client (to apply for all calls with the server)
+	// or on a per object basis (for only calls to this kind of object).
+	// Permit overridding from the API client here by using the client-wide value only
+	// if a per-object value is not set
 	if opts.IDAttribute == "" {
 		opts.IDAttribute = iClient.idAttribute
 	}
@@ -142,8 +142,8 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 			return &obj, fmt.Errorf("error parsing data provided: %v", err.Error())
 		}
 
-		/* Opportunistically set the object's ID if it is provided in the data.
-		   If it is not set, we will get it later in synchronize_state */
+		// Opportunistically set the object's ID if it is provided in the data.
+		// If it is not set, we will get it later in synchronize_state
 		if obj.ID == "" {
 			var tmp string
 			tmp, err := GetStringAtKey(obj.data, obj.IDAttribute, obj.debug)
@@ -151,8 +151,8 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 				tflog.Debug(ctx, "opportunisticly set id from data provided", map[string]interface{}{"id": tmp})
 				obj.ID = tmp
 			} else if !obj.apiClient.writeReturnsObject && !obj.apiClient.createReturnsObject && obj.searchPath == "" {
-				/* If the id is not set and we cannot obtain it
-				   later, error out to be safe */
+				// If the id is not set and we cannot obtain it
+				// later, error out to be safe
 				return &obj, fmt.Errorf("provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response; without an id, the object cannot be managed", obj.IDAttribute)
 			}
 		}
@@ -214,10 +214,8 @@ func (obj *APIObject) String() string {
 	return buffer.String()
 }
 
-/*
-Centralized function to ensure that our data as managed by
-the api_object is updated with data that has come back from the API
-*/
+// updateState is a centralized function to ensure that our data as managed by
+// the api_object is updated with data that has come back from the API
 func (obj *APIObject) updateState(state string) error {
 	ctx := context.Background()
 	tflog.Debug(ctx, "Updating API object state to '%s'\n", map[string]interface{}{"state": state})
@@ -229,8 +227,8 @@ func (obj *APIObject) updateState(state string) error {
 
 	obj.APIResponse = state
 
-	/* A usable ID was not passed (in constructor or here),
-	   so we have to guess what it is from the data structure */
+	// A usable ID was not passed (in constructor or here),
+	// so we have to guess what it is from the data structure
 	if obj.ID == "" {
 		val, err := GetStringAtKey(obj.apiData, obj.IDAttribute, obj.debug)
 		if err != nil {
@@ -241,7 +239,7 @@ func (obj *APIObject) updateState(state string) error {
 		tflog.Debug(ctx, "Not updating id. It is already set to '%s'\n", map[string]interface{}{"id": obj.ID})
 	}
 
-	/* Any keys that come from the data we want to copy are done here */
+	// Any keys that come from the data we want to copy are done here
 	if len(obj.apiClient.copyKeys) > 0 {
 		for _, key := range obj.apiClient.copyKeys {
 			tflog.Debug(ctx, "Copying key from api_data to data\n", map[string]interface{}{"key": key, "new": obj.apiData[key], "old": obj.data[key]})
@@ -257,10 +255,10 @@ func (obj *APIObject) updateState(state string) error {
 }
 
 func (obj *APIObject) CreateObject(ctx context.Context) error {
-	/* Failsafe: The constructor should prevent this situation, but
-	   protect here also. If no id is set, and the API does not respond
-	   with the id of whatever gets created, we have no way to know what
-	   the object's id will be. Abandon this attempt */
+	// Failsafe: The constructor should prevent this situation, but
+	// protect here also. If no id is set, and the API does not respond
+	// with the id of whatever gets created, we have no way to know what
+	// the object's id will be. Abandon this attempt
 	if obj.ID == "" && !obj.apiClient.writeReturnsObject && !obj.apiClient.createReturnsObject {
 		return fmt.Errorf("provided object does not have an id set and the client is not configured to read the object from a POST or PUT response; please set write_returns_object to true, or include an id in the object's data")
 	}
@@ -278,15 +276,15 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 		return err
 	}
 
-	/* We will need to sync state as well as get the object's ID */
+	// We will need to sync state as well as get the object's ID
 	if obj.apiClient.writeReturnsObject || obj.apiClient.createReturnsObject {
 		tflog.Debug(ctx, "Parsing response from POST to update internal structures", map[string]interface{}{
 			"write_returns_object":  obj.apiClient.writeReturnsObject,
 			"create_returns_object": obj.apiClient.createReturnsObject,
 		})
 		err = obj.updateState(resultString)
-		/* Yet another failsafe. In case something terrible went wrong internally,
-		   bail out so the user at least knows that the ID did not get set. */
+		// Yet another failsafe. In case something terrible went wrong internally,
+		// bail out so the user at least knows that the ID did not get set.
 		if obj.ID == "" {
 			return fmt.Errorf("internal validation failed; object ID is not set, but *may* have been created; this should never happen")
 		}
@@ -429,9 +427,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	var dataArray []interface{}
 	var ok bool
 
-	/*
-	   Issue a GET to the base path and expect results to come back
-	*/
+	// Issue a GET to the base path and expect results to come back
 	searchPath := obj.searchPath
 	if queryString != "" {
 		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": queryString})
@@ -444,9 +440,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		return objFound, err
 	}
 
-	/*
-	   Parse it seeking JSON data
-	*/
+	// Parse it seeking JSON data
 	tflog.Debug(ctx, "Response received... parsing", nil)
 	var result interface{}
 	err = json.Unmarshal([]byte(resultString), &result)
@@ -459,9 +453,9 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 
 		tflog.Debug(ctx, "Locating results_key in the results", map[string]interface{}{"results_key": resultsKey})
 
-		/* First verify the data we got back is a hash */
+		// First verify the data we got back is a map
 		if _, ok = result.(map[string]interface{}); !ok {
-			return objFound, fmt.Errorf("the results of a GET to '%s' did not return a hash. Cannot search within for results_key '%s'", searchPath, resultsKey)
+			return objFound, fmt.Errorf("the results of a GET to '%s' did not return a map. Cannot search within for results_key '%s'", searchPath, resultsKey)
 		}
 
 		tmp, err = GetObjectAtKey(result.(map[string]interface{}), resultsKey, obj.debug)
@@ -478,7 +472,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		}
 	}
 
-	/* Loop through all of the results seeking the specific record */
+	// Loop through all of the results seeking the specific record
 	for _, item := range dataArray {
 		var hash map[string]interface{}
 
@@ -494,7 +488,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 			return objFound, fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err)
 		}
 
-		/* We found our record */
+		// We found our record
 		if tmp == searchValue {
 			objFound = hash
 			obj.ID, err = GetStringAtKey(hash, obj.IDAttribute, obj.debug)
@@ -504,7 +498,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 
 			tflog.Debug(ctx, "Found ID '%s'", map[string]interface{}{"id": obj.ID})
 
-			/* But there is no id attribute??? */
+			// But there is no id attribute???
 			if obj.ID == "" {
 				return objFound, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, obj.IDAttribute)
 			}

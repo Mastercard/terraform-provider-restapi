@@ -95,9 +95,9 @@ var client, err = NewAPIClient(&APIClientOpt{
 })
 
 func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (typed map[string]testAPIObject, untyped map[string]map[string]interface{}) {
-	/* Messy... fakeserver wants "generic" objects, but it is much easier
-	   to write our test cases with typed (test_api_object) objects. Make
-	   maps of both */
+	// Messy... fakeserver wants "generic" objects, but it is much easier
+	// to write our test cases with typed (test_api_object) objects. Make
+	// maps of both
 	typed = make(map[string]testAPIObject)
 	untyped = make(map[string]map[string]interface{})
 
@@ -137,13 +137,13 @@ func TestAPIObject(t *testing.T) {
 	ctx := context.Background()
 	generatedObjects, apiServerObjects := generateTestObjects(testingDataObjects, t, testDebug)
 
-	/* Construct a local map of test case objects with only the ID populated */
+	// Construct a local map of test case objects with only the ID populated
 	if testDebug {
 		fmt.Println("api_object_test.go: Building test objects...")
 	}
 
-	/* Holds the full list of api_object items that we are testing
-	   indexed by the name of the test case */
+	// Holds the full list of api_object items that we are testing
+	// indexed by the name of the test case
 	var testingObjects = make(map[string]*APIObject)
 
 	for id, testObj := range generatedObjects {
@@ -153,8 +153,8 @@ func TestAPIObject(t *testing.T) {
 
 		objectOpts := &APIObjectOpts{
 			Path:  "/api/objects",
-			Data:  fmt.Sprintf(`{ "Id": "%s" }`, id), /* Start with only an empty JSON object ID as our "data" */
-			Debug: apiObjectDebug,                    /* Whether the object's debug is enabled */
+			Data:  fmt.Sprintf(`{ "Id": "%s" }`, id), // Start with only an empty JSON object ID as our "data"
+			Debug: apiObjectDebug,                    // Whether the object's debug is enabled
 		}
 		o, err := NewAPIObject(client, objectOpts)
 		if err != nil {
@@ -170,7 +170,7 @@ func TestAPIObject(t *testing.T) {
 	}
 	svr := fakeserver.NewFakeServer(8081, apiServerObjects, true, httpServerDebug, "")
 
-	/* Loop through all of the objects and GET their data from the server */
+	// Loop through all of the objects and GET their data from the server
 	t.Run("read_object", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing read_object()")
@@ -206,7 +206,7 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	/* Verify our copy_keys is happy by seeing if Thing made it into the data hash */
+	// Verify our copy_keys is happy by seeing if Thing made it into the data hash
 	t.Run("copy_keys", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing copy_keys()")
@@ -216,7 +216,7 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	/* Go ahead and update one of our objects */
+	// Go ahead and update one of our objects
 	t.Run("update_object", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing update_object()")
@@ -231,7 +231,7 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	/* Update once more with update_data */
+	// Update once more with update_data
 	t.Run("update_object_with_update_data", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing update_object() with update_data")
@@ -246,7 +246,7 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	/* Delete one and make sure a 404 follows */
+	// Delete one and make sure a 404 follows
 	t.Run("delete_object", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing delete_object()")
@@ -258,7 +258,7 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	/* Recreate the one we just got rid of */
+	// Recreate the one we just got rid of
 	t.Run("create_object", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing create_object()")
@@ -272,7 +272,7 @@ func TestAPIObject(t *testing.T) {
 				"knife", testingObjects["minimal"].apiData["Thing"], testingObjects["minimal"])
 		}
 
-		/* verify it's there */
+		// verify it's there
 		err = testingObjects["pet"].ReadObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in read_object() test: %s", err)
@@ -311,7 +311,7 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	/* Delete it again with destroy_data and make sure a 404 follows */
+	// Delete it again with destroy_data and make sure a 404 follows
 	t.Run("delete_object_with_destroy_data", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing delete_object() with destroy_data")

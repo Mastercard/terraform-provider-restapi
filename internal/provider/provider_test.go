@@ -34,11 +34,9 @@ func TestResourceProvider_RequireBasic(t *testing.T) {
 	rp := Provider()
 	raw := map[string]interface{}{}
 
-	/*
-	   XXX: This is expected to work even though we are not
-	        explicitly declaring the required url parameter since
-	        the test suite is run with the ENV entry set.
-	*/
+	// XXX: This is expected to work even though we are not
+	// explicitly declaring the required url parameter since
+	// the test suite is run with the ENV entry set.
 	err := rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
 	if err != nil {
 		t.Fatalf("Provider failed with error: %v", err)
@@ -57,11 +55,9 @@ func TestResourceProvider_Oauth(t *testing.T) {
 		},
 	}
 
-	/*
-	   XXX: This is expected to work even though we are not
-	        explicitly declaring the required url parameter since
-	        the test suite is run with the ENV entry set.
-	*/
+	// XXX: This is expected to work even though we are not
+	// explicitly declaring the required url parameter since
+	// the test suite is run with the ENV entry set.
 	err := rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
 	if err != nil {
 		t.Fatalf("Provider failed with error: %v", err)
@@ -86,7 +82,7 @@ func TestResourceProvider_RequireTestPath(t *testing.T) {
 		t.Fatalf("Provider config failed when visiting %v at %v but it did not!", raw["test_path"], raw["uri"])
 	}
 
-	/* Now test the inverse */
+	// Now test the inverse
 	rp = Provider()
 	raw = map[string]interface{}{
 		"uri":       "http://127.0.0.1:8085/",

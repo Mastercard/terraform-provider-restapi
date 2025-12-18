@@ -32,9 +32,9 @@ func dataSourceRestAPI() *schema.Resource {
 			},
 			"read_query_string": {
 				Type: schema.TypeString,
-				/* Setting to "not-set" helps differentiate between the cases where
-				read_query_string is explicitly set to zero-value for string ("") and
-				when read_query_string is not set at all in the configuration. */
+				// Setting to "not-set" helps differentiate between the cases where
+				// read_query_string is explicitly set to zero-value for string ("") and
+				// when read_query_string is not set at all in the configuration.
 				Default:     "not-set",
 				Description: "Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.",
 				Optional:    true,
@@ -80,7 +80,7 @@ func dataSourceRestAPI() *schema.Resource {
 				Description: "The raw body of the HTTP response from the last read of the object.",
 				Computed:    true,
 			},
-		}, /* End schema */
+		}, // End schema
 
 	}
 }
@@ -140,14 +140,14 @@ func dataSourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	/* Back to terraform-specific stuff. Create an api_object with the ID and refresh it object */
+	// Back to terraform-specific stuff. Create an api_object with the ID and refresh it object
 	tflog.Debug(ctx, "Attempting to construct api_object to refresh data", map[string]interface{}{})
 
 	d.SetId(obj.ID)
 
 	err = obj.ReadObject(context.TODO())
 	if err == nil {
-		/* Setting terraform ID tells terraform the object was created or it exists */
+		// Setting terraform ID tells terraform the object was created or it exists
 		tflog.Debug(ctx, "Data resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
 		d.SetId(obj.ID)
 		apiclient.SetResourceState(obj, d)

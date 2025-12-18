@@ -39,7 +39,7 @@ func TestAPIClient(t *testing.T) {
 	}
 	setupAPIClientServer()
 
-	/* Notice the intentional trailing / */
+	// Notice the intentional trailing /
 	opt := &APIClientOpt{
 		URI:                 "http://127.0.0.1:8083/",
 		Insecure:            false,
@@ -73,7 +73,7 @@ func TestAPIClient(t *testing.T) {
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
-	/* Verify timeout works */
+	// Verify timeout works
 	if debug {
 		fmt.Printf("Testing timeout aborts requests\n")
 	}
@@ -149,7 +149,7 @@ func setupAPIClientServer() {
 		Handler: serverMux,
 	}
 	go apiClientServer.ListenAndServe()
-	/* let the server start */
+	// let the server start
 	time.Sleep(1 * time.Second)
 }
 
@@ -173,7 +173,7 @@ func setupAPIClientTLSServer() {
 		TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}},
 	}
 	go apiClientTLSServer.ListenAndServeTLS("", "")
-	/* let the server start */
+	// let the server start
 	time.Sleep(1 * time.Second)
 }
 
