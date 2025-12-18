@@ -4,23 +4,31 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Import GPG key
+      - name: Import GPG key
         id: import_gpg
-        uses: hashicorp/ghaction-import-gpg@v2.1.0
-        env:
-          # These secrets will need to be configured for the repository:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          PASSPHRASE: ${{ secrets.PASSPHRASE }}
-      -
-        name: Get default key info
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      
+      - name: Get GPG key info
         run: |
-          echo "GPG fingerprint: $GPG_FINGERPRINT"
+          echo "=== GPG Key Information ==="
+          echo "Fingerprint: $GPG_FINGERPRINT"
+          echo "Name: ${{ steps.import_gpg.outputs.name }}"
+          echo "Email: ${{ steps.import_gpg.outputs.email }}"
           echo ""
-          echo "ASCII armor export:"
+          
+          echo "=== Public Key (ASCII Armor) ==="
           gpg --armor --export $GPG_FINGERPRINT
           echo ""
-          echo "ASCII armor export + base64:"
-          gpg --armor --export $GPG_FINGERPRINT | openssl enc -a
+          
+          echo "=== Key Details ==="
+          gpg --list-keys $GPG_FINGERPRINT
+          echo ""
+          
+          echo "=== Public Key (Base64 Encoded) ==="
+          gpg --armor --export $GPG_FINGERPRINT | base64 -w 0
+          echo ""
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
