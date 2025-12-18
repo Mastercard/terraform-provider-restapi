@@ -245,6 +245,9 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		}
 	}
 
+	if d.Get("username").(string) != "" && d.Get("password").(string) != "" && d.Get("bearer_token").(string) != "" {
+		return nil, fmt.Errorf("both basic auth (username/password) and bearer_token are set - please set only one authentication method")
+	}
 	if token, ok := d.GetOk("bearer_token"); ok && token.(string) != "" {
 		headers["Authorization"] = "Bearer " + token.(string)
 	}
