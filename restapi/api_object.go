@@ -311,8 +311,37 @@ func (obj *APIObject) createObject() error {
 				obj.apiClient.writeReturnsObject, obj.apiClient.createReturnsObject)
 		}
 		err = obj.updateState(resultString)
+
+		/* Checking if the response is not a normal JSON but probabbly an int or string and the id_attribute is set to '*'
+		Setting that response value as the ID */
+		var result interface{}
+		err = json.Unmarshal([]byte(resultString), &result)
+		if err != nil {
+			return fmt.Errorf("internal validation failed; couldnt unmarshal response from API: %s", err)
+		}
+
+		if _, ok := result.(map[string]interface{}); !ok {
+			/*Check for not json responses like plain strings or ints */
+			var id string
+			switch tp := result.(type) {
+			case string:
+				id = fmt.Sprintf("%v", result)
+			case float64:
+				id = fmt.Sprintf("%.0f", result)
+			default:
+				fmt.Printf("api_object.go: Falling default response type is '%T'\n", tp)
+			}
+
+			if obj.idAttribute == "*" {
+				if obj.debug {
+					log.Printf("api_object.go: Getting ID from response as id_attribute is set to '*'. Response is '%v'\n", result)
+				}
+				obj.id = id
+			}
+		}
+
 		/* Yet another failsafe. In case something terrible went wrong internally,
-		   bail out so the user at least knows that the ID did not get set. */
+		bail out so the user at least knows that the ID did not get set. */
 		if obj.id == "" {
 			return fmt.Errorf("internal validation failed; object ID is not set, but *may* have been created; this should never happen")
 		}

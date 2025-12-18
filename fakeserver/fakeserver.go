@@ -212,10 +212,20 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 		}
 		svr.objects[id] = obj
 
-		/* Coax the data we were sent back to JSON and send it to the user */
-		b, _ := json.Marshal(obj)
-		w.Write(b)
-		return
+		/* Edge case to test a response from the server as not a JSON object */
+		if val, ok := obj["No_json"]; ok {
+			if val == true {
+				log.Printf("fakeserver.go: Returning a non-JSON response\n")
+				b, _ := json.Marshal(obj["Id"])
+				w.Write(b)
+				return
+			}
+		} else {
+			/* Coax the data we were sent back to JSON and send it to the user */
+			b, _ := json.Marshal(obj)
+			w.Write(b)
+			return
+		}
 	}
 	/* No data was sent... must be just a retrieval */
 	if svr.debug {
