@@ -433,3 +433,36 @@ func TestHasDeltaModifiedResource(t *testing.T) {
 		t.Errorf("delta_checker_test.go: Unexpected delta: expected %v but got %v", expectedOutput, modified)
 	}
 }
+
+func TestSliceTypePreservation(t *testing.T) {
+	// Test that slice types are preserved when using [] syntax
+	recordedInput := map[string]interface{}{
+		"items": []MapAny{{"key": "foo", "val": "x"}, {"key": "bar", "val": "x"}},
+	}
+
+	actualInput := map[string]interface{}{
+		"items": []MapAny{{"key": "foo", "val": "CHANGED"}, {"key": "bar", "val": "CHANGED"}},
+	}
+
+	ignoreList := []string{"items[].val"}
+
+	modified, hasDelta := getDelta(recordedInput, actualInput, ignoreList)
+
+	if hasDelta {
+		t.Errorf("Expected no delta when ignoring items[].val, but got hasDelta=true")
+	}
+
+	// Verify the type is preserved
+	items, ok := modified["items"]
+	if !ok {
+		t.Errorf("Expected 'items' key in modified resource")
+		return
+	}
+
+	itemsType := reflect.TypeOf(items)
+	expectedType := reflect.TypeOf([]MapAny{})
+
+	if itemsType != expectedType {
+		t.Errorf("Slice type not preserved: expected %v but got %v", expectedType, itemsType)
+	}
+}

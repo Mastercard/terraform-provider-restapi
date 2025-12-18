@@ -116,6 +116,7 @@ func getDelta(recordedResource map[string]interface{}, actualResource map[string
 /*
  * Compares two slices element by element, applying the ignore list to each element.
  * Returns the modified list and whether there were any changes.
+ * Preserves the original slice type using reflection.
  */
 func _compareLists(valRecorded interface{}, valActual interface{}, ignoreList []string) (modifiedList interface{}, hasChanges bool) {
 	// Try to get both as slices of interface{}
@@ -132,7 +133,9 @@ func _compareLists(valRecorded interface{}, valActual interface{}, ignoreList []
 		return valActual, true
 	}
 
-	resultList := make([]interface{}, len(sliceRecorded))
+	// Use reflection to preserve the original slice type
+	recordedValue := reflect.ValueOf(valRecorded)
+	resultSlice := reflect.MakeSlice(recordedValue.Type(), len(sliceRecorded), len(sliceRecorded))
 	hasChanges = false
 
 	for i := 0; i < len(sliceRecorded); i++ {
@@ -146,23 +149,23 @@ func _compareLists(valRecorded interface{}, valActual interface{}, ignoreList []
 		if okRecordedMap && okActualMap {
 			modifiedItem, itemHasChanges := getDelta(mapRecorded, mapActual, ignoreList)
 			if itemHasChanges {
-				resultList[i] = modifiedItem
+				resultSlice.Index(i).Set(reflect.ValueOf(modifiedItem))
 				hasChanges = true
 			} else {
-				resultList[i] = itemRecorded
+				resultSlice.Index(i).Set(reflect.ValueOf(itemRecorded))
 			}
 		} else {
 			// Not maps, just compare directly
 			if !reflect.DeepEqual(itemRecorded, itemActual) {
-				resultList[i] = itemActual
+				resultSlice.Index(i).Set(reflect.ValueOf(itemActual))
 				hasChanges = true
 			} else {
-				resultList[i] = itemRecorded
+				resultSlice.Index(i).Set(reflect.ValueOf(itemRecorded))
 			}
 		}
 	}
 
-	return resultList, hasChanges
+	return resultSlice.Interface(), hasChanges
 }
 
 /*
