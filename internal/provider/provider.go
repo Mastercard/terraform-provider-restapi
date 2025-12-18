@@ -325,7 +325,7 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 		if readMethod == "" {
 			readMethod = "GET"
 		}
-		_, err := client.SendRequest(ctx, readMethod, testPath, "")
+		_, err := client.SendRequest(ctx, readMethod, testPath, "", opt.Debug)
 		if err != nil {
 			return client, fmt.Errorf("a test request to %v after setting up the provider did not return an OK response - is your configuration correct? %v", testPath, err)
 		}

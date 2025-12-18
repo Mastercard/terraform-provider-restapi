@@ -35,7 +35,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client.SendRequest(ctx, "POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`)
+	client.SendRequest(ctx, "POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`, debug)
 
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testAccProviders,

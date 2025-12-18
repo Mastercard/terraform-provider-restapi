@@ -271,7 +271,7 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 		postPath = fmt.Sprintf("%s?%s", obj.postPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b))
+	resultString, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
 	}
 
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send)
+	resultString, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.getPath})
@@ -380,7 +380,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		putPath = fmt.Sprintf("%s?%s", obj.putPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send)
+	resultString, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		return err
 	}
@@ -414,7 +414,7 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
 	}
 
-	_, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send)
+	_, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		return err
 	}
@@ -435,7 +435,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	}
 
 	tflog.Debug(ctx, "Calling API on path", map[string]interface{}{"path": searchPath})
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData)
+	resultString, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData, obj.debug)
 	if err != nil {
 		return objFound, err
 	}

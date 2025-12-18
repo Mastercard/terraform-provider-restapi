@@ -52,7 +52,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         "identifier": "FooBar"
       }
     }
-  `)
+  `, debug)
 	client.SendRequest(ctx, "POST", "/api/objects", `
     {
       "id": "4321",
@@ -62,7 +62,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         "identifier": "FooBaz"
       }
     }
-  `)
+  `, debug)
 	client.SendRequest(ctx, "POST", "/api/objects", `
     {
       "id": "5678",
@@ -72,7 +72,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         "identifier": "NestedFields"
       }
     }
-  `)
+  `, debug)
 
 	// Send a complex object that we will pretend is the results of a search
 	// client.send_request("POST", "/api/objects", `

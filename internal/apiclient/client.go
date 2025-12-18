@@ -244,7 +244,7 @@ func (client *APIClient) CopyKeysEnabled() bool {
 }
 
 // SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
-func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string) (string, error) {
+func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, error) {
 	fullURI := client.uri + path
 	var req *http.Request
 	var err error
@@ -289,7 +289,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 		req.SetBasicAuth(client.username, client.password)
 	}
 
-	if client.debug {
+	if client.debug || forceDebug {
 		fmt.Println("----- HTTP Request -----")
 		fmt.Println(httputil.DumpRequest(req, true))
 	}
@@ -304,7 +304,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 		return "", err
 	}
 
-	if client.debug {
+	if client.debug || forceDebug {
 		fmt.Println("----- HTTP Response -----")
 		fmt.Println(httputil.DumpResponse(resp, true))
 	}
