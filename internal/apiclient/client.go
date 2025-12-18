@@ -30,7 +30,7 @@ type APIClientOpt struct {
 	Username            string
 	Password            string
 	Headers             map[string]string
-	Timeout             int
+	Timeout             int64
 	IDAttribute         string
 	CreateMethod        string
 	ReadMethod          string
