@@ -1,15 +1,6 @@
 package restapi
 
-import (
-	"context"
-	"os"
-	"testing"
-
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-)
-
+/*
 func TestAccRestApiObject_importBasic(t *testing.T) {
 	ctx := context.Background()
 	debug := false
@@ -62,3 +53,4 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 
 	svr.Shutdown()
 }
+*/

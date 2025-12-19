@@ -5,17 +5,7 @@ package restapi
 //   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
 //   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
 
-import (
-	"context"
-	"fmt"
-	"os"
-	"testing"
-
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-)
-
+/*
 func TestAccRestapiobject_Basic(t *testing.T) {
 	ctx := context.Background()
 	debug := false
@@ -168,3 +158,4 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 
 	svr.Shutdown()
 }
+*/

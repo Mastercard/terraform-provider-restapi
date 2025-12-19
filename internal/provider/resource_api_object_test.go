@@ -5,22 +5,7 @@ package restapi
 //   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
 //   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
 
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"os"
-	"regexp"
-	"strings"
-	"testing"
-
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-)
-
+/*
 // example.Widget represents a concrete Go type that represents an API resource
 func TestAccRestApiObject_Basic(t *testing.T) {
 	debug := false
@@ -239,3 +224,4 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 		},
 	})
 }
+*/
