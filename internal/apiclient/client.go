@@ -82,6 +82,7 @@ type APIClient struct {
 	rateLimiter         *rate.Limiter
 	debug               bool
 	oauthConfig         *clientcredentials.Config
+	Opts                APIClientOpt
 }
 
 // NewAPIClient makes a new api client for RESTful calls
@@ -201,6 +202,7 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		createReturnsObject: opt.CreateReturnsObject,
 		xssiPrefix:          opt.XSSIPrefix,
 		debug:               opt.Debug,
+		Opts:                *opt,
 	}
 
 	if opt.OAuthClientID != "" && opt.OAuthClientSecret != "" && opt.OAuthTokenURL != "" {

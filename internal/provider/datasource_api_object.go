@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -12,6 +13,21 @@ import (
 
 type RestAPIObjectDataSource struct {
 	providerData *ProviderData
+}
+
+type RestAPIObjectDataSourceModel struct {
+	Path            types.String         `tfsdk:"path"`
+	SearchPath      types.String         `tfsdk:"search_path"`
+	QueryString     types.String         `tfsdk:"query_string"`
+	ReadQueryString types.String         `tfsdk:"read_query_string"`
+	SearchData      jsontypes.Normalized `tfsdk:"search_data"`
+	SearchKey       types.String         `tfsdk:"search_key"`
+	SearchValue     types.String         `tfsdk:"search_value"`
+	ResultsKey      types.String         `tfsdk:"results_key"`
+	IDAttribute     types.String         `tfsdk:"id_attribute"`
+	Debug           types.Bool           `tfsdk:"debug"`
+	APIData         types.Map            `tfsdk:"api_data"`
+	APIResponse     types.String         `tfsdk:"api_response"`
 }
 
 func NewRestAPIObjectDataSource() datasource.DataSource {
@@ -49,6 +65,7 @@ func (r *RestAPIObjectDataSource) Schema(ctx context.Context, req datasource.Sch
 			"search_data": schema.StringAttribute{
 				Description: "Valid JSON object to pass to search request as body",
 				Optional:    true,
+				CustomType:  jsontypes.NormalizedType{},
 			},
 			"search_key": schema.StringAttribute{
 				Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",

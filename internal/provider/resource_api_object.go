@@ -6,9 +6,12 @@ import (
 	"strconv"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	restapi "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -17,7 +20,43 @@ var _ resource.ResourceWithImportState = &RestAPIObjectResource{}
 var _ resource.ResourceWithModifyPlan = &RestAPIObjectResource{}
 
 type RestAPIObjectResource struct {
+	object       *restapi.APIObject
 	providerData *ProviderData
+}
+
+type RestAPIObjectResourceModel struct {
+	Path                   types.String         `tfsdk:"path"`
+	CreatePath             types.String         `tfsdk:"create_path"`
+	ReadPath               types.String         `tfsdk:"read_path"`
+	UpdatePath             types.String         `tfsdk:"update_path"`
+	DestroyPath            types.String         `tfsdk:"destroy_path"`
+	CreateMethod           types.String         `tfsdk:"create_method"`
+	ReadMethod             types.String         `tfsdk:"read_method"`
+	UpdateMethod           types.String         `tfsdk:"update_method"`
+	DestroyMethod          types.String         `tfsdk:"destroy_method"`
+	IDAttribute            types.String         `tfsdk:"id_attribute"`
+	ObjectID               types.String         `tfsdk:"object_id"`
+	Data                   jsontypes.Normalized `tfsdk:"data"`
+	Debug                  types.Bool           `tfsdk:"debug"`
+	ReadSearch             ReadSearchModel      `tfsdk:"read_search"`
+	QueryString            types.String         `tfsdk:"query_string"`
+	CreateResponse         types.String         `tfsdk:"create_response"`
+	ForceNew               types.List           `tfsdk:"force_new"`
+	ReadData               jsontypes.Normalized `tfsdk:"read_data"`
+	UpdateData             jsontypes.Normalized `tfsdk:"update_data"`
+	DestroyData            jsontypes.Normalized `tfsdk:"destroy_data"`
+	IgnoreChangesTo        types.List           `tfsdk:"ignore_changes_to"`
+	IgnoreAllServerChanges types.Bool           `tfsdk:"ignore_all_server_changes"`
+	APIData                types.Map            `tfsdk:"api_data"`
+	APIResponse            types.String         `tfsdk:"api_response"`
+}
+
+type ReadSearchModel struct {
+	SearchData  jsontypes.Normalized `tfsdk:"search_data"`
+	SearchKey   types.String         `tfsdk:"search_key"`
+	SearchValue types.String         `tfsdk:"search_value"`
+	ResultsKey  types.String         `tfsdk:"results_key"`
+	QueryString types.String         `tfsdk:"query_string"`
 }
 
 func NewRestAPIObjectResource() resource.Resource {
@@ -84,30 +123,13 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				Description: "Valid JSON object that this provider will manage with the API server.",
 				Required:    true,
 				Sensitive:   isDataSensitive,
-				/* TODO - see:
-					https://developer.hashicorp.com/terraform/plugin/framework/handling-data/types/custom
-					https://pkg.go.dev/github.com/hashicorp/terraform-plugin-framework-jsontypes
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v != "" {
-						data := make(map[string]interface{})
-						err := json.Unmarshal([]byte(v), &data)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("data attribute is invalid JSON: %v", err))
-						}
-					}
-					return warns, errs
-				},
-				*/
+				CustomType:  jsontypes.NormalizedType{},
 			},
 			"debug": schema.BoolAttribute{
 				Description: "Whether to emit the HTTP request and response to STDOUT while working with the API object on the server.",
 				Optional:    true,
 			},
-			"read_search": schema.StringAttribute{
-				Description: "Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
-				Optional:    true,
-			},
+
 			"query_string": schema.StringAttribute{
 				Description: "Query string to be included in the path",
 				Optional:    true,
@@ -127,55 +149,19 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				Optional:    true,
 				Description: "Valid JSON object to pass during read requests.",
 				Sensitive:   isDataSensitive,
-				/* TODO
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v != "" {
-						data := make(map[string]interface{})
-						err := json.Unmarshal([]byte(v), &data)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("read_data attribute is invalid JSON: %v", err))
-						}
-					}
-					return warns, errs
-				},
-				*/
+				CustomType:  jsontypes.NormalizedType{},
 			},
 			"update_data": schema.StringAttribute{
 				Optional:    true,
 				Description: "Valid JSON object to pass during to update requests.",
 				Sensitive:   isDataSensitive,
-				/* TODO
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v != "" {
-						data := make(map[string]interface{})
-						err := json.Unmarshal([]byte(v), &data)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("update_data attribute is invalid JSON: %v", err))
-						}
-					}
-					return warns, errs
-				},
-				*/
+				CustomType:  jsontypes.NormalizedType{},
 			},
 			"destroy_data": schema.StringAttribute{
 				Optional:    true,
 				Description: "Valid JSON object to pass during to destroy requests.",
 				Sensitive:   isDataSensitive,
-				/* TODO
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v != "" {
-						data := make(map[string]interface{})
-						err := json.Unmarshal([]byte(v), &data)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("destroy_data attribute is invalid JSON: %v", err))
-						}
-					}
-					return warns, errs
-				},
-				*/
+				CustomType:  jsontypes.NormalizedType{},
 			},
 			"ignore_changes_to": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -198,6 +184,34 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				Description: "The raw body of the HTTP response from the last read of the object.",
 				Computed:    true,
 				Sensitive:   isDataSensitive,
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"read_search": schema.SingleNestedBlock{
+				Description: "Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
+				Attributes: map[string]schema.Attribute{
+					"query_string": schema.StringAttribute{
+						Description: "An optional query string to send when performing the search.",
+						Optional:    true,
+					},
+					"search_data": schema.StringAttribute{
+						Description: "Valid JSON object to pass to search request as body",
+						Optional:    true,
+						CustomType:  jsontypes.NormalizedType{},
+					},
+					"search_key": schema.StringAttribute{
+						Description: "When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
+						Required:    true,
+					},
+					"search_value": schema.StringAttribute{
+						Description: "The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.",
+						Required:    true,
+					},
+					"results_key": schema.StringAttribute{
+						Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.",
+						Optional:    true,
+					},
+				},
 			},
 		},
 	}
@@ -226,23 +240,38 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 }
 
 func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data RestAPIObjectResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Debug(ctx, "Create routine called", map[string]interface{}{"object": data})
+	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
+
+	err = obj.CreateObject(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
 	/*
-		obj, err := makeAPIObject(d, meta)
-		if err != nil {
-			return err
-		}
-
-		tflog.Debug(ctx, "Create routine called", map[string]interface{}{"object": obj.String()})
-
-		err = obj.CreateObject(context.TODO())
-		if err == nil {
-			// Setting terraform ID tells terraform the object was created or it exists
-			d.SetId(obj.ID)
-			apiclient.SetResourceState(obj, d)
-			// Only set during create for APIs that don't return sensitive data on subsequent retrieval
-			d.Set("create_response", obj.APIResponse)
-		}
-		return err
+		// Setting terraform ID tells terraform the object was created or it exists
+		d.SetId(obj.ID)
+		apiclient.SetResourceState(obj, d)
+		// Only set during create for APIs that don't return sensitive data on subsequent retrieval
+		d.Set("create_response", obj.APIResponse)
 	*/
 }
 
@@ -405,80 +434,45 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 	*/
 }
 
-/*
-func buildAPIObjectOpts(d *schema.ResourceData) (*apiclient.APIObjectOpts, error) {
-	ctx := context.TODO()
-	opts := &apiclient.APIObjectOpts{
-		Path: d.Get("path").(string),
-	}
+// makeAPIObject creates APIObjectOpts from the resource model
+func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, model *RestAPIObjectResourceModel) (*apiclient.APIObject, error) {
+	tflog.Debug(ctx, "buildAPIObjectOpts routine called", map[string]interface{}{"id": id, "path": id})
 
-	// Allow user to override provider-level id_attribute
-	if v, ok := d.GetOk("id_attribute"); ok {
-		opts.IDAttribute = v.(string)
+	opts := &apiclient.APIObjectOpts{
+		Path:  model.Path.ValueString(),
+		Data:  model.Data.ValueString(),
+		Debug: model.Debug.ValueBool(),
+
+		// Allow override of provider-level attributes
+		IDAttribute: existingOrProviderOrDefaultString("id_attribute", model.IDAttribute, client.Opts.IDAttribute, ""),
+
+		PostPath:     existingOrDefaultString("create_path", model.CreatePath, ""),
+		CreateMethod: existingOrProviderOrDefaultString("create_method", model.CreateMethod, client.Opts.CreateMethod, "POST"),
+
+		GetPath:    existingOrDefaultString("read_path", model.ReadPath, "{id}"),
+		ReadMethod: existingOrProviderOrDefaultString("read_method", model.ReadMethod, client.Opts.ReadMethod, "GET"),
+		ReadData:   model.ReadData.ValueString(),
+
+		PutPath:      existingOrDefaultString("update_path", model.UpdatePath, "{id}"),
+		UpdateMethod: existingOrProviderOrDefaultString("update_method", model.UpdateMethod, client.Opts.UpdateMethod, "PUT"),
+		UpdateData:   model.UpdateData.ValueString(),
+
+		DestroyPath:   existingOrDefaultString("destroy_path", model.DestroyPath, "{id}"),
+		DestroyMethod: existingOrProviderOrDefaultString("destroy_method", model.DestroyMethod, client.Opts.DestroyMethod, "DELETE"),
+		DestroyData:   model.DestroyData.ValueString(),
+
+		//TODO: Update readsearch implementation
+		//ReadSearch:             model.ReadSearch.ValueString(),
+		QueryString: existingOrDefaultString("query_string", model.QueryString, ""),
 	}
 
 	// Allow user to specify the ID manually
-	if v, ok := d.GetOk("object_id"); ok {
-		opts.ID = v.(string)
+	if !model.ObjectID.IsNull() && !model.ObjectID.IsUnknown() {
+		opts.ID = model.ObjectID.ValueString()
 	} else {
-		// If not specified, see if terraform has an ID
-		opts.ID = d.Id()
+		// If not specified, use the terraform resource ID
+		opts.ID = id
 	}
 
-	tflog.Debug(ctx, "buildAPIObjectOpts routine called for id", map[string]interface{}{"id": opts.ID})
-
-	if v, ok := d.GetOk("create_path"); ok {
-		opts.PostPath = v.(string)
-	}
-	if v, ok := d.GetOk("read_path"); ok {
-		opts.GetPath = v.(string)
-	}
-	if v, ok := d.GetOk("update_path"); ok {
-		opts.PutPath = v.(string)
-	}
-	if v, ok := d.GetOk("create_method"); ok {
-		opts.CreateMethod = v.(string)
-	}
-	if v, ok := d.GetOk("read_method"); ok {
-		opts.ReadMethod = v.(string)
-	}
-	if v, ok := d.GetOk("read_data"); ok {
-		opts.ReadData = v.(string)
-	}
-	if v, ok := d.GetOk("update_method"); ok {
-		opts.UpdateMethod = v.(string)
-	}
-	if v, ok := d.GetOk("update_data"); ok {
-		opts.UpdateData = v.(string)
-	}
-	if v, ok := d.GetOk("destroy_method"); ok {
-		opts.DestroyMethod = v.(string)
-	}
-	if v, ok := d.GetOk("destroy_data"); ok {
-		opts.DestroyData = v.(string)
-	}
-	if v, ok := d.GetOk("destroy_path"); ok {
-		opts.DestroyPath = v.(string)
-	}
-	if v, ok := d.GetOk("query_string"); ok {
-		opts.QueryString = v.(string)
-	}
-
-	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
-	opts.ReadSearch = readSearch
-
-	opts.Data = d.Get("data").(string)
-	opts.Debug = d.Get("debug").(bool)
-
-	return opts, nil
+	return apiclient.NewAPIObject(client, opts)
 }
-
-func expandReadSearch(v map[string]interface{}) (readSearch map[string]string) {
-	readSearch = make(map[string]string)
-	for key, val := range v {
-		readSearch[key] = val.(string)
-	}
-
-	return
-}
-*/

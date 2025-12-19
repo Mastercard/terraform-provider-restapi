@@ -1,11 +1,13 @@
 package restapi
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
@@ -108,4 +110,45 @@ func existingOrEnvOrDefaultBool(d diag.Diagnostics, key string, curVal basetypes
 	}
 
 	return def
+}
+
+func existingOrDefaultString(key string, curVal basetypes.StringValue, def string) string {
+	if !curVal.IsNull() {
+		return curVal.ValueString()
+	}
+
+	return def
+}
+
+func existingOrProviderOrDefaultString(key string, curVal basetypes.StringValue, provVal string, def string) string {
+	if !curVal.IsNull() {
+		return curVal.ValueString()
+	}
+
+	if provVal != "" {
+		return provVal
+	}
+
+	return def
+}
+
+func convertListTypeToStringSlice(list types.List) []string {
+	result := make([]string, 0)
+	if list.IsNull() || list.IsUnknown() {
+		return result
+	}
+
+	var listVals []basetypes.StringValue
+	err := list.ElementsAs(context.Background(), &listVals, false)
+	if err != nil {
+		return result
+	}
+
+	for _, v := range listVals {
+		if !v.IsNull() && !v.IsUnknown() {
+			result = append(result, v.ValueString())
+		}
+	}
+
+	return result
 }
