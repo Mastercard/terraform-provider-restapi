@@ -135,15 +135,25 @@ func Provider() *schema.Provider {
 				Description: "Configuration for oauth client credential flow using the https://pkg.go.dev/golang.org/x/oauth2 implementation",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
+						"oauth_client_id_environment_variable": {
+							Type:        schema.TypeString,
+							Description: "Name of client id environment variable, when using an environment variable to specify the client id",
+							Optional:    true,
+						},
+						"oauth_client_secret_environment_variable": {
+							Type:        schema.TypeString,
+							Description: "Name of client secret environment variable, when using an environment variable to specify the client id",
+							Optional:    true,
+						},												
 						"oauth_client_id": {
 							Type:        schema.TypeString,
 							Description: "client id",
-							Required:    true,
+							Optional:    true,
 						},
 						"oauth_client_secret": {
 							Type:        schema.TypeString,
 							Description: "client secret",
-							Required:    true,
+							Optional:    true,
 						},
 						"oauth_token_endpoint": {
 							Type:        schema.TypeString,
@@ -214,6 +224,7 @@ func Provider() *schema.Provider {
 			"restapi_object": dataSourceRestAPI(),
 		},
 		ConfigureFunc: configureProvider,
+		
 	}
 }
 
@@ -267,6 +278,24 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	if v, ok := d.GetOk("oauth_client_credentials"); ok {
 		oauthConfig := v.([]interface{})[0].(map[string]interface{})
 
+	if (oauthConfig["oauth_client_id_environment_variable"] == "" && oauthConfig["oauth_client_secret_environment_variable"] == "" && oauthConfig["oauth_client_id"] == "" && oauthConfig["oauth_client_secret"] == "") {
+	 return nil, fmt.Errorf("If configuring oauth, either `oauth_client_id_environment_variable`, `oauth_client_secret_environment_variable` OR `oauth_client_id` and `oauth_client_secret` must be specified")
+	}
+	if (oauthConfig["oauth_client_id_environment_variable"] != "" && oauthConfig["oauth_client_secret_environment_variable"] == "") {
+	 return nil, fmt.Errorf("`oauth_client_id_environment_variable` is configured, but `oauth_client_secret_environment_variable` is missing")
+	}
+	if (oauthConfig["oauth_client_id_environment_variable"] == "" && oauthConfig["oauth_client_secret_environment_variable"] != "") {
+	 return nil, fmt.Errorf("`oauth_client_secret_environment_variable` is configured, but `oauth_client_id_environment_variable` is missing")
+	}
+    if (oauthConfig["oauth_client_id"] != "" && oauthConfig["oauth_client_secret"] == "") {
+	 return nil, fmt.Errorf("`oauth_client_id` is configured, but `oauth_client_secret` is missing")
+	}
+	if (oauthConfig["oauth_client_id"] == "" && oauthConfig["oauth_client_secret"] != "") {
+	 return nil, fmt.Errorf("`oauth_client_secret` is configured, but `oauth_client_id` is missing")
+	}
+
+		opt.oauthClientIDEnvVar = oauthConfig["oauth_client_id_environment_variable"].(string)
+		opt.oauthClientSecretEnvVar = oauthConfig["oauth_client_secret_environment_variable"].(string)
 		opt.oauthClientID = oauthConfig["oauth_client_id"].(string)
 		opt.oauthClientSecret = oauthConfig["oauth_client_secret"].(string)
 		opt.oauthTokenURL = oauthConfig["oauth_token_endpoint"].(string)
