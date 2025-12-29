@@ -1,14 +1,32 @@
 package provider
 
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
+)
+
 // See:
 //   https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
 //   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
 //   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
 
-/*
-// example.Widget represents a concrete Go type that represents an API resource
 func TestAccRestApiObject_Basic(t *testing.T) {
 	debug := false
+
+	if debug {
+		os.Setenv("TF_LOG", "DEBUG")
+	}
 	apiServerObjects := make(map[string]map[string]interface{})
 
 	svr := fakeserver.NewFakeServer(8082, apiServerObjects, true, debug, "")
@@ -33,14 +51,16 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 	}
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testAccProviders,
-		PreCheck:  func() { svr.StartInBackground() },
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
 		Steps: []resource.TestStep{
 			{
 				Config: generateTestResource(
 					"Foo",
 					`{ "id": "1234", "first": "Foo", "last": "Bar" }`,
 					make(map[string]interface{}),
+					debug,
 				),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRestapiObjectExists("restapi_object.Foo", "1234", client),
@@ -57,6 +77,7 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 					"Foo",
 					`{ "id": "1234", "first": "Updated", "last": "Value" }`,
 					make(map[string]interface{}),
+					debug,
 				),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRestapiObjectExists("restapi_object.Foo", "1234", client),
@@ -74,9 +95,9 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 					"Bar",
 					`{ "id": "4321", "attributes": { "id": "4321" }, "config": { "first": "Bar", "last": "Baz" } }`,
 					map[string]interface{}{
-						"debug":        debug,
 						"id_attribute": "attributes/id",
 					},
+					debug,
 				),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRestapiObjectExists("restapi_object.Bar", "4321", client),
@@ -113,7 +134,7 @@ func testAccCheckRestapiObjectExists(n string, id string, client *apiclient.APIC
 			ID:          id,
 			IDAttribute: "id",
 			Data:        "{}",
-			Debug:       true,
+			Debug:       false,
 		}
 		obj, err := apiclient.NewAPIObject(client, opts)
 		if err != nil {
@@ -132,10 +153,11 @@ func testAccCheckRestapiObjectExists(n string, id string, client *apiclient.APIC
 // This function generates a terraform JSON configuration from
 // a name, JSON data and a list of params to set by coaxing it
 // all to maps and then serializing to JSON
-func generateTestResource(name string, data string, params map[string]interface{}) string {
+func generateTestResource(name string, data string, params map[string]interface{}, debug bool) string {
 	strData, _ := json.Marshal(data)
 	config := []string{
 		`path = "/api/objects"`,
+		fmt.Sprintf(`debug = %t`, debug),
 		fmt.Sprintf("data = %s", strData),
 	}
 	for k, v := range params {
@@ -178,6 +200,8 @@ func mockServer(host string, returnCodes map[string]int, responses map[string]st
 }
 
 func TestAccRestApiObject_FailedUpdate(t *testing.T) {
+	debug := false
+
 	host := "127.0.0.1:8082"
 	returnCodes := map[string]int{
 		"PUT /api/objects/1234": http.StatusBadRequest,
@@ -191,7 +215,8 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 	os.Setenv("REST_API_URI", "http://"+host)
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testAccProviders,
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				// Create the resource
@@ -199,6 +224,7 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 					"Foo",
 					`{ "id": "1234", "foo": "Bar" }`,
 					make(map[string]interface{}),
+					debug,
 				),
 				Check: resource.TestCheckResourceAttr("restapi_object.Foo", "data", `{ "id": "1234", "foo": "Bar" }`),
 			},
@@ -208,6 +234,7 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 					"Foo",
 					`{ "id": "1234", "foo": "Updated" }`,
 					make(map[string]interface{}),
+					debug,
 				),
 				ExpectError: regexp.MustCompile("unexpected response code '400'"),
 			},
@@ -217,6 +244,7 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 					"Foo",
 					`{ "id": "1234", "foo": "Updated" }`,
 					make(map[string]interface{}),
+					debug,
 				),
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
@@ -224,4 +252,3 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 		},
 	})
 }
-*/
