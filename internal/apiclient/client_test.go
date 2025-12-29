@@ -62,14 +62,14 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		fmt.Printf("Testing standard OK request\n")
 	}
-	res, err = client.SendRequest(ctx, "GET", "/ok", "", debug)
+	res, _, err = client.SendRequest(ctx, "GET", "/ok", "", debug)
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	if debug {
 		fmt.Printf("Testing redirect request\n")
 	}
-	res, err = client.SendRequest(ctx, "GET", "/redirect", "", debug)
+	res, _, err = client.SendRequest(ctx, "GET", "/redirect", "", debug)
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
@@ -77,7 +77,7 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		fmt.Printf("Testing timeout aborts requests\n")
 	}
-	_, err = client.SendRequest(ctx, "GET", "/slow", "", debug)
+	_, _, err = client.SendRequest(ctx, "GET", "/slow", "", debug)
 	assert.Error(t, err, "client_test.go: Timeout should trigger on slow request")
 
 	if debug {
@@ -126,7 +126,7 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		fmt.Printf("Testing HTTPS standard OK request\n")
 	}
-	res, err = httpsClient.SendRequest(ctx, "GET", "/ok", "", debug)
+	res, _, err = httpsClient.SendRequest(ctx, "GET", "/ok", "", debug)
 	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 }

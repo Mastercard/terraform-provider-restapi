@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 
@@ -58,7 +59,7 @@ type APIObject struct {
 	updateData  map[string]interface{} // Update data as managed by the user
 	destroyData map[string]interface{} // Destroy data as managed by the user
 	apiData     map[string]interface{} // Data as available from the API
-	APIResponse string
+	apiResponse string
 }
 
 // NewAPIObject makes an APIobject to manage a RESTful object in an API
@@ -225,7 +226,7 @@ func (obj *APIObject) updateState(state string) error {
 		return err
 	}
 
-	obj.APIResponse = state
+	obj.apiResponse = state
 
 	// A usable ID was not passed (in constructor or here),
 	// so we have to guess what it is from the data structure
@@ -271,7 +272,7 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 		postPath = fmt.Sprintf("%s?%s", obj.postPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug)
 	if err != nil {
 		return err
 	}
@@ -316,7 +317,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
 	}
 
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.getPath})
@@ -380,7 +381,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		putPath = fmt.Sprintf("%s?%s", obj.putPath, obj.queryString)
 	}
 
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		return err
 	}
@@ -414,12 +415,15 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
 	}
 
-	_, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)
+	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
-		return err
+		if code == http.StatusNotFound || code == http.StatusGone {
+			tflog.Warn(ctx, "404/410 error while deleting object. Assuming already deleted.", map[string]interface{}{"id": obj.ID, "path": obj.deletePath})
+			err = nil
+		}
 	}
 
-	return nil
+	return err
 }
 
 func (obj *APIObject) FindObject(ctx context.Context, queryString string, searchKey string, searchValue string, resultsKey string, searchData string) (map[string]interface{}, error) {
@@ -435,7 +439,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	}
 
 	tflog.Debug(ctx, "Calling API on path", map[string]interface{}{"path": searchPath})
-	resultString, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData, obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData, obj.debug)
 	if err != nil {
 		return objFound, err
 	}
@@ -511,4 +515,18 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	}
 
 	return objFound, nil
+}
+
+// GetApiData returns a copy of the api_data map from the APIObject
+func (obj *APIObject) GetApiData() map[string]string {
+	apiData := make(map[string]string)
+	for k, v := range obj.apiData {
+		apiData[k] = fmt.Sprintf("%v", v)
+	}
+	return apiData
+}
+
+// GetApiResponse returns a copy of the raw API response from the APIObject
+func (obj *APIObject) GetApiResponse() string {
+	return obj.apiResponse
 }

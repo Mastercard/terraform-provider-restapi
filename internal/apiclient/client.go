@@ -246,7 +246,7 @@ func (client *APIClient) CopyKeysEnabled() bool {
 }
 
 // SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
-func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, error) {
+func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, int, error) {
 	fullURI := client.uri + path
 	var req *http.Request
 	var err error
@@ -266,7 +266,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 		}
 	}
 	if err != nil {
-		return "", fmt.Errorf("failed to create HTTP request: %w", err)
+		return "", 0, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	// Allow for tokens or other pre-created secrets
@@ -281,7 +281,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 		tokenSource := client.oauthConfig.TokenSource(ctx)
 		token, err := tokenSource.Token()
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
@@ -303,7 +303,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	if client.debug || forceDebug {
@@ -314,17 +314,17 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	bodyBytes, err2 := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err2 != nil {
-		return "", err2
+		return "", resp.StatusCode, err2
 	}
 	body := strings.TrimPrefix(string(bodyBytes), client.xssiPrefix)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return body, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
+		return body, resp.StatusCode, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
 	}
 
 	if body == "" {
-		return "{}", nil
+		return "{}", resp.StatusCode, nil
 	}
 
-	return body, nil
+	return body, resp.StatusCode, nil
 }

@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	restapi "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -40,15 +42,17 @@ type RestAPIObjectResourceModel struct {
 	Debug                  types.Bool           `tfsdk:"debug"`
 	ReadSearch             ReadSearchModel      `tfsdk:"read_search"`
 	QueryString            types.String         `tfsdk:"query_string"`
-	CreateResponse         types.String         `tfsdk:"create_response"`
 	ForceNew               types.List           `tfsdk:"force_new"`
 	ReadData               jsontypes.Normalized `tfsdk:"read_data"`
 	UpdateData             jsontypes.Normalized `tfsdk:"update_data"`
 	DestroyData            jsontypes.Normalized `tfsdk:"destroy_data"`
 	IgnoreChangesTo        types.List           `tfsdk:"ignore_changes_to"`
 	IgnoreAllServerChanges types.Bool           `tfsdk:"ignore_all_server_changes"`
-	APIData                types.Map            `tfsdk:"api_data"`
-	APIResponse            types.String         `tfsdk:"api_response"`
+
+	ID             types.String `tfsdk:"id"`
+	APIData        types.Map    `tfsdk:"api_data"`
+	APIResponse    types.String `tfsdk:"api_response"`
+	CreateResponse types.String `tfsdk:"create_response"`
 }
 
 type ReadSearchModel struct {
@@ -236,7 +240,19 @@ func (r *RestAPIObjectResource) Configure(ctx context.Context, req resource.Conf
 }
 
 func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
-	// Handle force_new attributes
+	// TODO: Handle force_new attributes
+	// TODO: Handle ignore_changes_to attributes
+	/*
+		// If copy_keys is not empty, we have to grab the latest
+		// data so we can copy anything needed before the update
+		client := meta.(*apiclient.APIClient)
+		if client.CopyKeysEnabled() {
+			err = obj.ReadObject(ctx)
+			if err != nil {
+				return err
+			}
+		}
+	*/
 }
 
 func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -266,116 +282,114 @@ func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateR
 		)
 		return
 	}
-	/*
-		// Setting terraform ID tells terraform the object was created or it exists
-		d.SetId(obj.ID)
-		apiclient.SetResourceState(obj, d)
-		// Only set during create for APIs that don't return sensitive data on subsequent retrieval
-		d.Set("create_response", obj.APIResponse)
-	*/
+
+	data.ID = types.StringValue(obj.ID)
+	data.CreateResponse = types.StringValue(obj.GetApiResponse())
+	setResourceModelData(ctx, obj, &data, &resp.Diagnostics)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	/*
-		obj, err := makeAPIObject(d, meta)
-		if err != nil {
-			if strings.Contains(err.Error(), "error parsing data provided") {
-				tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
-				tflog.Warn(ctx, "Continuing with partially constructed object...", nil)
-			} else {
-				return err
-			}
+	var data RestAPIObjectResourceModel
+
+	// Read Terraform state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": data})
+	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
+	if err != nil {
+		if strings.Contains(err.Error(), "error parsing data provided") {
+			tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
+			tflog.Warn(ctx, "Continuing with partially constructed object...", nil)
+		} else {
+			resp.Diagnostics.AddError(
+				"Error Creating API Object",
+				fmt.Sprintf("Could not create API object: %s", err.Error()),
+			)
+			return
 		}
+	}
 
-		tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": obj.String()})
+	err = obj.ReadObject(ctx)
+	if err != nil {
+		tflog.Error(ctx, "Error reading API object", map[string]interface{}{"error": err})
+		resp.Diagnostics.AddError(
+			"Error Reading API Object",
+			fmt.Sprintf("Could not read API object: %s", err.Error()),
+		)
+		return
+	}
 
-		err = obj.ReadObject(ctx)
-		if err == nil {
-			// Setting terraform ID tells terraform the object was created or it exists
-			tflog.Debug(ctx, "Read resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
-			d.SetId(obj.ID)
-
-			apiclient.SetResourceState(obj, d)
-
-			// Check whether the remote resource has changed.
-			if !(d.Get("ignore_all_server_changes")).(bool) {
-				ignoreList := []string{}
-				v, ok := d.GetOk("ignore_changes_to")
-				if ok {
-					for _, s := range v.([]interface{}) {
-						ignoreList = append(ignoreList, s.(string))
-					}
-				}
-
-				// This checks if there were any changes to the remote resource that will need to be corrected
-				// by comparing the current state with the response returned by the api.
-				modifiedResource, hasDifferences := obj.GetDelta(ignoreList)
-
-				if hasDifferences {
-					tflog.Info(ctx, "Found differences in remote resource", nil)
-					encoded, err := json.Marshal(modifiedResource)
-					if err != nil {
-						return err
-					}
-					jsonString := string(encoded)
-					d.Set("data", jsonString)
-				}
-			}
-
-		}
-		return err
-	*/
+	// Setting terraform ID tells terraform the object was created or it exists
+	tflog.Debug(ctx, "Read resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
+	data.ID = types.StringValue(obj.ID)
+	setResourceModelData(ctx, obj, &data, &resp.Diagnostics)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *RestAPIObjectResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	/*
-		obj, err := makeAPIObject(d, meta)
-		if err != nil {
-			d.Partial(true)
-			return err
-		}
+	var data RestAPIObjectResourceModel
 
-		// If copy_keys is not empty, we have to grab the latest
-		// data so we can copy anything needed before the update
-		client := meta.(*apiclient.APIClient)
-		if client.CopyKeysEnabled() {
-			err = obj.ReadObject(ctx)
-			if err != nil {
-				return err
-			}
-		}
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-		tflog.Debug(ctx, "Update routine called", map[string]interface{}{"object": obj.String()})
+	tflog.Debug(ctx, "Update routine called", map[string]interface{}{"object": data})
+	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
 
-		err = obj.UpdateObject(ctx)
-		if err == nil {
-			apiclient.SetResourceState(obj, d)
-		} else {
-			d.Partial(true)
-		}
-		return err
-	*/
+	err = obj.UpdateObject(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Updating API Object",
+			fmt.Sprintf("Could not update API object: %s", err.Error()),
+		)
+		// NOTE: no return here - we want to set the partial state below
+	}
+
+	setResourceModelData(ctx, obj, &data, &resp.Diagnostics)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *RestAPIObjectResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	/*
-		ctx := context.TODO()
-		obj, err := makeAPIObject(d, meta)
-		if err != nil {
-			return err
-		}
-		tflog.Debug(ctx, "Delete routine called. Object built", map[string]interface{}{"object": obj.String()})
+	var data RestAPIObjectResourceModel
 
-		err = obj.DeleteObject(ctx)
-		if err != nil {
-			if strings.Contains(err.Error(), "404") {
-				// 404 means it doesn't exist. Call that good enough
-				// TODO: Coax this to a specific error type we can check for instead of magic strings
-				err = nil
-			}
-		}
-		return err
-	*/
+	// Read Terraform state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Debug(ctx, "Delete routine called", map[string]interface{}{"object": data})
+	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
+
+	err = obj.DeleteObject(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Deleting API Object",
+			fmt.Sprintf("Could not delete API object: %s", err.Error()),
+		)
+		return
+	}
+
 }
 
 // resourceRestAPIImport imports an existing API object into Terraform state.
@@ -384,54 +398,54 @@ func (r *RestAPIObjectResource) Delete(ctx context.Context, req resource.DeleteR
 // view of the API paths to figure out how to read that object
 // from the API
 func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	/*
-		input := d.Id()
+	input := req.ID
 
-		hasTrailingSlash := strings.HasSuffix(input, "/")
-		var n int
-		if hasTrailingSlash {
-			n = strings.LastIndex(input[0:len(input)-1], "/")
-		} else {
-			n = strings.LastIndex(input, "/")
-		}
+	// Remove leading and trailing slash if present
+	input = strings.TrimPrefix(input, "/")
+	input = strings.TrimSuffix(input, "/")
 
-		if n == -1 {
-			return imported, fmt.Errorf("invalid path to import api_object '%s' - must be /<full path from server root>/<object id>", input)
-		}
+	n := strings.LastIndex(input, "/")
+	if n == -1 {
+		resp.Diagnostics.AddError(
+			"Invalid Import ID",
+			fmt.Sprintf("Invalid path to import api_object '%s' - must be /<full path from server root>/<object id>", req.ID),
+		)
+		return
+	}
 
-		path := input[0:n]
-		d.Set("path", path)
+	data := RestAPIObjectResourceModel{
+		ID: types.StringValue(input[n+1:]),
 
-		var id string
-		if hasTrailingSlash {
-			id = input[n+1 : len(input)-1]
-		} else {
-			id = input[n+1:]
-		}
-
-		d.Set("data", fmt.Sprintf(`{ "id": "%s" }`, id))
-		d.SetId(id)
+		// Add leading slash back to path
+		Path: types.StringValue(fmt.Sprintf("/%s", input[0:n])),
 
 		// Troubleshooting is hard enough. Emit log messages so TF_LOG
 		// has useful information in case an import isn't working
-		d.Set("debug", true)
+		Debug: types.BoolValue(true),
+	}
 
-		obj, err := makeAPIObject(d, meta)
-		if err != nil {
-			return imported, err
-		}
-		tflog.Debug(ctx, "Import routine called.", map[string]interface{}{"object": obj.String()})
+	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
 
-		err = obj.ReadObject(context.TODO())
-		if err == nil {
-			apiclient.SetResourceState(obj, d)
-			// Data that we set in the state above must be passed along
-			// as an item in the stack of imported data
-			imported = append(imported, d)
-		}
+	tflog.Debug(ctx, "Import routine called.", map[string]interface{}{"object": obj.String()})
 
-		return imported, err
-	*/
+	err = obj.ReadObject(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error UpdReading API Object",
+			fmt.Sprintf("Could not read API object: %s", err.Error()),
+		)
+		return
+	}
+
+	setResourceModelData(ctx, obj, &data, &resp.Diagnostics)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 // makeAPIObject creates APIObjectOpts from the resource model
@@ -475,4 +489,11 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 	}
 
 	return apiclient.NewAPIObject(client, opts)
+}
+
+func setResourceModelData(ctx context.Context, obj *apiclient.APIObject, data *RestAPIObjectResourceModel, diag *diag.Diagnostics) {
+	data.APIResponse = types.StringValue(obj.GetApiResponse())
+	v, d := types.MapValueFrom(ctx, types.StringType, obj.GetApiData())
+	data.APIData = v
+	diag.Append(d...)
 }

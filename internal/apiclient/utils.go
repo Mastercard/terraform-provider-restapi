@@ -8,19 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
-
-// SetResourceState sets terraform resource data from APIObject
-// After any operation that returns API data, we'll stuff all the k,v pairs into the api_data map so users can consume the values elsewhere if they'd like
-func SetResourceState(obj *APIObject, d *schema.ResourceData) {
-	apiData := make(map[string]string)
-	for k, v := range obj.apiData {
-		apiData[k] = fmt.Sprintf("%v", v)
-	}
-	d.Set("api_data", apiData)
-	d.Set("api_response", obj.APIResponse)
-}
 
 // GetStringAtKey uses GetObjectAtKey to verify the resulting object is either a JSON string or Number and returns it as a string
 func GetStringAtKey(data map[string]interface{}, path string) (string, error) {

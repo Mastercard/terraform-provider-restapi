@@ -365,7 +365,7 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 	// If a test_path is provided, issue a read_method request to it
 	tmp := existingOrEnvOrDefaultString(resp.Diagnostics, "test_path", data.TestPath, "REST_API_TEST_PATH", "", false)
 	if tmp != "" {
-		_, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug)
+		_, _, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Test Request Failed",
