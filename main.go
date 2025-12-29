@@ -1,19 +1,30 @@
 package main
 
 import (
-	restapi "github.com/Mastercard/terraform-provider-restapi/internal/provider"
+	"context"
+	"flag"
+	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+	"github.com/Mastercard/terraform-provider-restapi/internal/provider"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
-// Generate the Terraform provider documentation using `tfplugindocs`:
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+var version string = "dev"
 
 func main() {
-	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: func() *schema.Provider {
-			return restapi.Provider()
-		},
-	})
+	var debug bool
+
+	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers like delve")
+	flag.Parse()
+
+	opts := providerserver.ServeOpts{
+		Address: "github.com/Mastercard/terraform-provider-restapi",
+		Debug:   debug,
+	}
+
+	err := providerserver.Serve(context.Background(), provider.New(version), opts)
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }

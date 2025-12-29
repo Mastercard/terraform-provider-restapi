@@ -7,7 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/hashicorp/terraform-json v0.27.2 // indirect; forced so test cases pass
-	github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1
+	github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1 // indirect
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/time v0.3.0
 )
