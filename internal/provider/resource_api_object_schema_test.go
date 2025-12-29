@@ -1,4 +1,4 @@
-package restapi
+package provider
 
 import (
 	"regexp"

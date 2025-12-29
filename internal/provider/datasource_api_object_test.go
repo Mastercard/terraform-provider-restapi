@@ -1,4 +1,4 @@
-package restapi
+package provider
 
 // See:
 //   https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html

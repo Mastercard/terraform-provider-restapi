@@ -1,4 +1,4 @@
-package restapi
+package provider
 
 /*
 func TestAccRestApiObject_importBasic(t *testing.T) {
