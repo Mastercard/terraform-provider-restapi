@@ -15,13 +15,13 @@ import (
 
 type APIObjectOpts struct {
 	Path          string
-	GetPath       string
-	PostPath      string
-	PutPath       string
+	CreatePath    string
 	CreateMethod  string
 	ReadMethod    string
+	ReadPath      string
 	ReadData      string
 	UpdateMethod  string
+	UpdatePath    string
 	UpdateData    string
 	DestroyMethod string
 	DestroyData   string
@@ -96,14 +96,14 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	if opts.DestroyData == "" {
 		opts.DestroyData = iClient.destroyData
 	}
-	if opts.PostPath == "" {
-		opts.PostPath = opts.Path
+	if opts.CreatePath == "" {
+		opts.CreatePath = opts.Path
 	}
-	if opts.GetPath == "" {
-		opts.GetPath = opts.Path + "/{id}"
+	if opts.ReadPath == "" {
+		opts.ReadPath = opts.Path + "/{id}"
 	}
-	if opts.PutPath == "" {
-		opts.PutPath = opts.Path + "/{id}"
+	if opts.UpdatePath == "" {
+		opts.UpdatePath = opts.Path + "/{id}"
 	}
 	if opts.DestroyPath == "" {
 		opts.DestroyPath = opts.Path + "/{id}"
@@ -114,9 +114,9 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 
 	obj := APIObject{
 		apiClient:     iClient,
-		getPath:       opts.GetPath,
-		postPath:      opts.PostPath,
-		putPath:       opts.PutPath,
+		getPath:       opts.ReadPath,
+		postPath:      opts.CreatePath,
+		putPath:       opts.UpdatePath,
 		createMethod:  opts.CreateMethod,
 		readMethod:    opts.ReadMethod,
 		updateMethod:  opts.UpdateMethod,

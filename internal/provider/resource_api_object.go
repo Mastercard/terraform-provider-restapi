@@ -460,14 +460,14 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		// Allow override of provider-level attributes
 		IDAttribute: existingOrProviderOrDefaultString("id_attribute", model.IDAttribute, client.Opts.IDAttribute, ""),
 
-		PostPath:     existingOrDefaultString("create_path", model.CreatePath, ""),
+		CreatePath:   existingOrDefaultString("create_path", model.CreatePath, ""),
 		CreateMethod: existingOrProviderOrDefaultString("create_method", model.CreateMethod, client.Opts.CreateMethod, "POST"),
 
-		GetPath:    existingOrDefaultString("read_path", model.ReadPath, "{id}"),
+		ReadPath:   existingOrDefaultString("read_path", model.ReadPath, "{id}"),
 		ReadMethod: existingOrProviderOrDefaultString("read_method", model.ReadMethod, client.Opts.ReadMethod, "GET"),
 		ReadData:   model.ReadData.ValueString(),
 
-		PutPath:      existingOrDefaultString("update_path", model.UpdatePath, "{id}"),
+		UpdatePath:   existingOrDefaultString("update_path", model.UpdatePath, "{id}"),
 		UpdateMethod: existingOrProviderOrDefaultString("update_method", model.UpdateMethod, client.Opts.UpdateMethod, "PUT"),
 		UpdateData:   model.UpdateData.ValueString(),
 
