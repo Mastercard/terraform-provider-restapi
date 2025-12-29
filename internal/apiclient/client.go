@@ -293,7 +293,9 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 
 	if client.debug || forceDebug {
 		fmt.Println("----- HTTP Request -----")
-		fmt.Println(httputil.DumpRequest(req, true))
+		if dump, err := httputil.DumpRequest(req, true); err == nil {
+			fmt.Println(string(dump))
+		}
 	}
 
 	if client.rateLimiter != nil {
@@ -308,7 +310,9 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 
 	if client.debug || forceDebug {
 		fmt.Println("----- HTTP Response -----")
-		fmt.Println(httputil.DumpResponse(resp, true))
+		if dump, err := httputil.DumpResponse(resp, true); err == nil {
+			fmt.Println(string(dump))
+		}
 	}
 
 	bodyBytes, err2 := io.ReadAll(resp.Body)
