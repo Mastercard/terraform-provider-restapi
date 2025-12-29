@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 type RestAPIObjectDataSource struct {
@@ -26,6 +28,7 @@ type RestAPIObjectDataSourceModel struct {
 	ResultsKey      types.String         `tfsdk:"results_key"`
 	IDAttribute     types.String         `tfsdk:"id_attribute"`
 	Debug           types.Bool           `tfsdk:"debug"`
+	ID              types.String         `tfsdk:"id"`
 	APIData         types.Map            `tfsdk:"api_data"`
 	APIResponse     types.String         `tfsdk:"api_response"`
 }
@@ -98,78 +101,102 @@ func (r *RestAPIObjectDataSource) Schema(ctx context.Context, req datasource.Sch
 				Computed:    true,
 				Sensitive:   isDataSensitive,
 			},
+			"id": schema.StringAttribute{
+				Description: "The ID of the object.",
+				Computed:    true,
+			},
 		}, // End schema
 	}
 }
 
+func (r *RestAPIObjectDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	providerData, ok := req.ProviderData.(*ProviderData)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *ProviderData, got: %T. This should be impossible!", req.ProviderData),
+		)
+		return
+	}
+
+	r.providerData = providerData
+}
+
 func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	/*
+	var state RestAPIObjectDataSourceModel
 
-		path := d.Get("path").(string)
-		searchPath := d.Get("search_path").(string)
-		queryString := d.Get("query_string").(string)
-		debug := d.Get("debug").(bool)
-		client := meta.(*apiclient.APIClient)
+	// Read Terraform state data into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	client := r.providerData.client
 
-		tflog.Debug(ctx, "Data routine called.", map[string]interface{}{})
+	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
 
-		readQueryString := d.Get("read_query_string").(string)
-		if readQueryString == "not-set" {
-			readQueryString = queryString
-		}
+	opts := &apiclient.APIObjectOpts{
+		Path:        state.Path.ValueString(),
+		SearchPath:  state.SearchPath.ValueString(),
+		Debug:       state.Debug.ValueBool(),
+		QueryString: existingOrDefaultString("query_string", state.QueryString, ""),
+		IDAttribute: existingOrProviderOrDefaultString("id_attribute", state.IDAttribute, client.Opts.IDAttribute, ""),
+	}
+	obj, err := apiclient.NewAPIObject(client, opts)
+	if err != nil {
+		tflog.Error(ctx, "Error creating API object", map[string]interface{}{"error": err})
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
 
-		searchKey := d.Get("search_key").(string)
-		searchValue := d.Get("search_value").(string)
-		searchData := d.Get("search_data").(string)
-		resultsKey := d.Get("results_key").(string)
-		idAttribute := d.Get("id_attribute").(string)
+	searchKey := existingOrDefaultString("search_key", state.SearchKey, "")
+	searchValue := existingOrDefaultString("search_value", state.SearchValue, "")
+	resultsKey := existingOrDefaultString("results_key", state.ResultsKey, "")
+	send := ""
 
-		send := ""
-		if len(searchData) > 0 {
-			tmpData, _ := json.Marshal(searchData)
-			send = string(tmpData)
-			tflog.Debug(ctx, "Using search data", map[string]interface{}{"data": send})
-		}
+	if !state.SearchData.IsNull() && !state.SearchData.IsUnknown() {
+		send = state.SearchData.ValueString()
+	}
 
-		tflog.Debug(ctx, "Data parameters", map[string]interface{}{
-			"path":         path,
-			"search_path":  searchPath,
-			"query_string": queryString,
-			"search_key":   searchKey,
-			"search_value": searchValue,
-			"results_key":  resultsKey,
-			"id_attribute": idAttribute,
-		})
+	_, err = obj.FindObject(ctx, opts.QueryString, searchKey, searchValue, resultsKey, send)
+	if err != nil {
+		tflog.Error(ctx, "Error finding API object", map[string]interface{}{"error": err})
+		resp.Diagnostics.AddError(
+			"Error Finding API Object",
+			fmt.Sprintf("Could not find API object: %s", err.Error()),
+		)
+		return
+	}
 
-		opts := &apiclient.APIObjectOpts{
-			Path:        path,
-			SearchPath:  searchPath,
-			Debug:       debug,
-			QueryString: readQueryString,
-			IDAttribute: idAttribute,
-		}
+	// Found - read it to populate all data
+	err = obj.ReadObject(ctx)
+	if err != nil {
+		tflog.Error(ctx, "Error reading API object", map[string]interface{}{"error": err})
+		resp.Diagnostics.AddError(
+			"Error Reading API Object",
+			fmt.Sprintf("Could not read API object: %s", err.Error()),
+		)
+		return
+	}
 
-		obj, err := apiclient.NewAPIObject(client, opts)
-		if err != nil {
-			return err
-		}
+	tflog.Debug(ctx, "Found object", map[string]interface{}{
+		"id":           obj.ID,
+		"api_data":     obj.GetApiData(),
+		"api_response": obj.GetApiResponse(),
+	})
 
-		if _, err := obj.FindObject(context.TODO(), queryString, searchKey, searchValue, resultsKey, send); err != nil {
-			return err
-		}
+	state.ID = types.StringValue(obj.ID)
+	state.APIResponse = types.StringValue(obj.GetApiResponse())
+	v, d := types.MapValueFrom(ctx, types.StringType, obj.GetApiData())
+	state.APIData = v
+	resp.Diagnostics.Append(d...)
 
-		// Back to terraform-specific stuff. Create an api_object with the ID and refresh it object
-		tflog.Debug(ctx, "Attempting to construct api_object to refresh data", map[string]interface{}{})
-
-		d.SetId(obj.ID)
-
-		err = obj.ReadObject(context.TODO())
-		if err == nil {
-			// Setting terraform ID tells terraform the object was created or it exists
-			tflog.Debug(ctx, "Data resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
-			d.SetId(obj.ID)
-			apiclient.SetResourceState(obj, d)
-		}
-		return err
-	*/
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

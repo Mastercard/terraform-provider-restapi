@@ -437,7 +437,7 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 	}
 
 	data := RestAPIObjectResourceModel{
-		ID: types.StringValue(input[n+1:]),
+		ObjectID: types.StringValue(input[n+1:]),
 
 		// Add leading slash back to path
 		Path: types.StringValue(fmt.Sprintf("/%s", input[0:n])),
@@ -445,6 +445,9 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 		// Troubleshooting is hard enough. Emit log messages so TF_LOG
 		// has useful information in case an import isn't working
 		Debug: types.BoolValue(true),
+
+		ForceNew:        types.ListNull(types.StringType),
+		IgnoreChangesTo: types.ListNull(types.StringType),
 	}
 
 	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
@@ -461,7 +464,7 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 	err = obj.ReadObject(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error UpdReading API Object",
+			"Error Reading API Object",
 			fmt.Sprintf("Could not read API object: %s", err.Error()),
 		)
 		return

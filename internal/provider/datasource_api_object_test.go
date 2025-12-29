@@ -1,11 +1,16 @@
 package provider
 
-// See:
-//   https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
-//   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
-//   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
 
-/*
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+)
+
 func TestAccRestapiobject_Basic(t *testing.T) {
 	ctx := context.Background()
 	debug := false
@@ -79,8 +84,9 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 	// `)
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testAccProviders,
-		PreCheck:  func() { svr.StartInBackground() },
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -158,4 +164,3 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 
 	svr.Shutdown()
 }
-*/

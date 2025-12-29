@@ -16,11 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
-// See:
-//   https://www.terraform.io/docs/extend/testing/acceptance-tests/testcase.html
-//   https://github.com/terraform-providers/terraform-provider-local/blob/master/local/resource_local_file_test.go
-//   https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_db_security_group_test.go
-
 func TestAccRestApiObject_Basic(t *testing.T) {
 	debug := false
 

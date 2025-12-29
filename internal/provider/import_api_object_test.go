@@ -1,6 +1,15 @@
 package provider
 
-/*
+import (
+	"context"
+	"os"
+	"testing"
+
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+)
+
 func TestAccRestApiObject_importBasic(t *testing.T) {
 	ctx := context.Background()
 	debug := false
@@ -29,14 +38,16 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 	client.SendRequest(ctx, "POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`, debug)
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testAccProviders,
-		PreCheck:  func() { svr.StartInBackground() },
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
 		Steps: []resource.TestStep{
 			{
 				Config: generateTestResource(
 					"Foo",
 					`{ "id": "1234", "first": "Foo", "last": "Bar" }`,
 					make(map[string]interface{}),
+					debug,
 				),
 			},
 			{
@@ -46,11 +57,11 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 				ImportStateIdPrefix: "/api/objects/",
 				ImportStateVerify:   true,
 				// create_response isn't populated during import (we don't know the API response from creation)
-				ImportStateVerifyIgnore: []string{"debug", "data", "create_response", "ignore_all_server_changes"},
+				// object_id is set during import but not during normal resource creation
+				ImportStateVerifyIgnore: []string{"debug", "data", "create_response", "ignore_all_server_changes", "object_id"},
 			},
 		},
 	})
 
 	svr.Shutdown()
 }
-*/
