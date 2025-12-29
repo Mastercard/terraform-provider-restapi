@@ -38,12 +38,12 @@ type APIObjectOpts struct {
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
 	apiClient     *APIClient
-	getPath       string
-	postPath      string
-	putPath       string
 	createMethod  string
+	createPath    string
 	readMethod    string
+	readPath      string
 	updateMethod  string
+	updatePath    string
 	destroyMethod string
 	deletePath    string
 	searchPath    string
@@ -114,9 +114,9 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 
 	obj := APIObject{
 		apiClient:     iClient,
-		getPath:       opts.ReadPath,
-		postPath:      opts.CreatePath,
-		putPath:       opts.UpdatePath,
+		readPath:      opts.ReadPath,
+		createPath:    opts.CreatePath,
+		updatePath:    opts.UpdatePath,
 		createMethod:  opts.CreateMethod,
 		readMethod:    opts.ReadMethod,
 		updateMethod:  opts.UpdateMethod,
@@ -196,9 +196,9 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 func (obj *APIObject) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("id: %s\n", obj.ID))
-	buffer.WriteString(fmt.Sprintf("get_path: %s\n", obj.getPath))
-	buffer.WriteString(fmt.Sprintf("post_path: %s\n", obj.postPath))
-	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.putPath))
+	buffer.WriteString(fmt.Sprintf("get_path: %s\n", obj.readPath))
+	buffer.WriteString(fmt.Sprintf("post_path: %s\n", obj.createPath))
+	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.updatePath))
 	buffer.WriteString(fmt.Sprintf("delete_path: %s\n", obj.deletePath))
 	buffer.WriteString(fmt.Sprintf("query_string: %s\n", obj.queryString))
 	buffer.WriteString(fmt.Sprintf("create_method: %s\n", obj.createMethod))
@@ -266,10 +266,10 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 
 	b, _ := json.Marshal(obj.data)
 
-	postPath := obj.postPath
+	postPath := obj.createPath
 	if obj.queryString != "" {
 		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		postPath = fmt.Sprintf("%s?%s", obj.postPath, obj.queryString)
+		postPath = fmt.Sprintf("%s?%s", obj.createPath, obj.queryString)
 	}
 
 	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug)
@@ -304,10 +304,10 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		return fmt.Errorf("cannot read an object unless the ID has been set")
 	}
 
-	getPath := obj.getPath
+	getPath := obj.readPath
 	if obj.queryString != "" {
 		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		getPath = fmt.Sprintf("%s?%s", obj.getPath, obj.queryString)
+		getPath = fmt.Sprintf("%s?%s", obj.readPath, obj.queryString)
 	}
 
 	send := ""
@@ -320,7 +320,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
-			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.getPath})
+			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.readPath})
 			obj.ID = ""
 			return nil
 		}
@@ -331,7 +331,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	searchValue := obj.readSearch["search_value"]
 
 	if searchKey != "" && searchValue != "" {
-		obj.searchPath = strings.Replace(obj.getPath, "{id}", obj.ID, -1)
+		obj.searchPath = strings.Replace(obj.readPath, "{id}", obj.ID, -1)
 
 		queryString := obj.readSearch["query_string"]
 		if obj.queryString != "" {
@@ -375,10 +375,10 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		send = string(b)
 	}
 
-	putPath := obj.putPath
+	putPath := obj.updatePath
 	if obj.queryString != "" {
 		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		putPath = fmt.Sprintf("%s?%s", obj.putPath, obj.queryString)
+		putPath = fmt.Sprintf("%s?%s", obj.updatePath, obj.queryString)
 	}
 
 	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug)
