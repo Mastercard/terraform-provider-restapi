@@ -135,6 +135,13 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	queryString := existingOrDefaultString("query_string", state.QueryString, "")
+	searchKey := existingOrDefaultString("search_key", state.SearchKey, "")
+	searchValue := existingOrDefaultString("search_value", state.SearchValue, "")
+	resultsKey := existingOrDefaultString("results_key", state.ResultsKey, "")
+
+	send := ""
 	client := r.providerData.client
 
 	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
@@ -143,9 +150,20 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		Path:        state.Path.ValueString(),
 		SearchPath:  state.SearchPath.ValueString(),
 		Debug:       state.Debug.ValueBool(),
-		QueryString: existingOrDefaultString("query_string", state.QueryString, ""),
+		QueryString: queryString,
 		IDAttribute: existingOrProviderOrDefaultString("id_attribute", state.IDAttribute, client.Opts.IDAttribute, ""),
 	}
+
+	// If we have a read_query_string, we will use that in the API Object since the
+	// query_string parameter in the datasource is used for searching
+	if !state.ReadQueryString.IsNull() && !state.ReadQueryString.IsUnknown() {
+		opts.QueryString = state.ReadQueryString.ValueString()
+	}
+
+	if !state.SearchData.IsNull() && !state.SearchData.IsUnknown() {
+		send = state.SearchData.ValueString()
+	}
+
 	obj, err := apiclient.NewAPIObject(client, opts)
 	if err != nil {
 		tflog.Error(ctx, "Error creating API object", map[string]interface{}{"error": err})
@@ -156,16 +174,7 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	searchKey := existingOrDefaultString("search_key", state.SearchKey, "")
-	searchValue := existingOrDefaultString("search_value", state.SearchValue, "")
-	resultsKey := existingOrDefaultString("results_key", state.ResultsKey, "")
-	send := ""
-
-	if !state.SearchData.IsNull() && !state.SearchData.IsUnknown() {
-		send = state.SearchData.ValueString()
-	}
-
-	_, err = obj.FindObject(ctx, opts.QueryString, searchKey, searchValue, resultsKey, send)
+	_, err = obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, send)
 	if err != nil {
 		tflog.Error(ctx, "Error finding API object", map[string]interface{}{"error": err})
 		resp.Diagnostics.AddError(

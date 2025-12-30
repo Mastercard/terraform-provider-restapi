@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	restapi "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -244,19 +246,102 @@ func (r *RestAPIObjectResource) Configure(ctx context.Context, req resource.Conf
 }
 
 func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
-	// TODO: Handle force_new attributes
-	// TODO: Handle ignore_changes_to attributes
-	/*
-		// If copy_keys is not empty, we have to grab the latest
-		// data so we can copy anything needed before the update
-		client := meta.(*apiclient.APIClient)
-		if client.CopyKeysEnabled() {
-			err = obj.ReadObject(ctx)
-			if err != nil {
-				return err
+	// Don't modify plan during resource creation or destruction
+	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan RestAPIObjectResourceModel
+	var state RestAPIObjectResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Handle ignore_all_server_changes
+	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
+		// Reset data back to state value to ignore all server-side changes
+		plan.Data = state.Data
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
+
+		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
+		return
+	}
+
+	// Handle ignore_changes_to list
+	if !plan.IgnoreChangesTo.IsNull() && !plan.IgnoreChangesTo.IsUnknown() {
+		var ignoreFields []string
+		resp.Diagnostics.Append(plan.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		if len(ignoreFields) > 0 {
+			planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			// Reset ignored fields from state
+			for _, field := range ignoreFields {
+				if stateValue, err := getNestedValue(stateData, field); err == nil {
+					setNestedValue(planData, field, stateValue)
+				}
+			}
+
+			// Marshal back to JSON
+			if modifiedJSON, err := json.Marshal(planData); err == nil {
+				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
 			}
 		}
-	*/
+	}
+
+	if !plan.ForceNew.IsNull() && !plan.ForceNew.IsUnknown() {
+		var newFields []string
+		resp.Diagnostics.Append(plan.ForceNew.ElementsAs(ctx, &newFields, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		if len(newFields) > 0 {
+			planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			for _, field := range newFields {
+				if stateValue, err := getNestedValue(stateData, field); err == nil {
+					planValue, _ := getNestedValue(planData, field)
+					if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
+						resp.RequiresReplace = append(resp.RequiresReplace, path.Root("data").AtName(field))
+					}
+				}
+			}
+		}
+	}
+
+	if len(r.providerData.client.GetCopyKeys()) > 0 {
+		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		for _, field := range r.providerData.client.GetCopyKeys() {
+			if stateValue, err := getNestedValue(stateData, field); err == nil {
+				setNestedValue(planData, field, stateValue)
+			}
+
+			// Marshal back to JSON
+			if modifiedJSON, err := json.Marshal(planData); err == nil {
+				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
+			}
+		}
+	}
+
+	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 }
 
 func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

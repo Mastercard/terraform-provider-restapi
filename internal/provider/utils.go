@@ -1,13 +1,13 @@
 package provider
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
@@ -132,23 +132,61 @@ func existingOrProviderOrDefaultString(key string, curVal basetypes.StringValue,
 	return def
 }
 
-func convertListTypeToStringSlice(list types.List) []string {
-	result := make([]string, 0)
-	if list.IsNull() || list.IsUnknown() {
-		return result
+func getPlanAndStateData(planDataString, stateDataString string, diag *diag.Diagnostics) (map[string]interface{}, map[string]interface{}) {
+	planData := make(map[string]interface{})
+	stateData := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(planDataString), &planData); err != nil {
+		diag.AddError(
+			"Error Parsing Plan Data",
+			fmt.Sprintf("Could not parse plan data JSON: %s", err.Error()),
+		)
+		return nil, nil
 	}
-
-	var listVals []basetypes.StringValue
-	err := list.ElementsAs(context.Background(), &listVals, false)
-	if err != nil {
-		return result
+	if err := json.Unmarshal([]byte(stateDataString), &stateData); err != nil {
+		diag.AddError(
+			"Error Parsing Server Data",
+			fmt.Sprintf("Could not parse server data JSON: %s", err.Error()),
+		)
+		return nil, nil
 	}
+	return planData, stateData
+}
 
-	for _, v := range listVals {
-		if !v.IsNull() && !v.IsUnknown() {
-			result = append(result, v.ValueString())
+// Helper function to get nested value using dot notation (e.g., "metadata.timestamp")
+func getNestedValue(data map[string]interface{}, path string) (interface{}, error) {
+	parts := strings.Split(path, ".")
+	current := data
+
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			return current[part], nil
 		}
-	}
 
-	return result
+		next, ok := current[part].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("path %s not found", path)
+		}
+		current = next
+	}
+	return nil, fmt.Errorf("empty path")
+}
+
+// Helper function to set nested value using dot notation
+func setNestedValue(data map[string]interface{}, path string, value interface{}) {
+	parts := strings.Split(path, ".")
+	current := data
+
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			current[part] = value
+			return
+		}
+
+		next, ok := current[part].(map[string]interface{})
+		if !ok {
+			next = make(map[string]interface{})
+			current[part] = next
+		}
+		current = next
+	}
 }

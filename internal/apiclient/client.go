@@ -245,6 +245,10 @@ func (client *APIClient) CopyKeysEnabled() bool {
 	return len(client.copyKeys) > 0
 }
 
+func (client *APIClient) GetCopyKeys() []string {
+	return client.copyKeys
+}
+
 // SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
 func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, int, error) {
 	fullURI := client.uri + path

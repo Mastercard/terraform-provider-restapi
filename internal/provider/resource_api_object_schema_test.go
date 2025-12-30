@@ -120,7 +120,10 @@ func TestResourceObject_valid(t *testing.T) {
 					name = "test"
 				})
 				query_string = "?include=metadata"
-				read_search = "custom_search_value"
+				read_search = {
+					search_key = "name"
+					search_value = "test"
+				}
 			}`,
 
 		"with_overrides": `
