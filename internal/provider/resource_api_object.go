@@ -260,7 +260,7 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		return
 	}
 
-	// Handle ignore_all_server_changes
+	// ignore_all_server_changes
 	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
 		// Reset data back to state value to ignore all server-side changes
 		plan.Data = state.Data
@@ -271,7 +271,7 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		return
 	}
 
-	// Handle ignore_changes_to list
+	// ignore_changes_to
 	if !plan.IgnoreChangesTo.IsNull() && !plan.IgnoreChangesTo.IsUnknown() {
 		var ignoreFields []string
 		resp.Diagnostics.Append(plan.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
@@ -284,7 +284,6 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 			if resp.Diagnostics.HasError() {
 				return
 			}
-
 			// Reset ignored fields from state
 			for _, field := range ignoreFields {
 				if stateValue, err := getNestedValue(stateData, field); err == nil {
@@ -292,13 +291,19 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 				}
 			}
 
-			// Marshal back to JSON
 			if modifiedJSON, err := json.Marshal(planData); err == nil {
 				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
+			} else {
+				resp.Diagnostics.AddError(
+					"Error Marshaling Modified Plan Data",
+					fmt.Sprintf("Could not marshal modified plan data: %s", err.Error()),
+				)
+				return
 			}
 		}
 	}
 
+	// force_new
 	if !plan.ForceNew.IsNull() && !plan.ForceNew.IsUnknown() {
 		var newFields []string
 		resp.Diagnostics.Append(plan.ForceNew.ElementsAs(ctx, &newFields, false)...)
@@ -323,6 +328,7 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		}
 	}
 
+	// copy_keys
 	if len(r.providerData.client.GetCopyKeys()) > 0 {
 		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
 		if resp.Diagnostics.HasError() {
@@ -334,9 +340,14 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 				setNestedValue(planData, field, stateValue)
 			}
 
-			// Marshal back to JSON
 			if modifiedJSON, err := json.Marshal(planData); err == nil {
 				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
+			} else {
+				resp.Diagnostics.AddError(
+					"Error Marshaling Modified Plan Data",
+					fmt.Sprintf("Could not marshal modified plan data: %s", err.Error()),
+				)
+				return
 			}
 		}
 	}
