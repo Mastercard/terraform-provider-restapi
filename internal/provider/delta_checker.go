@@ -1,13 +1,9 @@
-package restapi
+package provider
 
 import (
 	"reflect"
 	"strings"
 )
-
-func (obj *APIObject) GetDelta(ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
-	return getDelta(obj.data, obj.apiData, ignoreList)
-}
 
 // getDelta performs a deep comparison of two maps - the resource as recorded in state, and the resource as returned by the API.
 // Accepts a third argument that is a set of fields that are to be ignored when looking for differences.

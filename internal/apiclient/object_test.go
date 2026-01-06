@@ -299,7 +299,7 @@ func TestAPIObject(t *testing.T) {
 		searchData := ""
 		tmpObj, err := object.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, searchData)
 		if err != nil {
-			t.Fatalf("api_object_test.go: Failed to find api_object: %s", searchValue)
+			t.Fatalf("api_object_test.go: Failed to find api_object %s - %s", searchValue, err)
 		}
 
 		if object.ID != "5" {

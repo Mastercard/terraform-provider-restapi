@@ -174,13 +174,15 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
 	/* if data was sent, parse the data */
 	if string(b) != "" {
+		var newObj map[string]interface{}
 		if svr.debug {
 			log.Printf("fakeserver.go: data sent - unmarshalling from JSON: %s\n", string(b))
 		}
 
-		err := json.Unmarshal(b, &obj)
+		err := json.Unmarshal(b, &newObj)
 		if err != nil {
 			/* Failure goes back to the user as a 500. Log data here for
 			   debugging (which shouldn't ever fail!) */
@@ -191,11 +193,11 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 		}
 		/* In the case of POST above, id is not yet known - set it here */
 		if id == "" {
-			if val, ok := obj["id"]; ok {
+			if val, ok := newObj["id"]; ok {
 				id = fmt.Sprintf("%v", val)
-			} else if val, ok := obj["Id"]; ok {
+			} else if val, ok := newObj["Id"]; ok {
 				id = fmt.Sprintf("%v", val)
-			} else if val, ok := obj["ID"]; ok {
+			} else if val, ok := newObj["ID"]; ok {
 				id = fmt.Sprintf("%v", val)
 			} else {
 				if svr.debug {
@@ -208,15 +210,16 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 
 		/* Overwrite our stored test object */
 		if svr.debug {
-			log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, obj)
+			log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, newObj)
 		}
-		svr.objects[id] = obj
+		svr.objects[id] = newObj
 
 		/* Coax the data we were sent back to JSON and send it to the user */
-		b, _ := json.Marshal(obj)
+		b, _ := json.Marshal(newObj)
 		w.Write(b)
 		return
 	}
+
 	/* No data was sent... must be just a retrieval */
 	if svr.debug {
 		log.Printf("fakeserver.go: Returning object.\n")

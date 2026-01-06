@@ -159,7 +159,11 @@ func getNestedValue(data map[string]interface{}, path string) (interface{}, erro
 
 	for i, part := range parts {
 		if i == len(parts)-1 {
-			return current[part], nil
+			val, exists := current[part]
+			if !exists {
+				return nil, fmt.Errorf("field %s not found", part)
+			}
+			return val, nil
 		}
 
 		next, ok := current[part].(map[string]interface{})
@@ -189,4 +193,33 @@ func setNestedValue(data map[string]interface{}, path string, value interface{})
 		}
 		current = next
 	}
+}
+
+// normalizeNullFields removes fields from planData that are null and missing from stateData.
+// This handles the common REST API pattern where null fields are omitted from responses.
+// Returns true if planData was modified, false otherwise.
+func normalizeNullFields(planData, stateData map[string]interface{}) bool {
+	modified := false
+
+	for key, planValue := range planData {
+		if planValue == nil {
+			if _, existsInState := stateData[key]; !existsInState {
+				delete(planData, key)
+				modified = true
+				continue
+			}
+		}
+
+		if planMap, isPlanMap := planValue.(map[string]interface{}); isPlanMap {
+			if stateValue, existsInState := stateData[key]; existsInState {
+				if stateMap, isStateMap := stateValue.(map[string]interface{}); isStateMap {
+					if normalizeNullFields(planMap, stateMap) {
+						modified = true
+					}
+				}
+			}
+		}
+	}
+
+	return modified
 }

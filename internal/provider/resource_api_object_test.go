@@ -156,7 +156,14 @@ func generateTestResource(name string, data string, params map[string]interface{
 		fmt.Sprintf("data = %s", strData),
 	}
 	for k, v := range params {
-		entry := fmt.Sprintf(`%s = "%v"`, k, v)
+		switch val := v.(type) {
+		case string, bool, int:
+			v = fmt.Sprintf(`"%v"`, val)
+		default:
+			marshaled, _ := json.Marshal(val)
+			v = string(marshaled)
+		}
+		entry := fmt.Sprintf(`%s = %s`, k, v)
 		config = append(config, entry)
 	}
 	strConfig := ""

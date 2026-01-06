@@ -1,9 +1,17 @@
-package restapi
+package provider
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"reflect"
 	"testing"
+
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 // Creating a type alias to save some typing in the test cases
@@ -15,10 +23,18 @@ type deltaTestCase struct {
 	o1             map[string]interface{}
 	o2             map[string]interface{}
 	ignoreList     []string
+	ignoreAll      bool
 	resultHasDelta bool // True if the compared
 }
 
 var deltaTestCases = []deltaTestCase{
+	{
+		testCase:       "Server changes the value of a field (ignored)",
+		o1:             MapAny{"foo": "bar"},
+		o2:             MapAny{"foo": "changed"},
+		ignoreList:     []string{"foo"},
+		resultHasDelta: false,
+	},
 
 	// Various cases where there are no changes
 	{
@@ -59,7 +75,6 @@ var deltaTestCases = []deltaTestCase{
 	// values again with one or more ignore_lists.
 
 	// Change a field
-
 	{
 		testCase:       "Server changes the value of a field",
 		o1:             MapAny{"foo": "bar"},
@@ -102,7 +117,6 @@ var deltaTestCases = []deltaTestCase{
 	},
 
 	// Add a field
-
 	{
 		testCase:       "Server adds a field",
 		o1:             MapAny{"foo": "bar"},
@@ -120,10 +134,9 @@ var deltaTestCases = []deltaTestCase{
 	},
 
 	// Remove a field
-
 	{
 		testCase:       "Server removes a field",
-		o1:             MapAny{"foo": "bar", "id": "foobar"},
+		o1:             MapAny{"foo": "bar", "baz": "foobar"},
 		o2:             MapAny{"foo": "bar"},
 		ignoreList:     []string{},
 		resultHasDelta: true,
@@ -131,14 +144,13 @@ var deltaTestCases = []deltaTestCase{
 
 	{
 		testCase:       "Server removes a field (ignored)",
-		o1:             MapAny{"foo": "bar", "id": "foobar"},
+		o1:             MapAny{"foo": "bar", "baz": "foobar"},
 		o2:             MapAny{"foo": "bar"},
-		ignoreList:     []string{"id"},
+		ignoreList:     []string{"baz"},
 		resultHasDelta: false,
 	},
 
 	// Deep fields
-
 	{
 		testCase:       "Server changes a deep field",
 		o1:             MapAny{"outside": MapAny{"change": "a"}},
@@ -164,7 +176,6 @@ var deltaTestCases = []deltaTestCase{
 	},
 
 	// Deep fields (but ignored)
-
 	{
 		testCase:       "Server changes a deep field (ignored)",
 		o1:             MapAny{"outside": MapAny{"change": "a"}},
@@ -180,7 +191,6 @@ var deltaTestCases = []deltaTestCase{
 		ignoreList:     []string{"outside.add"},
 		resultHasDelta: false,
 	},
-
 	{
 		testCase:       "Server removes a deep field (ignored)",
 		o1:             MapAny{"outside": MapAny{"change": "a", "remove": "a"}},
@@ -188,6 +198,7 @@ var deltaTestCases = []deltaTestCase{
 		ignoreList:     []string{"outside.remove"},
 		resultHasDelta: false,
 	},
+
 	// Similar to 12: make sure we notice a change to a deep field even when we ignore some of them
 	{
 		testCase:       "Server changes/adds/removes a deep field (ignored 2)",
@@ -248,6 +259,15 @@ var deltaTestCases = []deltaTestCase{
 		resultHasDelta: false,
 	},
 
+	{
+		testCase:       "Ignore all server changes",
+		o1:             MapAny{"foo": "bar", "list": []string{"foo", "bar"}},
+		o2:             MapAny{"foo": "baz"},
+		ignoreList:     []string{},
+		ignoreAll:      true,
+		resultHasDelta: false,
+	},
+
 	// We don't currently support ignoring a change like this, but we could in the future with a syntax like `list[].val` similar to jq
 	{
 		testCase:       "Server changes a sub-value in a list of objects",
@@ -256,6 +276,98 @@ var deltaTestCases = []deltaTestCase{
 		ignoreList:     []string{},
 		resultHasDelta: true,
 	},
+}
+
+func TestModifyPlan(t *testing.T) {
+	debug := false
+	ctx := context.Background()
+
+	if debug {
+		os.Setenv("TF_LOG", "DEBUG")
+	}
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8083, apiServerObjects, true, debug, "")
+	os.Setenv("REST_API_URI", "http://127.0.0.1:8083")
+
+	opt := &apiclient.APIClientOpt{
+		URI:                 "http://127.0.0.1:8083/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  false,
+		CreateReturnsObject: false,
+		Debug:               debug,
+	}
+	client, err := apiclient.NewAPIClient(opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, cs := range deltaTestCases {
+		t.Run(cs.testCase, func(t *testing.T) {
+			cs.o1["id"] = "1234"
+			cs.o2["id"] = "1234"
+			resourceData, _ := json.Marshal(cs.o1)
+			serverData, _ := json.Marshal(cs.o2)
+
+			resource.UnitTest(t, resource.TestCase{
+				IsUnitTest:               true,
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				PreCheck:                 func() { svr.StartInBackground() },
+				Steps: []resource.TestStep{
+					// Step 1: Create the object with o1, AKA: the resourceData
+					{
+						PreConfig: func() {
+							client.SendRequest(ctx, http.MethodDelete, "/api/objects/1234", "", debug)
+						},
+						Config: generateTestResource(
+							"Foo",
+							string(resourceData),
+							map[string]interface{}{
+								"ignore_changes_to":         cs.ignoreList,
+								"ignore_all_server_changes": cs.ignoreAll,
+							},
+							debug,
+						),
+						Check: resource.ComposeTestCheckFunc(
+							testAccCheckRestapiObjectExists("restapi_object.Foo", "1234", client),
+							resource.TestCheckResourceAttr("restapi_object.Foo", "id", "1234"),
+						),
+					},
+
+					// Step 2: Modify the object on the server to be o2 (AKA: serverData)
+					// This simulates the server making changes (or not) and us detecting the drift
+					{
+						PlanOnly:           true,
+						ExpectNonEmptyPlan: cs.resultHasDelta,
+						PreConfig: func() {
+							client.SendRequest(ctx, http.MethodPut, "/api/objects/1234", string(serverData), debug)
+						},
+						Config: generateTestResource(
+							"Foo",
+							string(resourceData),
+							map[string]interface{}{
+								"ignore_changes_to":         cs.ignoreList,
+								"ignore_all_server_changes": cs.ignoreAll,
+							},
+							debug,
+						),
+						Check: resource.ComposeTestCheckFunc(
+							testAccCheckRestapiObjectExists("restapi_object.Foo", "1234", client),
+							resource.TestCheckResourceAttr("restapi_object.Foo", "id", "1234"),
+						),
+					},
+				},
+			})
+		})
+	}
+
+	svr.Shutdown()
 }
 
 // generateTypeConversionTests tests many different type combinations
@@ -293,7 +405,7 @@ func TestHasDelta(t *testing.T) {
 	// Run the main test cases
 	for _, testCase := range deltaTestCases {
 		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList)
-		if result != testCase.resultHasDelta {
+		if result != testCase.resultHasDelta && !testCase.ignoreAll {
 			t.Errorf("delta_checker_test.go: Test Case [%s] wanted [%v] got [%v]", testCase.testCase, testCase.resultHasDelta, result)
 		}
 	}
@@ -308,7 +420,6 @@ func TestHasDelta(t *testing.T) {
 }
 
 func TestHasDeltaModifiedResource(t *testing.T) {
-
 	// Test modifiedResource return val
 
 	recordedInput := map[string]interface{}{

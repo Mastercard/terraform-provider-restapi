@@ -246,6 +246,8 @@ func (r *RestAPIObjectResource) Configure(ctx context.Context, req resource.Conf
 }
 
 func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	tflog.Debug(ctx, "ModifyPlan routine called")
+
 	// Don't modify plan during resource creation or destruction
 	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
 		return
@@ -263,9 +265,11 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 	// ignore_all_server_changes
 	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
 		// Reset data back to state value to ignore all server-side changes
+		plan.ID = state.ID
 		plan.Data = state.Data
 		plan.APIData = state.APIData
 		plan.APIResponse = state.APIResponse
+		plan.CreateResponse = state.CreateResponse
 
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
@@ -279,28 +283,44 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 			return
 		}
 
-		if len(ignoreFields) > 0 {
-			planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
-			if resp.Diagnostics.HasError() {
-				return
-			}
-			// Reset ignored fields from state
-			for _, field := range ignoreFields {
-				if stateValue, err := getNestedValue(stateData, field); err == nil {
-					setNestedValue(planData, field, stateValue)
-				}
-			}
-
-			if modifiedJSON, err := json.Marshal(planData); err == nil {
-				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
-			} else {
-				resp.Diagnostics.AddError(
-					"Error Marshaling Modified Plan Data",
-					fmt.Sprintf("Could not marshal modified plan data: %s", err.Error()),
-				)
-				return
-			}
+		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
+		if resp.Diagnostics.HasError() {
+			return
 		}
+
+		// Perform a deep comparison to see if the server has done any server-side changes
+		// NOTE: Most server-side changes are already ignored during Read by setting read data from state
+		// for keys in ignore_changes_to, but some changes may sneak through if the server removes fields
+		if _, hasDelta := getDelta(stateData, planData, ignoreFields); !hasDelta {
+			plan.ID = state.ID
+			plan.Data = state.Data
+			plan.APIData = state.APIData
+			plan.APIResponse = state.APIResponse
+			plan.CreateResponse = state.CreateResponse
+		}
+	}
+
+	// If plan has a null field that's missing from state, remove it from plan
+	// This prevents drift detection when the server omits null fields (common REST API behavior)
+	planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if normalizeNullFields(planData, stateData) {
+		normalizedJSON, err := json.Marshal(planData)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Normalizing Null Fields",
+				fmt.Sprintf("Could not marshal normalized data: %s", err.Error()),
+			)
+			return
+		}
+		plan.ID = state.ID
+		plan.Data = jsontypes.NewNormalizedValue(string(normalizedJSON))
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
+		plan.CreateResponse = state.CreateResponse
 	}
 
 	// force_new
@@ -312,7 +332,7 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		}
 
 		if len(newFields) > 0 {
-			planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
+			planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
 			if resp.Diagnostics.HasError() {
 				return
 			}
@@ -330,7 +350,7 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 
 	// copy_keys
 	if len(r.providerData.client.GetCopyKeys()) > 0 {
-		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.APIResponse.ValueString(), &resp.Diagnostics)
+		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
 		if resp.Diagnostics.HasError() {
 			return
 		}
@@ -341,7 +361,11 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 			}
 
 			if modifiedJSON, err := json.Marshal(planData); err == nil {
+				plan.ID = state.ID
 				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
+				plan.APIData = state.APIData
+				plan.APIResponse = state.APIResponse
+				plan.CreateResponse = state.CreateResponse
 			} else {
 				resp.Diagnostics.AddError(
 					"Error Marshaling Modified Plan Data",
@@ -422,9 +446,46 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 		)
 		return
 	}
+	tflog.Debug(ctx, "Read resource", map[string]interface{}{"id": obj.ID})
 
-	// Setting terraform ID tells terraform the object was created or it exists
-	tflog.Debug(ctx, "Read resource. Returned id is '%s'", map[string]interface{}{"id": obj.ID})
+	// ignore_changes_to
+	if !state.IgnoreChangesTo.IsNull() && !state.IgnoreChangesTo.IsUnknown() {
+		var ignoreFields []string
+		resp.Diagnostics.Append(state.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		tflog.Debug(ctx, "Read: processing ignore_changes_to", map[string]interface{}{
+			"ignoreFields": ignoreFields,
+		})
+
+		if len(ignoreFields) > 0 {
+			planData, stateData := getPlanAndStateData(obj.GetApiResponse(), state.Data.ValueString(), &resp.Diagnostics)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			tflog.Debug(ctx, "ModifyPlan: before ignoring", map[string]interface{}{
+				"planData":  planData,
+				"stateData": stateData,
+			})
+
+			// Reset ignored fields from state
+			for _, field := range ignoreFields {
+				if stateValue, err := getNestedValue(stateData, field); err == nil {
+					setNestedValue(planData, field, stateValue)
+					tflog.Debug(ctx, "Read: ignored field", map[string]interface{}{
+						"field":      field,
+						"stateValue": stateValue,
+					})
+				}
+			}
+		}
+	}
+
+	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
+	state.Data = jsontypes.NewNormalizedValue(obj.GetApiResponse())
 	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -566,6 +627,8 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 		return
 	}
 
+	// For Import we want to write to state only what was observed from the server
+	data.Data = jsontypes.NewNormalizedValue(obj.GetApiResponse())
 	setResourceModelData(ctx, obj, &data, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
