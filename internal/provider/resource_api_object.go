@@ -312,6 +312,7 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 		)
 		return
 	}
+	objString := obj.GetApiResponse()
 	tflog.Debug(ctx, "Read resource", map[string]interface{}{"id": obj.ID})
 
 	// ignore_changes_to
@@ -337,21 +338,26 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 				"stateData": stateData,
 			})
 
-			// Reset ignored fields from state
-			for _, field := range ignoreFields {
-				if stateValue, err := getNestedValue(stateData, field); err == nil {
-					setNestedValue(planData, field, stateValue)
-					tflog.Debug(ctx, "Read: ignored field", map[string]interface{}{
-						"field":      field,
-						"stateValue": stateValue,
-					})
-				}
+			mergedData, hasDelta := getDelta(stateData, planData, ignoreFields)
+			tflog.Debug(ctx, "Read: after ignoring", map[string]interface{}{
+				"mergedData": mergedData,
+				"hasDelta":   hasDelta,
+			})
+
+			jsonData, err := json.Marshal(mergedData)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Marshaling Merged Data",
+					fmt.Sprintf("Could not marshal merged data: %s", err.Error()),
+				)
+				return
 			}
+			objString = string(jsonData)
 		}
 	}
 
 	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
-	state.Data = jsontypes.NewNormalizedValue(obj.GetApiResponse())
+	state.Data = jsontypes.NewNormalizedValue(objString)
 	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -384,31 +390,6 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
-	}
-
-	// ignore_changes_to
-	if !plan.IgnoreChangesTo.IsNull() && !plan.IgnoreChangesTo.IsUnknown() {
-		var ignoreFields []string
-		resp.Diagnostics.Append(plan.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		// Perform a deep comparison to see if the server has done any server-side changes
-		// NOTE: Most server-side changes are already ignored during Read by setting read data from state
-		// for keys in ignore_changes_to, but some changes may sneak through if the server removes fields
-		if _, hasDelta := getDelta(stateData, planData, ignoreFields); !hasDelta {
-			plan.ID = state.ID
-			plan.Data = state.Data
-			plan.APIData = state.APIData
-			plan.APIResponse = state.APIResponse
-			plan.CreateResponse = state.CreateResponse
-		}
 	}
 
 	// If plan has a null field that's missing from state, remove it from plan

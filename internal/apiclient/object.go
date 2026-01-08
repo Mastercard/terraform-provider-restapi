@@ -55,11 +55,11 @@ type APIObject struct {
 
 	// Set internally
 	data        map[string]interface{} // Data as managed by the user
-	readData    map[string]interface{} // Read data as managed by the user
-	updateData  map[string]interface{} // Update data as managed by the user
-	destroyData map[string]interface{} // Destroy data as managed by the user
-	apiData     map[string]interface{} // Data as available from the API
-	apiResponse string
+	readData    map[string]interface{} // Data to send during Read operation
+	updateData  map[string]interface{} // Data to send during Update operation
+	destroyData map[string]interface{} // Data to send during Destroy operation
+	apiData     map[string]interface{} // Data from the most recent read operation of the API object, as massaged to a map
+	apiResponse string                 // Raw API response from most recent read operation
 }
 
 // NewAPIObject makes an APIobject to manage a RESTful object in an API
@@ -215,9 +215,9 @@ func (obj *APIObject) String() string {
 	return buffer.String()
 }
 
-// updateState is a centralized function to ensure that our data as managed by
+// updateInternalState is a centralized function to ensure that our data as managed by
 // the api_object is updated with data that has come back from the API
-func (obj *APIObject) updateState(state string) error {
+func (obj *APIObject) updateInternalState(state string) error {
 	ctx := context.Background()
 	tflog.Debug(ctx, "Updating API object state to '%s'\n", map[string]interface{}{"state": state})
 
@@ -283,7 +283,7 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 			"write_returns_object":  obj.apiClient.writeReturnsObject,
 			"create_returns_object": obj.apiClient.createReturnsObject,
 		})
-		err = obj.updateState(resultString)
+		err = obj.updateInternalState(resultString)
 		// Yet another failsafe. In case something terrible went wrong internally,
 		// bail out so the user at least knows that the ID did not get set.
 		if obj.ID == "" {
@@ -354,10 +354,10 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 			return nil
 		}
 		objFoundString, _ := json.Marshal(objFound)
-		return obj.updateState(string(objFoundString))
+		return obj.updateInternalState(string(objFoundString))
 	}
 
-	return obj.updateState(resultString)
+	return obj.updateInternalState(resultString)
 }
 
 func (obj *APIObject) UpdateObject(ctx context.Context) error {
@@ -388,7 +388,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 
 	if obj.apiClient.writeReturnsObject {
 		tflog.Debug(ctx, "Parsing response from PUT to update internal structures", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
-		err = obj.updateState(resultString)
+		err = obj.updateInternalState(resultString)
 	} else {
 		tflog.Debug(ctx, "Requesting updated object from API", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
 		err = obj.ReadObject(ctx)

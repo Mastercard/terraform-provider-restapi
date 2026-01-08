@@ -191,33 +191,37 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		/* In the case of POST above, id is not yet known - set it here */
-		if id == "" {
-			if val, ok := newObj["id"]; ok {
-				id = fmt.Sprintf("%v", val)
-			} else if val, ok := newObj["Id"]; ok {
-				id = fmt.Sprintf("%v", val)
-			} else if val, ok := newObj["ID"]; ok {
-				id = fmt.Sprintf("%v", val)
-			} else {
-				if svr.debug {
-					log.Printf("fakeserver.go: Bad request - POST to /api/objects without id field")
+
+		/* Fakeserver needs to support apiclient which can send data for all CRUD operations - gate here for actual "writing" */
+		if r.Method == "POST" || r.Method == "PUT" {
+			/* In the case of POST above, id is not yet known - set it here */
+			if id == "" {
+				if val, ok := newObj["id"]; ok {
+					id = fmt.Sprintf("%v", val)
+				} else if val, ok := newObj["Id"]; ok {
+					id = fmt.Sprintf("%v", val)
+				} else if val, ok := newObj["ID"]; ok {
+					id = fmt.Sprintf("%v", val)
+				} else {
+					if svr.debug {
+						log.Printf("fakeserver.go: Bad request - POST to /api/objects without id field")
+					}
+					http.Error(w, "POST sent with no id field in the data. Cannot persist this!", http.StatusBadRequest)
+					return
 				}
-				http.Error(w, "POST sent with no id field in the data. Cannot persist this!", http.StatusBadRequest)
-				return
 			}
-		}
 
-		/* Overwrite our stored test object */
-		if svr.debug {
-			log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, newObj)
-		}
-		svr.objects[id] = newObj
+			/* Overwrite our stored test object */
+			if svr.debug {
+				log.Printf("fakeserver.go: Overwriting %s with new data:%+v\n", id, newObj)
+			}
+			svr.objects[id] = newObj
 
-		/* Coax the data we were sent back to JSON and send it to the user */
-		b, _ := json.Marshal(newObj)
-		w.Write(b)
-		return
+			/* Coax the data we were sent back to JSON and send it to the user */
+			b, _ := json.Marshal(newObj)
+			w.Write(b)
+			return
+		}
 	}
 
 	/* No data was sent... must be just a retrieval */

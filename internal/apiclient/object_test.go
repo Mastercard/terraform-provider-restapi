@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
 )
 
-var testDebug = false
-var httpServerDebug = false
-var apiObjectDebug = false
-var apiClientDebug = false
+var testDebug = true
+var httpServerDebug = true
+var apiObjectDebug = true
+var apiClientDebug = true
 
 type testAPIObject struct {
 	TestCase string            `json:"Test_case"`
@@ -134,6 +135,10 @@ func addTestAPIObject(input string, t *testing.T, testDebug bool) (testObj testA
 }
 
 func TestAPIObject(t *testing.T) {
+	if apiClientDebug {
+		os.Setenv("TF_LOG", "DEBUG")
+	}
+
 	ctx := context.Background()
 	generatedObjects, apiServerObjects := generateTestObjects(testingDataObjects, t, testDebug)
 
@@ -222,7 +227,7 @@ func TestAPIObject(t *testing.T) {
 			fmt.Printf("Testing update_object()")
 		}
 		testingObjects["minimal"].data["Thing"] = "spoon"
-		testingObjects["minimal"].UpdateObject(ctx)
+		err = testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in update_object() test: %s", err)
 		} else if testingObjects["minimal"].apiData["Thing"] != "spoon" {
@@ -237,7 +242,7 @@ func TestAPIObject(t *testing.T) {
 			fmt.Printf("Testing update_object() with update_data")
 		}
 		testingObjects["minimal"].updateData["Thing"] = "knife"
-		testingObjects["minimal"].UpdateObject(ctx)
+		err = testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in update_object() test: %s", err)
 		} else if testingObjects["minimal"].apiData["Thing"] != "knife" {
