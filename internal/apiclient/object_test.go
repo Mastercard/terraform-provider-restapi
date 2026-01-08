@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
@@ -103,7 +104,14 @@ func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (ty
 	untyped = make(map[string]map[string]interface{})
 
 	for _, dataObject := range dataObjects {
-		testObj, apiServerObj := addTestAPIObject(dataObject, t, testDebug)
+		testObj := testAPIObject{}
+		apiServerObj := make(map[string]interface{})
+		if err := json.Unmarshal([]byte(dataObject), &testObj); err != nil {
+			t.Fatalf("api_object_test.go: Failed to unmarshall JSON (to test_api_object) from '%s'", dataObject)
+		}
+		if err := json.Unmarshal([]byte(dataObject), &apiServerObj); err != nil {
+			t.Fatalf("api_object_test.go: Failed to unmarshall JSON (to api_server_object) from '%s'", dataObject)
+		}
 
 		id := testObj.ID
 		testCase := testObj.TestCase
@@ -120,18 +128,6 @@ func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (ty
 	}
 
 	return typed, untyped
-}
-
-func addTestAPIObject(input string, t *testing.T, testDebug bool) (testObj testAPIObject, apiServerObj map[string]interface{}) {
-	if err := json.Unmarshal([]byte(input), &testObj); err != nil {
-		t.Fatalf("api_object_test.go: Failed to unmarshall JSON (to test_api_object) from '%s'", input)
-	}
-
-	if err := json.Unmarshal([]byte(input), &apiServerObj); err != nil {
-		t.Fatalf("api_object_test.go: Failed to unmarshall JSON (to api_server_object) from '%s'", input)
-	}
-
-	return testObj, apiServerObj
 }
 
 func TestAPIObject(t *testing.T) {
@@ -211,13 +207,18 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
-	// Verify our copy_keys is happy by seeing if Thing made it into the data hash
+	// Verify our copy_keys is happy by changing a thing server-side and seeing if the new Thing made it into the data after re-reading the object
 	t.Run("copy_keys", func(t *testing.T) {
 		if testDebug {
 			fmt.Printf("Testing copy_keys()")
 		}
-		if testingObjects["normal"].data["Thing"].(string) == "" {
-			t.Fatalf("api_object_test.go: copy_keys for 'normal' object failed. Expected 'Thing' to be non-empty, but got '%+v'\n", testingObjects["normal"].data["Thing"])
+		apiServerObjects["1"]["Thing"] = strings.ReplaceAll(apiServerObjects["1"]["Thing"].(string), "potato", "carrot")
+		err := testingObjects["normal"].ReadObject(ctx)
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed in copy_keys() test: %s", err)
+		}
+		if testingObjects["normal"].data["Thing"].(string) != "carrot" {
+			t.Fatalf("api_object_test.go: copy_keys for 'normal' object failed. Expected 'Thing' to be 'carrot'', but got '%+v'\n", testingObjects["normal"].data["Thing"])
 		}
 	})
 
@@ -272,9 +273,9 @@ func TestAPIObject(t *testing.T) {
 		err = testingObjects["pet"].CreateObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in create_object() test: %s", err)
-		} else if testingObjects["minimal"].apiData["Thing"] != "knife" {
+		} else if testingObjects["pet"].apiData["Thing"] != "dog" {
 			t.Fatalf("api_object_test.go: Failed to update 'Thing' field of 'minimal' object. Expected it to be '%s' but it is '%s'\nFull obj: %+v\n",
-				"knife", testingObjects["minimal"].apiData["Thing"], testingObjects["minimal"])
+				"dog", testingObjects["pet"].apiData["Thing"], testingObjects["pet"])
 		}
 
 		// verify it's there
