@@ -100,13 +100,13 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		opts.postPath = opts.path
 	}
 	if opts.getPath == "" {
-		opts.getPath = opts.path + "/{id}"
+		opts.getPath = appendIdToPath(opts.path)
 	}
 	if opts.putPath == "" {
-		opts.putPath = opts.path + "/{id}"
+		opts.putPath = appendIdToPath(opts.path)
 	}
 	if opts.deletePath == "" {
-		opts.deletePath = opts.path + "/{id}"
+		opts.deletePath = appendIdToPath(opts.path)
 	}
 	if opts.searchPath == "" {
 		opts.searchPath = opts.path
@@ -577,4 +577,15 @@ func (obj *APIObject) findObject(queryString string, searchKey string, searchVal
 	}
 
 	return objFound, nil
+}
+
+func appendIdToPath(path string) string {
+	if strings.Contains(path, "{id}") {
+		return path
+	}
+	if strings.Contains(path, "?") {
+		parts := strings.SplitN(path, "?", 2)
+		return parts[0] + "/{id}?" + parts[1]
+	}
+	return path + "/{id}"
 }
