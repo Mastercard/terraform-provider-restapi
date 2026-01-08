@@ -245,6 +245,117 @@ func (r *RestAPIObjectResource) Configure(ctx context.Context, req resource.Conf
 	r.providerData = providerData
 }
 
+func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan RestAPIObjectResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Debug(ctx, "Create routine called", map[string]interface{}{"object": plan})
+	obj, err := makeAPIObject(ctx, r.providerData.client, "", &plan)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
+
+	err = obj.CreateObject(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating API Object",
+			fmt.Sprintf("Could not create API object: %s", err.Error()),
+		)
+		return
+	}
+
+	setResourceModelData(ctx, obj, &plan, &resp.Diagnostics)
+	plan.CreateResponse = types.StringValue(obj.GetApiResponse())
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state RestAPIObjectResourceModel
+
+	// Read Terraform state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
+	obj, err := makeAPIObject(ctx, r.providerData.client, state.ID.ValueString(), &state)
+	if err != nil {
+		if strings.Contains(err.Error(), "error parsing data provided") {
+			tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
+			tflog.Warn(ctx, "Continuing with partially constructed object...", nil)
+		} else {
+			resp.Diagnostics.AddError(
+				"Error Creating API Object",
+				fmt.Sprintf("Could not create API object: %s", err.Error()),
+			)
+			return
+		}
+	}
+
+	err = obj.ReadObject(ctx)
+	if err != nil {
+		tflog.Error(ctx, "Error reading API object", map[string]interface{}{"error": err})
+		resp.Diagnostics.AddError(
+			"Error Reading API Object",
+			fmt.Sprintf("Could not read API object: %s", err.Error()),
+		)
+		return
+	}
+	tflog.Debug(ctx, "Read resource", map[string]interface{}{"id": obj.ID})
+
+	// ignore_changes_to
+	if !state.IgnoreChangesTo.IsNull() && !state.IgnoreChangesTo.IsUnknown() {
+		var ignoreFields []string
+		resp.Diagnostics.Append(state.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		tflog.Debug(ctx, "Read: processing ignore_changes_to", map[string]interface{}{
+			"ignoreFields": ignoreFields,
+		})
+
+		if len(ignoreFields) > 0 {
+			planData, stateData := getPlanAndStateData(obj.GetApiResponse(), state.Data.ValueString(), &resp.Diagnostics)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			tflog.Debug(ctx, "ModifyPlan: before ignoring", map[string]interface{}{
+				"planData":  planData,
+				"stateData": stateData,
+			})
+
+			// Reset ignored fields from state
+			for _, field := range ignoreFields {
+				if stateValue, err := getNestedValue(stateData, field); err == nil {
+					setNestedValue(planData, field, stateValue)
+					tflog.Debug(ctx, "Read: ignored field", map[string]interface{}{
+						"field":      field,
+						"stateValue": stateValue,
+					})
+				}
+			}
+		}
+	}
+
+	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
+	state.Data = jsontypes.NewNormalizedValue(obj.GetApiResponse())
+	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
 func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	tflog.Debug(ctx, "ModifyPlan routine called")
 
@@ -377,117 +488,6 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 	}
 
 	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
-}
-
-func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan RestAPIObjectResourceModel
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	tflog.Debug(ctx, "Create routine called", map[string]interface{}{"object": plan})
-	obj, err := makeAPIObject(ctx, r.providerData.client, "", &plan)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating API Object",
-			fmt.Sprintf("Could not create API object: %s", err.Error()),
-		)
-		return
-	}
-
-	err = obj.CreateObject(ctx)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating API Object",
-			fmt.Sprintf("Could not create API object: %s", err.Error()),
-		)
-		return
-	}
-
-	setResourceModelData(ctx, obj, &plan, &resp.Diagnostics)
-	plan.CreateResponse = types.StringValue(obj.GetApiResponse())
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-}
-
-func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state RestAPIObjectResourceModel
-
-	// Read Terraform state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
-	obj, err := makeAPIObject(ctx, r.providerData.client, state.ID.ValueString(), &state)
-	if err != nil {
-		if strings.Contains(err.Error(), "error parsing data provided") {
-			tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
-			tflog.Warn(ctx, "Continuing with partially constructed object...", nil)
-		} else {
-			resp.Diagnostics.AddError(
-				"Error Creating API Object",
-				fmt.Sprintf("Could not create API object: %s", err.Error()),
-			)
-			return
-		}
-	}
-
-	err = obj.ReadObject(ctx)
-	if err != nil {
-		tflog.Error(ctx, "Error reading API object", map[string]interface{}{"error": err})
-		resp.Diagnostics.AddError(
-			"Error Reading API Object",
-			fmt.Sprintf("Could not read API object: %s", err.Error()),
-		)
-		return
-	}
-	tflog.Debug(ctx, "Read resource", map[string]interface{}{"id": obj.ID})
-
-	// ignore_changes_to
-	if !state.IgnoreChangesTo.IsNull() && !state.IgnoreChangesTo.IsUnknown() {
-		var ignoreFields []string
-		resp.Diagnostics.Append(state.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		tflog.Debug(ctx, "Read: processing ignore_changes_to", map[string]interface{}{
-			"ignoreFields": ignoreFields,
-		})
-
-		if len(ignoreFields) > 0 {
-			planData, stateData := getPlanAndStateData(obj.GetApiResponse(), state.Data.ValueString(), &resp.Diagnostics)
-			if resp.Diagnostics.HasError() {
-				return
-			}
-
-			tflog.Debug(ctx, "ModifyPlan: before ignoring", map[string]interface{}{
-				"planData":  planData,
-				"stateData": stateData,
-			})
-
-			// Reset ignored fields from state
-			for _, field := range ignoreFields {
-				if stateValue, err := getNestedValue(stateData, field); err == nil {
-					setNestedValue(planData, field, stateValue)
-					tflog.Debug(ctx, "Read: ignored field", map[string]interface{}{
-						"field":      field,
-						"stateValue": stateValue,
-					})
-				}
-			}
-		}
-	}
-
-	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
-	state.Data = jsontypes.NewNormalizedValue(obj.GetApiResponse())
-	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *RestAPIObjectResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
