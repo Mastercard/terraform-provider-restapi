@@ -16,7 +16,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 	debug := false
 	apiServerObjects := make(map[string]map[string]interface{})
 
-	svr := fakeserver.NewFakeServer(8082, apiServerObjects, true, debug, "")
+	svr := fakeserver.NewFakeServer(8082, apiServerObjects, map[string]string{}, true, debug, "")
 	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
 
 	opt := &apiclient.APIClientOpt{

@@ -13,20 +13,22 @@ import (
 
 /*Fakeserver represents a HTTP server with objects to hold and return*/
 type Fakeserver struct {
-	server  *http.Server
-	objects map[string]map[string]interface{}
-	debug   bool
-	running bool
+	server         *http.Server
+	objects        map[string]map[string]interface{}
+	requireHeaders map[string]string
+	debug          bool
+	running        bool
 }
 
 /*NewFakeServer creates a HTTP server used for tests and debugging*/
-func NewFakeServer(iPort int, iObjects map[string]map[string]interface{}, iStart bool, iDebug bool, dir string) *Fakeserver {
+func NewFakeServer(iPort int, iObjects map[string]map[string]interface{}, iRequireHeaders map[string]string, iStart bool, iDebug bool, dir string) *Fakeserver {
 	serverMux := http.NewServeMux()
 
 	svr := &Fakeserver{
-		debug:   iDebug,
-		objects: iObjects,
-		running: false,
+		debug:          iDebug,
+		objects:        iObjects,
+		requireHeaders: iRequireHeaders,
+		running:        false,
 	}
 
 	//If we were passed an argument for where to serve /static from...
@@ -90,6 +92,18 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 	var obj map[string]interface{}
 	var id string
 	var ok bool
+
+	if len(svr.requireHeaders) > 0 {
+		for n, v := range svr.requireHeaders {
+			if r.Header.Get(n) != v {
+				if svr.debug {
+					log.Printf("fakeserver.go: Missing or bad required header '%s': got '%s' expected '%s'\n", n, r.Header.Get(n), v)
+				}
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+		}
+	}
 
 	/* Assume this will never fail */
 	b, _ := io.ReadAll(r.Body)

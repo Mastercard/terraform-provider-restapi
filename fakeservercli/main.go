@@ -17,7 +17,7 @@ func main() {
 
 	flag.Parse()
 
-	svr := fakeserver.NewFakeServer(*port, apiServerObjects, false, *debug, *staticDir)
+	svr := fakeserver.NewFakeServer(*port, apiServerObjects, map[string]string{}, false, *debug, *staticDir)
 
 	fmt.Printf("Starting server on port %d...\n", *port)
 	fmt.Println("Objects are at /api/objects/{id}")

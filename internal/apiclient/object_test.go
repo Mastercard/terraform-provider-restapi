@@ -82,7 +82,7 @@ var testingDataObjects = []string{
 	}`,
 }
 
-var client, err = NewAPIClient(&APIClientOpt{
+var clientOpts = APIClientOpt{
 	URI:                 "http://127.0.0.1:8081/",
 	Insecure:            false,
 	Username:            "",
@@ -94,7 +94,8 @@ var client, err = NewAPIClient(&APIClientOpt{
 	WriteReturnsObject:  true,
 	CreateReturnsObject: false,
 	Debug:               apiClientDebug,
-})
+}
+var client, _ = NewAPIClient(&clientOpts)
 
 func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (typed map[string]testAPIObject, untyped map[string]map[string]interface{}) {
 	// Messy... fakeserver wants "generic" objects, but it is much easier
@@ -138,6 +139,9 @@ func TestAPIObject(t *testing.T) {
 	ctx := context.Background()
 	generatedObjects, apiServerObjects := generateTestObjects(testingDataObjects, t, testDebug)
 
+	// Will be populated later
+	requiredHeaders := map[string]string{}
+
 	// Construct a local map of test case objects with only the ID populated
 	if testDebug {
 		fmt.Println("api_object_test.go: Building test objects...")
@@ -169,7 +173,7 @@ func TestAPIObject(t *testing.T) {
 	if testDebug {
 		fmt.Println("api_object_test.go: Starting HTTP server")
 	}
-	svr := fakeserver.NewFakeServer(8081, apiServerObjects, true, httpServerDebug, "")
+	svr := fakeserver.NewFakeServer(8081, apiServerObjects, requiredHeaders, true, httpServerDebug, "")
 
 	// Loop through all of the objects and GET their data from the server
 	t.Run("read_object", func(t *testing.T) {
@@ -228,7 +232,7 @@ func TestAPIObject(t *testing.T) {
 			fmt.Printf("Testing update_object()")
 		}
 		testingObjects["minimal"].data["Thing"] = "spoon"
-		err = testingObjects["minimal"].UpdateObject(ctx)
+		err := testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in update_object() test: %s", err)
 		} else if testingObjects["minimal"].apiData["Thing"] != "spoon" {
@@ -243,7 +247,7 @@ func TestAPIObject(t *testing.T) {
 			fmt.Printf("Testing update_object() with update_data")
 		}
 		testingObjects["minimal"].updateData["Thing"] = "knife"
-		err = testingObjects["minimal"].UpdateObject(ctx)
+		err := testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in update_object() test: %s", err)
 		} else if testingObjects["minimal"].apiData["Thing"] != "knife" {
@@ -258,7 +262,7 @@ func TestAPIObject(t *testing.T) {
 			fmt.Printf("Testing delete_object()")
 		}
 		testingObjects["pet"].DeleteObject(ctx)
-		err = testingObjects["pet"].ReadObject(ctx)
+		err := testingObjects["pet"].ReadObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: 'pet' object deleted, but an error was returned when reading the object (expected the provider to cope with this!\n")
 		}
@@ -270,7 +274,7 @@ func TestAPIObject(t *testing.T) {
 			fmt.Printf("Testing create_object()")
 		}
 		testingObjects["pet"].data["Thing"] = "dog"
-		err = testingObjects["pet"].CreateObject(ctx)
+		err := testingObjects["pet"].CreateObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: Failed in create_object() test: %s", err)
 		} else if testingObjects["pet"].apiData["Thing"] != "dog" {
@@ -324,10 +328,39 @@ func TestAPIObject(t *testing.T) {
 		}
 		testingObjects["pet"].destroyData["destroy"] = "true"
 		testingObjects["pet"].DeleteObject(ctx)
-		err = testingObjects["pet"].ReadObject(ctx)
+		err := testingObjects["pet"].ReadObject(ctx)
 		if err != nil {
 			t.Fatalf("api_object_test.go: 'pet' object deleted, but an error was returned when reading the object (expected the provider to cope with this!\n")
 		}
+	})
+
+	t.Run("read_object_basic_auth", func(t *testing.T) {
+		if testDebug {
+			fmt.Printf("Testing read_object() with basic auth")
+		}
+
+		optsCopy := clientOpts
+		optsCopy.Username = "testuser"
+		optsCopy.Password = "testpass"
+		basicAuthClient, _ := NewAPIClient(&optsCopy)
+
+		tmpObject, _ := NewAPIObject(basicAuthClient, &APIObjectOpts{ID: "1"})
+
+		// Fakeserver will expect a header that exactly matches this, simulating basic auth
+		requiredHeaders["Authorization"] = "Basic dGVzdHVzZXI6dGVzdHBhc3M=" // base64(testuser:testpass)
+
+		err := testingObjects["normal"].ReadObject(ctx)
+		if err == nil {
+			t.Fatalf("api_object_test.go: Expected error reading an object without basic auth configured, but none was found")
+		}
+
+		err = tmpObject.ReadObject(ctx)
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed to read data for test case 'normal' with basic auth: %s", err)
+		}
+
+		// Clean up shared data between test cases
+		delete(requiredHeaders, "Authorization")
 	})
 
 	if testDebug {
