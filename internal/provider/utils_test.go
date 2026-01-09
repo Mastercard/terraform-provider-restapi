@@ -697,7 +697,7 @@ func TestNormalizeNullFields(t *testing.T) {
 					t.Errorf("expected field %s not found in plan data", key)
 					continue
 				}
-				
+
 				// For nested maps, recursively compare
 				if expectedMap, ok := expectedValue.(map[string]interface{}); ok {
 					actualMap, ok := actualValue.(map[string]interface{})

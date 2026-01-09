@@ -227,3 +227,224 @@ func generateCertificates() {
 	rootCAPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: rootCABytes})
 	_ = os.WriteFile(rootCAFilePath, rootCAPEM, 0644)
 }
+
+func TestNewAPIClientErrors(t *testing.T) {
+	// Generate certificates once for reuse in tests
+	generateCertificates()
+	defer os.Remove(rootCAFilePath)
+
+	// Generate a mismatched key (different from serverKeyPEM)
+	mismatchedKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	mismatchedKeyBytes, _ := x509.MarshalECPrivateKey(mismatchedKey)
+	mismatchedKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: mismatchedKeyBytes})
+
+	tests := []struct {
+		name        string
+		opt         *APIClientOpt
+		expectedErr string
+	}{
+		{
+			name:        "missing_uri",
+			opt:         &APIClientOpt{},
+			expectedErr: "uri must be set to construct an API client",
+		},
+		{
+			name: "invalid_cert_file",
+			opt: &APIClientOpt{
+				URI:      "https://example.com",
+				CertFile: "/nonexistent/cert.pem",
+				KeyFile:  "/nonexistent/key.pem",
+			},
+			expectedErr: "no such file or directory",
+		},
+		{
+			name: "invalid_cert_string_format",
+			opt: &APIClientOpt{
+				URI:        "https://example.com",
+				CertString: "not-a-valid-cert",
+				KeyString:  "not-a-valid-key",
+			},
+			expectedErr: "tls: failed to find any PEM data",
+		},
+		{
+			name: "mismatched_cert_key",
+			opt: &APIClientOpt{
+				URI:        "https://example.com",
+				CertString: string(serverCertPEM),
+				KeyString:  string(mismatchedKeyPEM), // Different key from cert
+			},
+			expectedErr: "tls: private key does not match public key",
+		},
+		{
+			name: "invalid_root_ca_file",
+			opt: &APIClientOpt{
+				URI:        "https://example.com",
+				RootCAFile: "/nonexistent/rootca.pem",
+			},
+			expectedErr: "could not read root CA file",
+		},
+		{
+			name: "invalid_root_ca_string",
+			opt: &APIClientOpt{
+				URI:          "https://example.com",
+				RootCAString: "not-a-valid-ca-cert",
+			},
+			expectedErr: "failed to append root CA certificate(s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewAPIClient(tt.opt)
+			assert.Error(t, err, "NewAPIClient should return an error")
+			assert.Nil(t, client, "Client should be nil on error")
+			assert.Contains(t, err.Error(), tt.expectedErr, "Error should contain expected message")
+		})
+	}
+}
+
+// TestNewAPIClientDefaults tests default values in NewAPIClient
+func TestNewAPIClientDefaults(t *testing.T) {
+	opt := &APIClientOpt{
+		URI: "https://example.com/",
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+	require.NotNil(t, client, "Client should not be nil")
+
+	assert.Equal(t, "https://example.com", client.uri, "URI should have trailing slash removed")
+	assert.Equal(t, "id", client.idAttribute, "Should use default ID attribute")
+	assert.Equal(t, "POST", client.createMethod, "Should use default CREATE method")
+	assert.Equal(t, "GET", client.readMethod, "Should use default READ method")
+	assert.Equal(t, "PUT", client.updateMethod, "Should use default UPDATE method")
+	assert.Equal(t, "DELETE", client.destroyMethod, "Should use default DESTROY method")
+}
+
+// TestNewAPIClientWithRetryConfig tests retry configuration
+func TestNewAPIClientWithRetryConfig(t *testing.T) {
+	tests := []struct {
+		name            string
+		retryMax        int64
+		retryWaitMin    int64
+		retryWaitMax    int64
+		expectedMax     int
+		expectedWaitMin time.Duration
+		expectedWaitMax time.Duration
+	}{
+		{
+			name:            "zero_retries_default_waits",
+			retryMax:        0,
+			retryWaitMin:    0,
+			retryWaitMax:    0,
+			expectedMax:     0,
+			expectedWaitMin: 1 * time.Second,
+			expectedWaitMax: 30 * time.Second,
+		},
+		{
+			name:            "custom_retry_config",
+			retryMax:        5,
+			retryWaitMin:    2,
+			retryWaitMax:    60,
+			expectedMax:     5,
+			expectedWaitMin: 2 * time.Second,
+			expectedWaitMax: 60 * time.Second,
+		},
+		{
+			name:            "only_max_retries_set",
+			retryMax:        3,
+			retryWaitMin:    0,
+			retryWaitMax:    0,
+			expectedMax:     3,
+			expectedWaitMin: 1 * time.Second,
+			expectedWaitMax: 30 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opt := &APIClientOpt{
+				URI:          "https://example.com",
+				RetryMax:     tt.retryMax,
+				RetryWaitMin: tt.retryWaitMin,
+				RetryWaitMax: tt.retryWaitMax,
+			}
+			client, err := NewAPIClient(opt)
+			require.NoError(t, err, "NewAPIClient should not return an error")
+			require.NotNil(t, client, "Client should not be nil")
+
+			assert.Equal(t, tt.expectedMax, client.httpClient.RetryMax, "RetryMax should match expected")
+			assert.Equal(t, tt.expectedWaitMin, client.httpClient.RetryWaitMin, "RetryWaitMin should match expected")
+			assert.Equal(t, tt.expectedWaitMax, client.httpClient.RetryWaitMax, "RetryWaitMax should match expected")
+		})
+	}
+}
+
+// TestNewAPIClientWithOAuth tests OAuth configuration
+func TestNewAPIClientWithOAuth(t *testing.T) {
+	opt := &APIClientOpt{
+		URI:               "https://example.com",
+		OAuthClientID:     "test-client-id",
+		OAuthClientSecret: "test-client-secret",
+		OAuthTokenURL:     "https://oauth.example.com/token",
+		OAuthScopes:       []string{"read", "write"},
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+	require.NotNil(t, client, "Client should not be nil")
+	require.NotNil(t, client.oauthConfig, "OAuth config should be set")
+
+	assert.Equal(t, "test-client-id", client.oauthConfig.ClientID)
+	assert.Equal(t, "test-client-secret", client.oauthConfig.ClientSecret)
+	assert.Equal(t, "https://oauth.example.com/token", client.oauthConfig.TokenURL)
+	assert.Equal(t, []string{"read", "write"}, client.oauthConfig.Scopes)
+}
+
+// TestNewAPIClientWithoutOAuth tests that OAuth config is nil when not fully configured
+func TestNewAPIClientWithoutOAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		clientID string
+		secret   string
+		tokenURL string
+	}{
+		{
+			name:     "no_oauth_params",
+			clientID: "",
+			secret:   "",
+			tokenURL: "",
+		},
+		{
+			name:     "only_client_id",
+			clientID: "test-client",
+			secret:   "",
+			tokenURL: "",
+		},
+		{
+			name:     "only_secret",
+			clientID: "",
+			secret:   "test-secret",
+			tokenURL: "",
+		},
+		{
+			name:     "missing_token_url",
+			clientID: "test-client",
+			secret:   "test-secret",
+			tokenURL: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opt := &APIClientOpt{
+				URI:               "https://example.com",
+				OAuthClientID:     tt.clientID,
+				OAuthClientSecret: tt.secret,
+				OAuthTokenURL:     tt.tokenURL,
+			}
+			client, err := NewAPIClient(opt)
+			require.NoError(t, err, "NewAPIClient should not return an error")
+			require.NotNil(t, client, "Client should not be nil")
+			assert.Nil(t, client.oauthConfig, "OAuth config should be nil when incomplete")
+		})
+	}
+}
