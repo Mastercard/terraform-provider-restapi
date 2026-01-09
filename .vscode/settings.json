@@ -13,7 +13,7 @@
     "go.testFlags": ["-v"],
     "go.coverOnSave": false,
     "go.coverOnSingleTest": true,
-    "go.coverOnSingleTestFile": false,
-    "go.coverOnTestPackage": false,
+    "go.coverOnSingleTestFile": true,
+    "go.coverOnTestPackage": true,
     "go.coverageOptions": "showUncoveredCodeOnly"
 }

@@ -11,10 +11,10 @@ import (
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
 )
 
-var testDebug = true
-var httpServerDebug = true
-var apiObjectDebug = true
-var apiClientDebug = true
+var testDebug = false
+var httpServerDebug = false
+var apiObjectDebug = false
+var apiClientDebug = false
 
 type testAPIObject struct {
 	TestCase string            `json:"Test_case"`
@@ -97,7 +97,7 @@ var clientOpts = APIClientOpt{
 }
 var client, _ = NewAPIClient(&clientOpts)
 
-func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (typed map[string]testAPIObject, untyped map[string]map[string]interface{}) {
+func generateTestObjects(dataObjects []string, t *testing.T) (typed map[string]testAPIObject, untyped map[string]map[string]interface{}) {
 	// Messy... fakeserver wants "generic" objects, but it is much easier
 	// to write our test cases with typed (test_api_object) objects. Make
 	// maps of both
@@ -115,16 +115,7 @@ func generateTestObjects(dataObjects []string, t *testing.T, testDebug bool) (ty
 		}
 
 		id := testObj.ID
-		testCase := testObj.TestCase
-
-		if testDebug {
-			fmt.Printf("Adding test object for case '%s' as id '%s'\n", testCase, id)
-		}
 		typed[id] = testObj
-
-		if testDebug {
-			fmt.Printf("Adding API server test object for case '%s' as id '%s'\n", testCase, id)
-		}
 		untyped[id] = apiServerObj
 	}
 
@@ -137,7 +128,7 @@ func TestAPIObject(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	generatedObjects, apiServerObjects := generateTestObjects(testingDataObjects, t, testDebug)
+	generatedObjects, apiServerObjects := generateTestObjects(testingDataObjects, t)
 
 	// Will be populated later
 	requiredHeaders := map[string]string{}
@@ -177,9 +168,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Loop through all of the objects and GET their data from the server
 	t.Run("read_object", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing read_object()")
-		}
 		for testCase := range testingObjects {
 			t.Run(testCase, func(t *testing.T) {
 				if testDebug {
@@ -194,9 +182,6 @@ func TestAPIObject(t *testing.T) {
 	})
 
 	t.Run("read_object_with_read_data", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing read_object() with read_data")
-		}
 		for testCase := range testingObjects {
 			t.Run(testCase, func(t *testing.T) {
 				if testDebug {
@@ -213,9 +198,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Verify our copy_keys is happy by changing a thing server-side and seeing if the new Thing made it into the data after re-reading the object
 	t.Run("copy_keys", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing copy_keys()")
-		}
 		apiServerObjects["1"]["Thing"] = strings.ReplaceAll(apiServerObjects["1"]["Thing"].(string), "potato", "carrot")
 		err := testingObjects["normal"].ReadObject(ctx)
 		if err != nil {
@@ -228,9 +210,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Go ahead and update one of our objects
 	t.Run("update_object", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing update_object()")
-		}
 		testingObjects["minimal"].data["Thing"] = "spoon"
 		err := testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
@@ -243,9 +222,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Update once more with update_data
 	t.Run("update_object_with_update_data", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing update_object() with update_data")
-		}
 		testingObjects["minimal"].updateData["Thing"] = "knife"
 		err := testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
@@ -258,9 +234,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Delete one and make sure a 404 follows
 	t.Run("delete_object", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing delete_object()")
-		}
 		testingObjects["pet"].DeleteObject(ctx)
 		err := testingObjects["pet"].ReadObject(ctx)
 		if err != nil {
@@ -270,9 +243,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Recreate the one we just got rid of
 	t.Run("create_object", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing create_object()")
-		}
 		testingObjects["pet"].data["Thing"] = "dog"
 		err := testingObjects["pet"].CreateObject(ctx)
 		if err != nil {
@@ -323,9 +293,6 @@ func TestAPIObject(t *testing.T) {
 
 	// Delete it again with destroy_data and make sure a 404 follows
 	t.Run("delete_object_with_destroy_data", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing delete_object() with destroy_data")
-		}
 		testingObjects["pet"].destroyData["destroy"] = "true"
 		testingObjects["pet"].DeleteObject(ctx)
 		err := testingObjects["pet"].ReadObject(ctx)
@@ -335,10 +302,6 @@ func TestAPIObject(t *testing.T) {
 	})
 
 	t.Run("read_object_basic_auth", func(t *testing.T) {
-		if testDebug {
-			fmt.Printf("Testing read_object() with basic auth")
-		}
-
 		optsCopy := clientOpts
 		optsCopy.Username = "testuser"
 		optsCopy.Password = "testpass"
