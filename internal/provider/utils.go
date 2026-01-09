@@ -16,7 +16,7 @@ import (
 // 2. Environment variable (envKey)
 // 3. Default value (def)
 // If required is true and no value is found in tiers 1-2, adds an error diagnostic.
-func existingOrEnvOrDefaultString(d diag.Diagnostics, key string, curVal basetypes.StringValue, envKey string, def string, required bool) string {
+func existingOrEnvOrDefaultString(d *diag.Diagnostics, key string, curVal basetypes.StringValue, envKey string, def string, required bool) string {
 	if !curVal.IsNull() {
 		return curVal.ValueString()
 	}
@@ -42,7 +42,7 @@ func existingOrEnvOrDefaultString(d diag.Diagnostics, key string, curVal basetyp
 // 3. Default value (def)
 // If required is true and no value is found in tiers 1-2, adds an error diagnostic.
 // Invalid environment variable values result in an error diagnostic.
-func existingOrEnvOrDefaultInt(d diag.Diagnostics, key string, curVal basetypes.Int64Value, envKey string, def int64, required bool) int64 {
+func existingOrEnvOrDefaultInt(d *diag.Diagnostics, key string, curVal basetypes.Int64Value, envKey string, def int64, required bool) int64 {
 	if !curVal.IsNull() {
 		return curVal.ValueInt64()
 	}
@@ -75,7 +75,7 @@ func existingOrEnvOrDefaultInt(d diag.Diagnostics, key string, curVal basetypes.
 // 3. Default value (def)
 // If required is true and no value is found in tiers 1-2, adds an error diagnostic.
 // Invalid environment variable values result in an error diagnostic.
-func existingOrEnvOrDefaultFloat(d diag.Diagnostics, key string, curVal basetypes.Float64Value, envKey string, def float64, required bool) float64 {
+func existingOrEnvOrDefaultFloat(d *diag.Diagnostics, key string, curVal basetypes.Float64Value, envKey string, def float64, required bool) float64 {
 	if !curVal.IsNull() {
 		return curVal.ValueFloat64()
 	}
@@ -108,7 +108,7 @@ func existingOrEnvOrDefaultFloat(d diag.Diagnostics, key string, curVal basetype
 // 3. Default value (def)
 // If required is true and no value is found in tiers 1-2, adds an error diagnostic.
 // Invalid environment variable values result in an error diagnostic.
-func existingOrEnvOrDefaultBool(d diag.Diagnostics, key string, curVal basetypes.BoolValue, envKey string, def bool, required bool) bool {
+func existingOrEnvOrDefaultBool(d *diag.Diagnostics, key string, curVal basetypes.BoolValue, envKey string, def bool, required bool) bool {
 	if !curVal.IsNull() {
 		return curVal.ValueBool()
 	}

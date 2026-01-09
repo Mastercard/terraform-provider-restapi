@@ -273,9 +273,9 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 
 	// Check for conflicting authentication methods
-	username := existingOrEnvOrDefaultString(resp.Diagnostics, "username", data.Username, "REST_API_USERNAME", "", false)
-	password := existingOrEnvOrDefaultString(resp.Diagnostics, "password", data.Password, "REST_API_PASSWORD", "", false)
-	bearerToken := existingOrEnvOrDefaultString(resp.Diagnostics, "bearer_token", data.BearerToken, "REST_API_BEARER", "", false)
+	username := existingOrEnvOrDefaultString(&resp.Diagnostics, "username", data.Username, "REST_API_USERNAME", "", false)
+	password := existingOrEnvOrDefaultString(&resp.Diagnostics, "password", data.Password, "REST_API_PASSWORD", "", false)
+	bearerToken := existingOrEnvOrDefaultString(&resp.Diagnostics, "bearer_token", data.BearerToken, "REST_API_BEARER", "", false)
 
 	if username != "" && password != "" && bearerToken != "" {
 		resp.Diagnostics.AddError(
@@ -292,37 +292,37 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 	// Populate default options
 	opt := &apiclient.APIClientOpt{
-		URI:                 existingOrEnvOrDefaultString(resp.Diagnostics, "uri", data.URI, "REST_API_URI", "", true),
-		Insecure:            existingOrEnvOrDefaultBool(resp.Diagnostics, "insecure", data.Insecure, "REST_API_INSECURE", false, false),
+		URI:                 existingOrEnvOrDefaultString(&resp.Diagnostics, "uri", data.URI, "REST_API_URI", "", true),
+		Insecure:            existingOrEnvOrDefaultBool(&resp.Diagnostics, "insecure", data.Insecure, "REST_API_INSECURE", false, false),
 		Username:            username,
 		Password:            password,
 		Headers:             headers,
-		UseCookies:          existingOrEnvOrDefaultBool(resp.Diagnostics, "use_cookies", data.UseCookies, "REST_API_USE_COOKIES", false, false),
-		Timeout:             existingOrEnvOrDefaultInt(resp.Diagnostics, "timeout", data.Timeout, "REST_API_TIMEOUT", 60, false),
-		IDAttribute:         existingOrEnvOrDefaultString(resp.Diagnostics, "id_attribute", data.IDAttribute, "REST_API_ID_ATTRIBUTE", "id", false),
+		UseCookies:          existingOrEnvOrDefaultBool(&resp.Diagnostics, "use_cookies", data.UseCookies, "REST_API_USE_COOKIES", false, false),
+		Timeout:             existingOrEnvOrDefaultInt(&resp.Diagnostics, "timeout", data.Timeout, "REST_API_TIMEOUT", 60, false),
+		IDAttribute:         existingOrEnvOrDefaultString(&resp.Diagnostics, "id_attribute", data.IDAttribute, "REST_API_ID_ATTRIBUTE", "id", false),
 		CopyKeys:            copyKeys,
-		WriteReturnsObject:  existingOrEnvOrDefaultBool(resp.Diagnostics, "write_returns_object", data.WriteReturnsObject, "REST_API_WRO", false, false),
-		CreateReturnsObject: existingOrEnvOrDefaultBool(resp.Diagnostics, "create_returns_object", data.CreateReturnsObject, "REST_API_CRO", false, false),
-		XSSIPrefix:          existingOrEnvOrDefaultString(resp.Diagnostics, "xssi_prefix", data.XSSIPrefix, "REST_API_XSSI_PREFIX", "", false),
-		RateLimit:           existingOrEnvOrDefaultFloat(resp.Diagnostics, "rate_limit", data.RateLimit, "REST_API_RATE_LIMIT", math.MaxFloat64, false),
-		Debug:               existingOrEnvOrDefaultBool(resp.Diagnostics, "debug", data.Debug, "REST_API_DEBUG", false, false),
-		CreateMethod:        existingOrEnvOrDefaultString(resp.Diagnostics, "create_method", data.CreateMethod, "REST_API_CREATE_METHOD", "POST", false),
-		ReadMethod:          existingOrEnvOrDefaultString(resp.Diagnostics, "read_method", data.ReadMethod, "REST_API_READ_METHOD", "GET", false),
-		UpdateMethod:        existingOrEnvOrDefaultString(resp.Diagnostics, "update_method", data.UpdateMethod, "REST_API_UPDATE_METHOD", "PUT", false),
-		DestroyMethod:       existingOrEnvOrDefaultString(resp.Diagnostics, "destroy_method", data.DestroyMethod, "REST_API_DESTROY_METHOD", "DELETE", false),
-		CertFile:            existingOrEnvOrDefaultString(resp.Diagnostics, "cert_file", data.CertFile, "REST_API_CERT_FILE", "", false),
-		KeyFile:             existingOrEnvOrDefaultString(resp.Diagnostics, "key_file", data.KeyFile, "REST_API_KEY_FILE", "", false),
-		CertString:          existingOrEnvOrDefaultString(resp.Diagnostics, "cert_string", data.CertString, "REST_API_CERT_STRING", "", false),
-		KeyString:           existingOrEnvOrDefaultString(resp.Diagnostics, "key_string", data.KeyString, "REST_API_KEY_STRING", "", false),
-		RootCAFile:          existingOrEnvOrDefaultString(resp.Diagnostics, "root_ca_file", data.RootCAFile, "REST_API_ROOT_CA_FILE", "", false),
-		RootCAString:        existingOrEnvOrDefaultString(resp.Diagnostics, "root_ca_string", data.RootCAString, "REST_API_ROOT_CA_STRING", "", false),
+		WriteReturnsObject:  existingOrEnvOrDefaultBool(&resp.Diagnostics, "write_returns_object", data.WriteReturnsObject, "REST_API_WRO", false, false),
+		CreateReturnsObject: existingOrEnvOrDefaultBool(&resp.Diagnostics, "create_returns_object", data.CreateReturnsObject, "REST_API_CRO", false, false),
+		XSSIPrefix:          existingOrEnvOrDefaultString(&resp.Diagnostics, "xssi_prefix", data.XSSIPrefix, "REST_API_XSSI_PREFIX", "", false),
+		RateLimit:           existingOrEnvOrDefaultFloat(&resp.Diagnostics, "rate_limit", data.RateLimit, "REST_API_RATE_LIMIT", math.MaxFloat64, false),
+		Debug:               existingOrEnvOrDefaultBool(&resp.Diagnostics, "debug", data.Debug, "REST_API_DEBUG", false, false),
+		CreateMethod:        existingOrEnvOrDefaultString(&resp.Diagnostics, "create_method", data.CreateMethod, "REST_API_CREATE_METHOD", "POST", false),
+		ReadMethod:          existingOrEnvOrDefaultString(&resp.Diagnostics, "read_method", data.ReadMethod, "REST_API_READ_METHOD", "GET", false),
+		UpdateMethod:        existingOrEnvOrDefaultString(&resp.Diagnostics, "update_method", data.UpdateMethod, "REST_API_UPDATE_METHOD", "PUT", false),
+		DestroyMethod:       existingOrEnvOrDefaultString(&resp.Diagnostics, "destroy_method", data.DestroyMethod, "REST_API_DESTROY_METHOD", "DELETE", false),
+		CertFile:            existingOrEnvOrDefaultString(&resp.Diagnostics, "cert_file", data.CertFile, "REST_API_CERT_FILE", "", false),
+		KeyFile:             existingOrEnvOrDefaultString(&resp.Diagnostics, "key_file", data.KeyFile, "REST_API_KEY_FILE", "", false),
+		CertString:          existingOrEnvOrDefaultString(&resp.Diagnostics, "cert_string", data.CertString, "REST_API_CERT_STRING", "", false),
+		KeyString:           existingOrEnvOrDefaultString(&resp.Diagnostics, "key_string", data.KeyString, "REST_API_KEY_STRING", "", false),
+		RootCAFile:          existingOrEnvOrDefaultString(&resp.Diagnostics, "root_ca_file", data.RootCAFile, "REST_API_ROOT_CA_FILE", "", false),
+		RootCAString:        existingOrEnvOrDefaultString(&resp.Diagnostics, "root_ca_string", data.RootCAString, "REST_API_ROOT_CA_STRING", "", false),
 	}
 
 	// Handle retries configuration
 	if data.RetriesConfig != nil {
-		opt.RetryMax = existingOrEnvOrDefaultInt(resp.Diagnostics, "retries.max_retries", data.RetriesConfig.MaxRetries, "REST_API_RETRY_MAX", 0, false)
-		opt.RetryWaitMin = existingOrEnvOrDefaultInt(resp.Diagnostics, "retries.min_wait", data.RetriesConfig.MinWait, "REST_API_RETRY_WAIT_MIN", 0, false)
-		opt.RetryWaitMax = existingOrEnvOrDefaultInt(resp.Diagnostics, "retries.max_wait", data.RetriesConfig.MaxWait, "REST_API_RETRY_WAIT_MAX", 0, false)
+		opt.RetryMax = existingOrEnvOrDefaultInt(&resp.Diagnostics, "retries.max_retries", data.RetriesConfig.MaxRetries, "REST_API_RETRY_MAX", 0, false)
+		opt.RetryWaitMin = existingOrEnvOrDefaultInt(&resp.Diagnostics, "retries.min_wait", data.RetriesConfig.MinWait, "REST_API_RETRY_WAIT_MIN", 0, false)
+		opt.RetryWaitMax = existingOrEnvOrDefaultInt(&resp.Diagnostics, "retries.max_wait", data.RetriesConfig.MaxWait, "REST_API_RETRY_WAIT_MAX", 0, false)
 	}
 
 	if _, err := url.Parse(opt.URI); err != nil {
@@ -430,9 +430,9 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 			}
 		}
 
-		opt.OAuthClientID = existingOrEnvOrDefaultString(resp.Diagnostics, "oauth_client_id", data.OAuthClientCreds.OAuthClientID, "REST_API_OAUTH_CLIENT_ID", "", true)
-		opt.OAuthClientSecret = existingOrEnvOrDefaultString(resp.Diagnostics, "oauth_client_secret", data.OAuthClientCreds.OAuthClientSecret, "REST_API_OAUTH_CLIENT_SECRET", "", true)
-		opt.OAuthTokenURL = existingOrEnvOrDefaultString(resp.Diagnostics, "oauth_token_url", data.OAuthClientCreds.OAuthTokenEndpoint, "REST_API_OAUTH_TOKEN_URL", "", true)
+		opt.OAuthClientID = existingOrEnvOrDefaultString(&resp.Diagnostics, "oauth_client_id", data.OAuthClientCreds.OAuthClientID, "REST_API_OAUTH_CLIENT_ID", "", true)
+		opt.OAuthClientSecret = existingOrEnvOrDefaultString(&resp.Diagnostics, "oauth_client_secret", data.OAuthClientCreds.OAuthClientSecret, "REST_API_OAUTH_CLIENT_SECRET", "", true)
+		opt.OAuthTokenURL = existingOrEnvOrDefaultString(&resp.Diagnostics, "oauth_token_url", data.OAuthClientCreds.OAuthTokenEndpoint, "REST_API_OAUTH_TOKEN_URL", "", true)
 		opt.OAuthScopes = oauthScopes
 
 		if !data.OAuthClientCreds.EndpointParams.IsNull() && !data.OAuthClientCreds.EndpointParams.IsUnknown() {
@@ -467,7 +467,7 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 
 	// If a test_path is provided, issue a read_method request to it
-	tmp := existingOrEnvOrDefaultString(resp.Diagnostics, "test_path", data.TestPath, "REST_API_TEST_PATH", "", false)
+	tmp := existingOrEnvOrDefaultString(&resp.Diagnostics, "test_path", data.TestPath, "REST_API_TEST_PATH", "", false)
 	if tmp != "" {
 		_, _, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug)
 		if err != nil {

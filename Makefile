@@ -12,7 +12,10 @@ fmt:
 test:
 	go test -v -cover -timeout=120s -parallel=10 ./...
 
+test-race:
+	CGO_ENABLED=1 go test -race -v -cover -timeout=120s -parallel=10 ./...
+
 testacc:
 	TF_ACC=1 go test -v -cover -timeout 120m ./...
 
-.PHONY: fmt lint test testacc build install generate docs
+.PHONY: fmt lint test test-race testacc build install generate docs
