@@ -53,6 +53,7 @@ type RestAPIProviderModel struct {
 	RootCAFile          types.String          `tfsdk:"root_ca_file"`
 	RootCAString        types.String          `tfsdk:"root_ca_string"`
 	OAuthClientCreds    *OAuthClientDataModel `tfsdk:"oauth_client_credentials"`
+	RetriesConfig       *RetriesDataModel     `tfsdk:"retries"`
 }
 
 type OAuthClientDataModel struct {
@@ -61,6 +62,12 @@ type OAuthClientDataModel struct {
 	OAuthTokenEndpoint types.String `tfsdk:"oauth_token_endpoint"`
 	OAuthScopes        types.List   `tfsdk:"oauth_scopes"`
 	EndpointParams     types.Map    `tfsdk:"endpoint_params"`
+}
+
+type RetriesDataModel struct {
+	MaxRetries types.Int64 `tfsdk:"max_retries"`
+	MinWait    types.Int64 `tfsdk:"min_wait"`
+	MaxWait    types.Int64 `tfsdk:"max_wait"`
 }
 
 type ProviderData struct {
@@ -110,7 +117,7 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			},
 			"timeout": schema.Int64Attribute{
 				Optional:    true,
-				Description: "When set, will cause requests taking longer than this time (in seconds) to be aborted.",
+				Description: "When set, will cause requests taking longer than this time (in seconds) to be aborted. Must be a positive integer.",
 			},
 			"id_attribute": schema.StringAttribute{
 				Optional:    true,
@@ -151,7 +158,7 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			},
 			"rate_limit": schema.Float64Attribute{
 				Optional:    true,
-				Description: "Set this to limit the number of requests per second made to the API.",
+				Description: "Set this to limit the number of requests per second made to the API. Must be a positive number.",
 			},
 			"test_path": schema.StringAttribute{
 				Optional:    true,
@@ -211,6 +218,23 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 						ElementType: types.StringType,
 						Optional:    true,
 						Description: "Additional key/values to pass to the underlying Oauth client library (as EndpointParams)",
+					},
+				},
+			},
+			"retries": schema.SingleNestedBlock{
+				Description: "Configuration for automatic retry (connection/TLS/etc errors or a 500-range response except 501) of failed HTTP requests",
+				Attributes: map[string]schema.Attribute{
+					"max_retries": schema.Int64Attribute{
+						Description: "Maximum number of retries for failed requests. Defaults to 0.",
+						Optional:    true,
+					},
+					"min_wait": schema.Int64Attribute{
+						Description: "Minimum wait time in seconds between retries. Defaults to 1.",
+						Optional:    true,
+					},
+					"max_wait": schema.Int64Attribute{
+						Description: "Maximum wait time in seconds between retries. Defaults to 30.",
+						Optional:    true,
 					},
 				},
 			},
@@ -294,6 +318,13 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 		RootCAString:        existingOrEnvOrDefaultString(resp.Diagnostics, "root_ca_string", data.RootCAString, "REST_API_ROOT_CA_STRING", "", false),
 	}
 
+	// Handle retries configuration
+	if data.RetriesConfig != nil {
+		opt.RetryMax = existingOrEnvOrDefaultInt(resp.Diagnostics, "retries.max_retries", data.RetriesConfig.MaxRetries, "REST_API_RETRY_MAX", 0, false)
+		opt.RetryWaitMin = existingOrEnvOrDefaultInt(resp.Diagnostics, "retries.min_wait", data.RetriesConfig.MinWait, "REST_API_RETRY_WAIT_MIN", 0, false)
+		opt.RetryWaitMax = existingOrEnvOrDefaultInt(resp.Diagnostics, "retries.max_wait", data.RetriesConfig.MaxWait, "REST_API_RETRY_WAIT_MAX", 0, false)
+	}
+
 	if _, err := url.Parse(opt.URI); err != nil {
 		resp.Diagnostics.AddError(
 			"Invalid URI Configuration",
@@ -313,6 +344,79 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 			"Invalid Configuration",
 			fmt.Sprintf("The rate_limit configuration value must be a positive number. The value %f is not valid.", opt.RateLimit),
 		)
+	}
+
+	if opt.RetryMax < 0 {
+		resp.Diagnostics.AddError(
+			"Invalid Retry Configuration",
+			fmt.Sprintf("The retries.max_retries value must be non-negative. The value %d is not valid.", opt.RetryMax),
+		)
+	}
+	if opt.RetryWaitMin < 0 {
+		resp.Diagnostics.AddError(
+			"Invalid Retry Configuration",
+			fmt.Sprintf("The retries.min_wait value must be non-negative. The value %d is not valid.", opt.RetryWaitMin),
+		)
+	}
+	if opt.RetryWaitMax < 0 {
+		resp.Diagnostics.AddError(
+			"Invalid Retry Configuration",
+			fmt.Sprintf("The retries.max_wait value must be non-negative. The value %d is not valid.", opt.RetryWaitMax),
+		)
+	}
+	if opt.RetryWaitMin > 0 && opt.RetryWaitMax > 0 && opt.RetryWaitMin > opt.RetryWaitMax {
+		resp.Diagnostics.AddError(
+			"Invalid Retry Configuration",
+			fmt.Sprintf("The retries.min_wait (%d) must be less than or equal to retries.max_wait (%d).", opt.RetryWaitMin, opt.RetryWaitMax),
+		)
+	}
+
+	// Check for conflicting OAuth and basic auth
+	if opt.OAuthClientID != "" && opt.Username != "" {
+		resp.Diagnostics.AddError(
+			"Conflicting Authentication Methods",
+			"Both OAuth credentials and basic auth (username/password) are configured. Please use only one authentication method.",
+		)
+		return
+	}
+
+	// Check for conflicting certificate configurations
+	if opt.CertFile != "" && opt.CertString != "" {
+		resp.Diagnostics.AddError(
+			"Conflicting Certificate Configuration",
+			"Both cert_file and cert_string are set. Please use only one method to provide the certificate.",
+		)
+		return
+	}
+	if opt.KeyFile != "" && opt.KeyString != "" {
+		resp.Diagnostics.AddError(
+			"Conflicting Key Configuration",
+			"Both key_file and key_string are set. Please use only one method to provide the key.",
+		)
+		return
+	}
+	if opt.RootCAFile != "" && opt.RootCAString != "" {
+		resp.Diagnostics.AddError(
+			"Conflicting Root CA Configuration",
+			"Both root_ca_file and root_ca_string are set. Please use only one method to provide the root CA.",
+		)
+		return
+	}
+
+	// Validate cert/key pairs
+	if (opt.CertFile != "" || opt.CertString != "") && (opt.KeyFile == "" && opt.KeyString == "") {
+		resp.Diagnostics.AddError(
+			"Incomplete Certificate Configuration",
+			"A certificate is provided but no key is configured. Both cert and key must be provided for mTLS.",
+		)
+		return
+	}
+	if (opt.KeyFile != "" || opt.KeyString != "") && (opt.CertFile == "" && opt.CertString == "") {
+		resp.Diagnostics.AddError(
+			"Incomplete Key Configuration",
+			"A key is provided but no certificate is configured. Both cert and key must be provided for mTLS.",
+		)
+		return
 	}
 
 	// Handle OAuth client credentials if provided

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -54,6 +55,7 @@ type APIObject struct {
 	IDAttribute   string
 
 	// Set internally
+	mux         sync.RWMutex           // Protects data and apiData fields
 	data        map[string]interface{} // Data as managed by the user
 	readData    map[string]interface{} // Data to send during Read operation
 	updateData  map[string]interface{} // Data to send during Update operation
@@ -195,6 +197,9 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 // Convert the important bits about this object to string representation
 // This is useful for debugging.
 func (obj *APIObject) String() string {
+	obj.mux.RLock()
+	defer obj.mux.RUnlock()
+
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("id: %s\n", obj.ID))
 	buffer.WriteString(fmt.Sprintf("get_path: %s\n", obj.readPath))
@@ -221,6 +226,9 @@ func (obj *APIObject) String() string {
 func (obj *APIObject) updateInternalState(state string) error {
 	ctx := context.Background()
 	tflog.Debug(ctx, "Updating API object state to '%s'\n", map[string]interface{}{"state": state})
+
+	obj.mux.Lock()
+	defer obj.mux.Unlock()
 
 	err := json.Unmarshal([]byte(state), &obj.apiData)
 	if err != nil {
@@ -253,8 +261,6 @@ func (obj *APIObject) updateInternalState(state string) error {
 		tflog.Debug(ctx, "copy_keys is empty - not attempting to copy data", nil)
 	}
 
-	tflog.Debug(ctx, "final object after synchronization of state", map[string]interface{}{"object": obj.String()})
-
 	return err
 }
 
@@ -267,7 +273,9 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 		return fmt.Errorf("provided object does not have an id set and the client is not configured to read the object from a POST or PUT response; please set write_returns_object to true, or include an id in the object's data")
 	}
 
+	obj.mux.RLock()
 	b, _ := json.Marshal(obj.data)
+	obj.mux.RUnlock()
 
 	postPath := obj.createPath
 	if obj.queryString != "" {
@@ -377,6 +385,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	send := ""
 	// If update_data is configured, use it for the update payload.
 	// Otherwise, use the full managed data. This allows for partial updates.
+	obj.mux.RLock()
 	if len(obj.updateData) > 0 {
 		updateData, _ := json.Marshal(obj.updateData)
 		send = string(updateData)
@@ -385,6 +394,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		b, _ := json.Marshal(obj.data)
 		send = string(b)
 	}
+	obj.mux.RUnlock()
 
 	putPath := obj.updatePath
 	if obj.queryString != "" {
@@ -533,6 +543,9 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 
 // GetApiData returns a copy of the api_data map from the APIObject
 func (obj *APIObject) GetApiData() map[string]string {
+	obj.mux.RLock()
+	defer obj.mux.RUnlock()
+
 	apiData := make(map[string]string)
 	for k, v := range obj.apiData {
 		apiData[k] = fmt.Sprintf("%v", v)

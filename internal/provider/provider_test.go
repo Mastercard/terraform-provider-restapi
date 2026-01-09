@@ -50,6 +50,25 @@ func TestProvider_valid(t *testing.T) {
 					last = "Bar"
 				})
 			}`,
+
+		"with_retries": `
+			provider "restapi" {
+               	uri = "http://localhost:8080/"
+
+				retries {
+					max_retries = 5
+					min_wait    = 2
+					max_wait    = 60
+				}
+			}
+			resource "restapi_object" "test" {
+				path = "/api/objects"
+				data = jsonencode({
+					id = "55555"
+					first = "Foo"
+					last = "Bar"
+				})
+			}`,
 	}
 
 	for name, config := range tests {
@@ -129,6 +148,161 @@ func TestProvider_invalid(t *testing.T) {
 			provider "restapi" {
 				uri = "http://localhost:8080/"
 				timeout = -5
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"rate_limit_zero": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				rate_limit = 0
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"rate_limit_negative": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				rate_limit = -1.5
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"conflicting_auth_oauth_and_basic": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				username = "user"
+				password = "pass"
+				oauth_client_credentials {
+					oauth_client_id      = "myclientid"
+					oauth_client_secret  = "myclientsecret"
+					oauth_token_endpoint = "http://localhost:8080/oauth/token"
+				}
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"conflicting_auth_bearer_and_basic": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				username = "user"
+				password = "pass"
+				bearer_token = "mytoken"
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"conflicting_cert_file_and_string": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				cert_file = "/path/to/cert.pem"
+				cert_string = "-----BEGIN CERTIFICATE-----"
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"conflicting_key_file_and_string": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				key_file = "/path/to/key.pem"
+				key_string = "-----BEGIN PRIVATE KEY-----"
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"conflicting_root_ca_file_and_string": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				root_ca_file = "/path/to/ca.pem"
+				root_ca_string = "-----BEGIN CERTIFICATE-----"
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"cert_without_key": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				cert_file = "/path/to/cert.pem"
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"key_without_cert": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				key_file = "/path/to/key.pem"
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"retry_max_negative": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				retries {
+					max_retries = -1
+				}
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"retry_min_wait_negative": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				retries {
+					max_retries = 3
+					min_wait    = -5
+					max_wait    = 30
+				}
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"retry_max_wait_negative": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				retries {
+					max_retries = 3
+					min_wait    = 1
+					max_wait    = -10
+				}
+			}
+			data "restapi_object" "test" {
+				path = "/api/test"
+			}
+		`,
+
+		"retry_min_greater_than_max": `
+			provider "restapi" {
+				uri = "http://localhost:8080/"
+				retries {
+					max_retries = 3
+					min_wait    = 60
+					max_wait    = 30
+				}
 			}
 			data "restapi_object" "test" {
 				path = "/api/test"

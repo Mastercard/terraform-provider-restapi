@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -57,11 +58,14 @@ type APIClientOpt struct {
 	KeyString           string
 	RootCAString        string
 	Debug               bool
+	RetryMax            int64
+	RetryWaitMin        int64
+	RetryWaitMax        int64
 }
 
 // APIClient is a HTTP client with additional controlling fields
 type APIClient struct {
-	httpClient          *http.Client
+	httpClient          *retryablehttp.Client
 	uri                 string
 	insecure            bool
 	username            string
@@ -178,13 +182,35 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 	tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.RateLimit, "bucketSize": bucketSize})
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
 
-	httpClient := cleanhttp.DefaultClient()
-	httpClient.Timeout = time.Second * time.Duration(opt.Timeout)
-	httpClient.Transport = tr
-	httpClient.Jar = cookieJar
+	tmpClient := cleanhttp.DefaultClient()
+	tmpClient.Timeout = time.Second * time.Duration(opt.Timeout)
+	tmpClient.Transport = tr
+	tmpClient.Jar = cookieJar
+
+	retryMax := opt.RetryMax
+	retryWaitMin := opt.RetryWaitMin
+	if retryWaitMin == 0 {
+		retryWaitMin = 1
+	}
+	retryWaitMax := opt.RetryWaitMax
+	if retryWaitMax == 0 {
+		retryWaitMax = 30
+	}
+
+	tflog.Info(ctx, "retry configuration", map[string]interface{}{
+		"retryMax":     retryMax,
+		"retryWaitMin": retryWaitMin,
+		"retryWaitMax": retryWaitMax,
+	})
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = int(retryMax)
+	retryClient.RetryWaitMin = time.Duration(retryWaitMin) * time.Second
+	retryClient.RetryWaitMax = time.Duration(retryWaitMax) * time.Second
+	retryClient.HTTPClient = tmpClient
 
 	client := APIClient{
-		httpClient:          httpClient,
+		httpClient:          retryClient,
 		rateLimiter:         rateLimiter,
 		uri:                 opt.URI,
 		insecure:            opt.Insecure,
@@ -246,7 +272,7 @@ func (client *APIClient) String() string {
 // SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
 func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, int, error) {
 	fullURI := client.uri + path
-	var req *http.Request
+	var req *retryablehttp.Request
 	var err error
 
 	tflog.Debug(ctx, "Sending request", map[string]interface{}{"method": method, "path": path, "fullURI": fullURI, "data": data})
@@ -254,9 +280,9 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	buffer := bytes.NewBuffer([]byte(data))
 
 	if data == "" {
-		req, err = http.NewRequest(method, fullURI, nil)
+		req, err = retryablehttp.NewRequest(method, fullURI, nil)
 	} else {
-		req, err = http.NewRequest(method, fullURI, buffer)
+		req, err = retryablehttp.NewRequest(method, fullURI, buffer)
 
 		// Default of application/json, but allow headers array to overwrite later
 		if err == nil {
@@ -293,7 +319,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 
 	if client.debug || forceDebug {
 		fmt.Println("----- HTTP Request -----")
-		if dump, err := httputil.DumpRequest(req, true); err == nil {
+		if dump, err := httputil.DumpRequest(req.Request, true); err == nil {
 			fmt.Println(string(dump))
 		}
 	}

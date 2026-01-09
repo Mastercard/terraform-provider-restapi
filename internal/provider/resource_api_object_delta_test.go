@@ -1,17 +1,9 @@
 package provider
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
 	"reflect"
 	"testing"
-
-	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 // Creating a type alias to save some typing in the test cases
@@ -278,6 +270,12 @@ var deltaTestCases = []deltaTestCase{
 	},
 }
 
+// The below test is disabled in favor of the faster TestHasDelta unit test.
+// However, we are keeping it around for now since it does do an end-to-end
+// test of the resource with a fake server. When messing with the delta logic,
+// particularly if we get into complex changes in ModifyPlan, it can be useful
+//  to re-enable this test.
+/*
 func TestModifyPlan(t *testing.T) {
 	debug := false
 	ctx := context.Background()
@@ -369,6 +367,7 @@ func TestModifyPlan(t *testing.T) {
 
 	svr.Shutdown()
 }
+*/
 
 // generateTypeConversionTests tests many different type combinations
 func generateTypeConversionTests() []deltaTestCase {
