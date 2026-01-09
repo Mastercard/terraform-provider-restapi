@@ -30,7 +30,7 @@ type APIClientOpt struct {
 	Username            string
 	Password            string
 	Headers             map[string]string
-	Timeout             int64
+	Timeout             int64 // Timeout in seconds for HTTP requests
 	IDAttribute         string
 	CreateMethod        string
 	ReadMethod          string
@@ -44,7 +44,7 @@ type APIClientOpt struct {
 	CreateReturnsObject bool
 	XSSIPrefix          string
 	UseCookies          bool
-	RateLimit           float64
+	RateLimit           float64 // RateLimit in requests per second (0 = unlimited)
 	OAuthClientID       string
 	OAuthClientSecret   string
 	OAuthScopes         []string
@@ -172,6 +172,8 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 	}
 
 	rateLimit := rate.Limit(opt.RateLimit)
+
+	// Bucket size determines burst capacity - at minimum 1 request, otherwise rounded rate
 	bucketSize := int(math.Max(math.Round(opt.RateLimit), 1))
 	tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.RateLimit, "bucketSize": bucketSize})
 	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
@@ -241,14 +243,6 @@ func (client *APIClient) String() string {
 	return buffer.String()
 }
 
-func (client *APIClient) CopyKeysEnabled() bool {
-	return len(client.copyKeys) > 0
-}
-
-func (client *APIClient) GetCopyKeys() []string {
-	return client.copyKeys
-}
-
 // SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
 func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, int, error) {
 	fullURI := client.uri + path
@@ -281,6 +275,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.oauthConfig != nil {
+		// Embed our configured HTTP client (with certs, proxy, etc.) into the OAuth token request context
 		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client.httpClient)
 		tokenSource := client.oauthConfig.TokenSource(ctx)
 		token, err := tokenSource.Token()
@@ -291,7 +286,8 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.username != "" && client.password != "" {
-		// ... and fall back to basic auth if configured
+		// Basic auth is applied after OAuth (if configured). If both are set, OAuth takes precedence
+		// as it was set on the Authorization header above
 		req.SetBasicAuth(client.username, client.password)
 	}
 
@@ -330,6 +326,7 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 		return body, resp.StatusCode, fmt.Errorf("unexpected response code '%d': %s", resp.StatusCode, body)
 	}
 
+	// Empty response bodies are normalized to empty JSON objects for consistent parsing
 	if body == "" {
 		return "{}", resp.StatusCode, nil
 	}

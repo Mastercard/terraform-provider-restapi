@@ -143,8 +143,9 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 			return &obj, fmt.Errorf("error parsing data provided: %v", err.Error())
 		}
 
-		// Opportunistically set the object's ID if it is provided in the data.
-		// If it is not set, we will get it later in synchronize_state
+		// Opportunistically extract ID from provided data if present.
+		// If not present, we'll attempt to get it later from the API response
+		// (when write_returns_object or create_returns_object is true) or from search.
 		if obj.ID == "" {
 			var tmp string
 			tmp, err := GetStringAtKey(obj.data, obj.IDAttribute)
@@ -240,7 +241,9 @@ func (obj *APIObject) updateInternalState(state string) error {
 		tflog.Debug(ctx, "Not updating id. It is already set to '%s'\n", map[string]interface{}{"id": obj.ID})
 	}
 
-	// Any keys that come from the data we want to copy are done here
+	// Copy specific keys from API response back to our managed data.
+	// This is useful when the API generates values (e.g., timestamps, computed fields, revision number)
+	// that need to be included in subsequent requests.
 	if len(obj.apiClient.copyKeys) > 0 {
 		for _, key := range obj.apiClient.copyKeys {
 			tflog.Debug(ctx, "Copying key from api_data to data\n", map[string]interface{}{"key": key, "new": obj.apiData[key], "old": obj.data[key]})
@@ -319,6 +322,8 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 
 	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
+		// 404 during refresh means the object was deleted outside Terraform.
+		// Clear the ID to remove it from state gracefully.
 		if strings.Contains(err.Error(), "unexpected response code '404'") {
 			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.readPath})
 			obj.ID = ""
@@ -327,6 +332,8 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		return err
 	}
 
+	// If read_search is configured, use FindObject to locate the resource by search criteria
+	// instead of using the ID directly. This handles APIs that require searching for objects.
 	searchKey := obj.readSearch["search_key"]
 	searchValue := obj.readSearch["search_value"]
 
@@ -334,6 +341,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		obj.searchPath = strings.Replace(obj.readPath, "{id}", obj.ID, -1)
 
 		queryString := obj.readSearch["query_string"]
+		// Merge object-level query string with search-specific query string
 		if obj.queryString != "" {
 			tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 			queryString = fmt.Sprintf("%s&%s", obj.readSearch["query_string"], obj.queryString)
@@ -349,6 +357,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		resultsKey := obj.readSearch["results_key"]
 		objFound, err := obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, searchData)
 		if err != nil || objFound == nil {
+			// Object not found in search results - treat as deleted, remove from state
 			tflog.Info(ctx, "Search did not find object", map[string]interface{}{"search_key": searchKey, "search_value": searchValue})
 			obj.ID = ""
 			return nil
@@ -366,6 +375,8 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	}
 
 	send := ""
+	// If update_data is configured, use it for the update payload.
+	// Otherwise, use the full managed data. This allows for partial updates.
 	if len(obj.updateData) > 0 {
 		updateData, _ := json.Marshal(obj.updateData)
 		send = string(updateData)
@@ -417,6 +428,8 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 
 	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
+		// 404 (Not Found) or 410 (Gone) during delete is acceptable -
+		// the object is already gone, which is the desired end state.
 		if code == http.StatusNotFound || code == http.StatusGone {
 			tflog.Warn(ctx, "404/410 error while deleting object. Assuming already deleted.", map[string]interface{}{"id": obj.ID, "path": obj.deletePath})
 			err = nil
@@ -457,7 +470,8 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 
 		tflog.Debug(ctx, "Locating results_key in the results", map[string]interface{}{"results_key": resultsKey})
 
-		// First verify the data we got back is a map
+		// results_key points to a nested location in the response where the array of objects lives.
+		// For example, if the API returns {"data": [{...}, {...}]}, results_key would be "data".
 		if _, ok = result.(map[string]interface{}); !ok {
 			return objFound, fmt.Errorf("the results of a GET to '%s' did not return a map. Cannot search within for results_key '%s'", searchPath, resultsKey)
 		}

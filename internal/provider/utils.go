@@ -11,6 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
+// existingOrEnvOrDefaultString resolves a string configuration value using a three-tier precedence:
+// 1. Explicit configuration value (curVal)
+// 2. Environment variable (envKey)
+// 3. Default value (def)
+// If required is true and no value is found in tiers 1-2, adds an error diagnostic.
 func existingOrEnvOrDefaultString(d diag.Diagnostics, key string, curVal basetypes.StringValue, envKey string, def string, required bool) string {
 	if !curVal.IsNull() {
 		return curVal.ValueString()
@@ -31,6 +36,12 @@ func existingOrEnvOrDefaultString(d diag.Diagnostics, key string, curVal basetyp
 	return def
 }
 
+// existingOrEnvOrDefaultInt resolves an int64 configuration value using a three-tier precedence:
+// 1. Explicit configuration value (curVal)
+// 2. Environment variable (envKey), parsed as int64
+// 3. Default value (def)
+// If required is true and no value is found in tiers 1-2, adds an error diagnostic.
+// Invalid environment variable values result in an error diagnostic.
 func existingOrEnvOrDefaultInt(d diag.Diagnostics, key string, curVal basetypes.Int64Value, envKey string, def int64, required bool) int64 {
 	if !curVal.IsNull() {
 		return curVal.ValueInt64()
@@ -58,6 +69,12 @@ func existingOrEnvOrDefaultInt(d diag.Diagnostics, key string, curVal basetypes.
 	return def
 }
 
+// existingOrEnvOrDefaultFloat resolves a float64 configuration value using a three-tier precedence:
+// 1. Explicit configuration value (curVal)
+// 2. Environment variable (envKey), parsed as float64
+// 3. Default value (def)
+// If required is true and no value is found in tiers 1-2, adds an error diagnostic.
+// Invalid environment variable values result in an error diagnostic.
 func existingOrEnvOrDefaultFloat(d diag.Diagnostics, key string, curVal basetypes.Float64Value, envKey string, def float64, required bool) float64 {
 	if !curVal.IsNull() {
 		return curVal.ValueFloat64()
@@ -85,6 +102,12 @@ func existingOrEnvOrDefaultFloat(d diag.Diagnostics, key string, curVal basetype
 	return def
 }
 
+// existingOrEnvOrDefaultBool resolves a boolean configuration value using a three-tier precedence:
+// 1. Explicit configuration value (curVal)
+// 2. Environment variable (envKey), parsed as boolean
+// 3. Default value (def)
+// If required is true and no value is found in tiers 1-2, adds an error diagnostic.
+// Invalid environment variable values result in an error diagnostic.
 func existingOrEnvOrDefaultBool(d diag.Diagnostics, key string, curVal basetypes.BoolValue, envKey string, def bool, required bool) bool {
 	if !curVal.IsNull() {
 		return curVal.ValueBool()
@@ -112,7 +135,9 @@ func existingOrEnvOrDefaultBool(d diag.Diagnostics, key string, curVal basetypes
 	return def
 }
 
-func existingOrDefaultString(key string, curVal basetypes.StringValue, def string) string {
+// existingOrDefaultString returns the explicit configuration value if set,
+// otherwise returns the default value.
+func existingOrDefaultString(curVal basetypes.StringValue, def string) string {
 	if !curVal.IsNull() {
 		return curVal.ValueString()
 	}
@@ -120,7 +145,11 @@ func existingOrDefaultString(key string, curVal basetypes.StringValue, def strin
 	return def
 }
 
-func existingOrProviderOrDefaultString(key string, curVal basetypes.StringValue, provVal string, def string) string {
+// existingOrProviderOrDefaultString resolves a string value using a three-tier precedence:
+// 1. Resource-level configuration (curVal)
+// 2. Provider-level configuration (provVal)
+// 3. Default value (def)
+func existingOrProviderOrDefaultString(curVal basetypes.StringValue, provVal string, def string) string {
 	if !curVal.IsNull() {
 		return curVal.ValueString()
 	}
@@ -132,6 +161,9 @@ func existingOrProviderOrDefaultString(key string, curVal basetypes.StringValue,
 	return def
 }
 
+// getPlanAndStateData unmarshals JSON strings into map structures for comparison.
+// Returns the parsed plan data and state data maps. If either JSON is invalid,
+// adds an error diagnostic and returns nil for both maps.
 func getPlanAndStateData(planDataString, stateDataString string, diag *diag.Diagnostics) (map[string]interface{}, map[string]interface{}) {
 	planData := make(map[string]interface{})
 	stateData := make(map[string]interface{})
@@ -152,7 +184,9 @@ func getPlanAndStateData(planDataString, stateDataString string, diag *diag.Diag
 	return planData, stateData
 }
 
-// Helper function to get nested value using dot notation (e.g., "metadata.timestamp")
+// getNestedValue retrieves a value from a nested map structure using dot notation.
+// For example, "metadata.timestamp" accesses data["metadata"]["timestamp"].
+// Returns an error if the path doesn't exist or traverses through a non-map value.
 func getNestedValue(data map[string]interface{}, path string) (interface{}, error) {
 	parts := strings.Split(path, ".")
 	current := data
@@ -175,7 +209,9 @@ func getNestedValue(data map[string]interface{}, path string) (interface{}, erro
 	return nil, fmt.Errorf("empty path")
 }
 
-// Helper function to set nested value using dot notation
+// setNestedValue sets a value in a nested map structure using dot notation.
+// For example, "metadata.timestamp" sets data["metadata"]["timestamp"] = value.
+// Creates intermediate maps as needed if they don't exist.
 func setNestedValue(data map[string]interface{}, path string, value interface{}) {
 	parts := strings.Split(path, ".")
 	current := data
@@ -195,8 +231,12 @@ func setNestedValue(data map[string]interface{}, path string, value interface{})
 	}
 }
 
-// normalizeNullFields removes fields from planData that are null and missing from stateData.
-// This handles the common REST API pattern where null fields are omitted from responses.
+// normalizeNullFields removes null-valued fields from planData when they are absent in stateData.
+// This handles the common REST API pattern where servers omit null/empty fields from responses
+// rather than explicitly returning them as null. Without this normalization, Terraform would
+// detect false drift when a user sets a field to null but the server omits it.
+//
+// The function recursively processes nested map structures to handle deeply nested null fields.
 // Returns true if planData was modified, false otherwise.
 func normalizeNullFields(planData, stateData map[string]interface{}) bool {
 	modified := false

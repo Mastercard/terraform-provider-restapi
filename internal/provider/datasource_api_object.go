@@ -3,7 +3,8 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"os"
+	"strings"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -43,7 +44,7 @@ func (r *RestAPIObjectDataSource) Metadata(ctx context.Context, req datasource.M
 
 func (r *RestAPIObjectDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	// Consider data sensitive if env variables is set to true.
-	isDataSensitive, _ := strconv.ParseBool(apiclient.GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
+	isDataSensitive := strings.ToLower(os.Getenv("API_DATA_IS_SENSITIVE")) == "true"
 
 	resp.Schema = schema.Schema{
 		Description:         "Acting as a restful API client, this object supports POST, GET, PUT and DELETE on the specified url",
@@ -136,10 +137,10 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	queryString := existingOrDefaultString("query_string", state.QueryString, "")
-	searchKey := existingOrDefaultString("search_key", state.SearchKey, "")
-	searchValue := existingOrDefaultString("search_value", state.SearchValue, "")
-	resultsKey := existingOrDefaultString("results_key", state.ResultsKey, "")
+	queryString := existingOrDefaultString(state.QueryString, "")
+	searchKey := existingOrDefaultString(state.SearchKey, "")
+	searchValue := existingOrDefaultString(state.SearchValue, "")
+	resultsKey := existingOrDefaultString(state.ResultsKey, "")
 
 	send := ""
 	client := r.providerData.client
@@ -151,7 +152,7 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		SearchPath:  state.SearchPath.ValueString(),
 		Debug:       state.Debug.ValueBool(),
 		QueryString: queryString,
-		IDAttribute: existingOrProviderOrDefaultString("id_attribute", state.IDAttribute, client.Opts.IDAttribute, ""),
+		IDAttribute: existingOrProviderOrDefaultString(state.IDAttribute, client.Opts.IDAttribute, ""),
 	}
 
 	// If we have a read_query_string, we will use that in the API Object since the

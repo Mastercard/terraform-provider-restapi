@@ -3,7 +3,6 @@ package restapi
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -110,29 +109,4 @@ func GetKeys(hash map[string]interface{}) []string {
 		keys = append(keys, k)
 	}
 	return keys
-}
-
-// GetEnvOrDefault is a helper function that returns the value of the given environment variable, if one exists, or the default value
-func GetEnvOrDefault(k string, defaultvalue string) string {
-	v := os.Getenv(k)
-	if v == "" {
-		return defaultvalue
-	}
-	return v
-}
-
-// ExpandStringSet converts a slice of interfaces to a slice of strings
-func ExpandStringSet(configured []interface{}) []string {
-	return expandStringList(configured)
-}
-
-func expandStringList(configured []interface{}) []string {
-	vs := make([]string, 0, len(configured))
-	for _, v := range configured {
-		val, ok := v.(string)
-		if ok && val != "" {
-			vs = append(vs, v.(string))
-		}
-	}
-	return vs
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"os"
 	"strings"
 
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
@@ -75,7 +75,7 @@ func (r *RestAPIObjectResource) Metadata(ctx context.Context, req resource.Metad
 
 func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	// Consider data sensitive if env variables is set to true.
-	isDataSensitive, _ := strconv.ParseBool(apiclient.GetEnvOrDefault("API_DATA_IS_SENSITIVE", "false"))
+	isDataSensitive := strings.ToLower(os.Getenv("API_DATA_IS_SENSITIVE")) == "true"
 
 	resp.Schema = schema.Schema{
 		Description:         "Acting as a restful API client, this object supports POST, GET, PUT and DELETE on the specified url",
@@ -440,34 +440,6 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		}
 	}
 
-	// copy_keys
-	if len(r.providerData.client.GetCopyKeys()) > 0 {
-		planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		for _, field := range r.providerData.client.GetCopyKeys() {
-			if stateValue, err := getNestedValue(stateData, field); err == nil {
-				setNestedValue(planData, field, stateValue)
-			}
-
-			if modifiedJSON, err := json.Marshal(planData); err == nil {
-				plan.ID = state.ID
-				plan.Data = jsontypes.NewNormalizedValue(string(modifiedJSON))
-				plan.APIData = state.APIData
-				plan.APIResponse = state.APIResponse
-				plan.CreateResponse = state.CreateResponse
-			} else {
-				resp.Diagnostics.AddError(
-					"Error Marshaling Modified Plan Data",
-					fmt.Sprintf("Could not marshal modified plan data: %s", err.Error()),
-				)
-				return
-			}
-		}
-	}
-
 	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 }
 
@@ -624,26 +596,26 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		Debug: model.Debug.ValueBool(),
 
 		// Allow override of provider-level attributes
-		IDAttribute: existingOrProviderOrDefaultString("id_attribute", model.IDAttribute, client.Opts.IDAttribute, ""),
+		IDAttribute: existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
 
-		CreatePath:   existingOrDefaultString("create_path", model.CreatePath, ""),
-		CreateMethod: existingOrProviderOrDefaultString("create_method", model.CreateMethod, client.Opts.CreateMethod, "POST"),
+		CreatePath:   existingOrDefaultString(model.CreatePath, ""),
+		CreateMethod: existingOrProviderOrDefaultString(model.CreateMethod, client.Opts.CreateMethod, "POST"),
 
-		ReadPath:   existingOrDefaultString("read_path", model.ReadPath, ""),
-		ReadMethod: existingOrProviderOrDefaultString("read_method", model.ReadMethod, client.Opts.ReadMethod, "GET"),
+		ReadPath:   existingOrDefaultString(model.ReadPath, ""),
+		ReadMethod: existingOrProviderOrDefaultString(model.ReadMethod, client.Opts.ReadMethod, "GET"),
 		ReadData:   model.ReadData.ValueString(),
 
-		UpdatePath:   existingOrDefaultString("update_path", model.UpdatePath, ""),
-		UpdateMethod: existingOrProviderOrDefaultString("update_method", model.UpdateMethod, client.Opts.UpdateMethod, "PUT"),
+		UpdatePath:   existingOrDefaultString(model.UpdatePath, ""),
+		UpdateMethod: existingOrProviderOrDefaultString(model.UpdateMethod, client.Opts.UpdateMethod, "PUT"),
 		UpdateData:   model.UpdateData.ValueString(),
 
-		DestroyPath:   existingOrDefaultString("destroy_path", model.DestroyPath, ""),
-		DestroyMethod: existingOrProviderOrDefaultString("destroy_method", model.DestroyMethod, client.Opts.DestroyMethod, "DELETE"),
+		DestroyPath:   existingOrDefaultString(model.DestroyPath, ""),
+		DestroyMethod: existingOrProviderOrDefaultString(model.DestroyMethod, client.Opts.DestroyMethod, "DELETE"),
 		DestroyData:   model.DestroyData.ValueString(),
 
 		//TODO: Update readsearch implementation
 		//ReadSearch:             model.ReadSearch.ValueString(),
-		QueryString: existingOrDefaultString("query_string", model.QueryString, ""),
+		QueryString: existingOrDefaultString(model.QueryString, ""),
 	}
 
 	// Allow user to specify the ID manually

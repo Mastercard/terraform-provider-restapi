@@ -102,7 +102,7 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			"headers": schema.MapAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
-				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.",
+				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials are discarded.",
 			},
 			"use_cookies": schema.BoolAttribute{
 				Optional:    true,
