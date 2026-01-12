@@ -133,9 +133,9 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		ID:            opts.ID,
 		IDAttribute:   opts.IDAttribute,
 		data:          make(map[string]interface{}),
-		readData:      make(map[string]interface{}),
-		updateData:    make(map[string]interface{}),
-		destroyData:   make(map[string]interface{}),
+		readData:      nil,
+		updateData:    nil,
+		destroyData:   nil,
 		apiData:       make(map[string]interface{}),
 	}
 
@@ -387,7 +387,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	}
 
 	send := ""
-	if len(obj.readData) > 0 {
+	if obj.readData != nil {
 		readData, _ := json.Marshal(obj.readData)
 		send = string(readData)
 		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
@@ -417,7 +417,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	// If update_data is configured, use it for the update payload.
 	// Otherwise, use the full managed data. This allows for partial updates.
 	obj.mux.RLock()
-	if len(obj.updateData) > 0 {
+	if obj.updateData != nil {
 		updateData, _ := json.Marshal(obj.updateData)
 		send = string(updateData)
 		tflog.Debug(ctx, "Using update data", map[string]interface{}{"update_data": send})
@@ -461,7 +461,7 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 	}
 
 	send := ""
-	if len(obj.destroyData) > 0 {
+	if obj.destroyData != nil {
 		destroyData, _ := json.Marshal(obj.destroyData)
 		send = string(destroyData)
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})

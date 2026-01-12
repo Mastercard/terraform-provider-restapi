@@ -189,6 +189,9 @@ func TestAPIObject(t *testing.T) {
 				if testDebug {
 					fmt.Printf("Getting data for '%s' test case from server\n", testCase)
 				}
+				if testingObjects[testCase].readData == nil {
+					testingObjects[testCase].readData = make(map[string]interface{})
+				}
 				testingObjects[testCase].readData["path"] = "/" + testCase
 				err := testingObjects[testCase].ReadObject(ctx)
 				if err != nil {
@@ -224,6 +227,9 @@ func TestAPIObject(t *testing.T) {
 
 	// Update once more with update_data
 	t.Run("update_object_with_update_data", func(t *testing.T) {
+		if testingObjects["minimal"].updateData == nil {
+			testingObjects["minimal"].updateData = make(map[string]interface{})
+		}
 		testingObjects["minimal"].updateData["Thing"] = "knife"
 		err := testingObjects["minimal"].UpdateObject(ctx)
 		if err != nil {
@@ -295,6 +301,9 @@ func TestAPIObject(t *testing.T) {
 
 	// Delete it again with destroy_data and make sure a 404 follows
 	t.Run("delete_object_with_destroy_data", func(t *testing.T) {
+		if testingObjects["pet"].destroyData == nil {
+			testingObjects["pet"].destroyData = make(map[string]interface{})
+		}
 		testingObjects["pet"].destroyData["destroy"] = "true"
 		testingObjects["pet"].DeleteObject(ctx)
 		err := testingObjects["pet"].ReadObject(ctx)

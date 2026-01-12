@@ -34,7 +34,7 @@ func TestNewAPIObject_InvalidSearchPatch(t *testing.T) {
 	}
 
 	expectedErrMsg := "failed to compile search_patch"
-	if err != nil && len(err.Error()) < len(expectedErrMsg) {
+	if len(err.Error()) < len(expectedErrMsg) {
 		t.Errorf("Expected error message to contain '%s', got: %v", expectedErrMsg, err)
 	}
 }
