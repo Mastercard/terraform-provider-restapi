@@ -10,8 +10,8 @@ import (
 )
 
 // GetStringAtKey uses GetObjectAtKey to verify the resulting object is either a JSON string or Number and returns it as a string
-func GetStringAtKey(data map[string]interface{}, path string) (string, error) {
-	res, err := GetObjectAtKey(data, path)
+func GetStringAtKey(ctx context.Context, data map[string]interface{}, path string) (string, error) {
+	res, err := GetObjectAtKey(ctx, data, path)
 	if err != nil {
 		return "", err
 	}
@@ -46,8 +46,7 @@ func GetStringAtKey(data map[string]interface{}, path string) (string, error) {
 // Result:
 // attrs/id => 1234
 // config/foo => "abc"
-func GetObjectAtKey(data map[string]interface{}, path string) (interface{}, error) {
-	ctx := context.TODO()
+func GetObjectAtKey(ctx context.Context, data map[string]interface{}, path string) (interface{}, error) {
 	hash := data
 
 	parts := strings.Split(path, "/")

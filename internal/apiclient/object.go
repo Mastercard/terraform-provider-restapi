@@ -150,7 +150,7 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		// (when write_returns_object or create_returns_object is true) or from search.
 		if obj.ID == "" {
 			var tmp string
-			tmp, err := GetStringAtKey(obj.data, obj.IDAttribute)
+			tmp, err := GetStringAtKey(ctx, obj.data, obj.IDAttribute)
 			if err == nil {
 				tflog.Debug(ctx, "opportunisticly set id from data provided", map[string]interface{}{"id": tmp})
 				obj.ID = tmp
@@ -240,7 +240,7 @@ func (obj *APIObject) updateInternalState(state string) error {
 	// A usable ID was not passed (in constructor or here),
 	// so we have to guess what it is from the data structure
 	if obj.ID == "" {
-		val, err := GetStringAtKey(obj.apiData, obj.IDAttribute)
+		val, err := GetStringAtKey(ctx, obj.apiData, obj.IDAttribute)
 		if err != nil {
 			return fmt.Errorf("error extracting ID from data element: %s", err)
 		}
@@ -491,7 +491,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 			return nil, fmt.Errorf("the results of a GET to '%s' did not return a map. Cannot search within for results_key '%s'", searchPath, resultsKey)
 		}
 
-		tmp, err = GetObjectAtKey(result.(map[string]interface{}), resultsKey)
+		tmp, err = GetObjectAtKey(ctx, result.(map[string]interface{}), resultsKey)
 		if err != nil {
 			return nil, fmt.Errorf("error finding results_key: %s", err)
 		}
@@ -516,7 +516,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		tflog.Debug(ctx, "Examining item in results array", map[string]interface{}{"item": hash})
 		tflog.Debug(ctx, "Comparing search value to item value", map[string]interface{}{"search_value": searchValue, "search_key": searchKey})
 
-		tmp, err := GetStringAtKey(hash, searchKey)
+		tmp, err := GetStringAtKey(ctx, hash, searchKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err)
 		}
@@ -524,7 +524,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		// We found our record
 		if tmp == searchValue {
 			objFound = hash
-			obj.ID, err = GetStringAtKey(hash, obj.IDAttribute)
+			obj.ID, err = GetStringAtKey(ctx, hash, obj.IDAttribute)
 			if err != nil {
 				return nil, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.IDAttribute, err)
 			}
