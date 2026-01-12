@@ -69,6 +69,30 @@ func TestProvider_valid(t *testing.T) {
 					last = "Bar"
 				})
 			}`,
+
+		"oauth_with_endpoint_params": `
+			provider "restapi" {
+               	uri = "http://localhost:8080/"
+
+				oauth_client_credentials {
+					oauth_client_id      = "myclientid"
+					oauth_client_secret  = "myclientsecret"
+					oauth_token_endpoint = "http://localhost:8080/oauth/token"
+					oauth_scopes         = ["scope1", "scope2"]
+					endpoint_params = {
+						audience = "https://api.example.com"
+						resource = "https://resource.example.com"
+					}
+				}
+			}
+			resource "restapi_object" "test" {
+				path = "/api/objects"
+				data = jsonencode({
+					id = "55555"
+					first = "Foo"
+					last = "Bar"
+				})
+			}`,
 	}
 
 	for name, config := range tests {
@@ -325,61 +349,3 @@ func TestProvider_invalid(t *testing.T) {
 		})
 	}
 }
-
-/*
-
-func TestResourceProvider_Oauth(t *testing.T) {
-	rp := Provider()
-	raw := map[string]interface{}{
-		"uri": "http://foo.bar/baz",
-		"oauth_client_credentials": map[string]interface{}{
-			"oauth_client_id": "test",
-			"oauth_client_credentials": map[string]interface{}{
-				"audience": "coolAPI",
-			},
-		},
-	}
-
-
-	//   XXX: This is expected to work even though we are not
-	//        explicitly declaring the required url parameter since
-	//        the test suite is run with the ENV entry set.
-
-	err := rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
-	if err != nil {
-		t.Fatalf("Provider failed with error: %v", err)
-	}
-}
-
-func TestResourceProvider_RequireTestPath(t *testing.T) {
-	debug := false
-	apiServerObjects := make(map[string]map[string]interface{})
-
-	svr := fakeserver.NewFakeServer(8085, apiServerObjects, true, debug, "")
-	svr.StartInBackground()
-
-	rp := Provider()
-	raw := map[string]interface{}{
-		"uri":       "http://127.0.0.1:8085/",
-		"test_path": "/api/objects",
-	}
-
-	err := rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
-	if err != nil {
-		t.Fatalf("Provider config failed when visiting %v at %v but it did not!", raw["test_path"], raw["uri"])
-	}
-
-	rp = Provider()
-	raw = map[string]interface{}{
-		"uri":       "http://127.0.0.1:8085/",
-		"test_path": "/api/apaththatdoesnotexist",
-	}
-
-	err = rp.Configure(context.TODO(), terraform.NewResourceConfigRaw(raw))
-	if err == nil {
-		t.Fatalf("Provider was expected to fail when visiting %v at %v but it did not!", raw["test_path"], raw["uri"])
-	}
-
-	svr.Shutdown()
-}
-*/

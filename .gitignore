@@ -17,3 +17,4 @@ dist
 .terraform.lock.hcl
 dev.tfrc
 coverage.out
+coverage*.out
