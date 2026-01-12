@@ -3,12 +3,12 @@
 page_title: "restapi_object Resource - restapi"
 subcategory: ""
 description: |-
-  Acting as a wrapper of cURL, this object supports POST, GET, PUT and DELETE on the specified url
+  Acting as a restful API client, this object supports POST, GET, PUT and DELETE on the specified url
 ---
 
 # restapi_object (Resource)
 
-Acting as a wrapper of cURL, this object supports POST, GET, PUT and DELETE on the specified url
+Acting as a restful API client, this object supports POST, GET, PUT and DELETE on the specified url
 
 ## Example Usage
 
@@ -17,6 +17,59 @@ resource "restapi_object" "Foo2" {
   provider = restapi.restapi_headers
   path = "/api/objects"
   data = "{ \"id\": \"55555\", \"first\": \"Foo\", \"last\": \"Bar\" }"
+}
+```
+
+```terraform
+# Example: Using read_search with search_patch to transform API responses
+#
+# When an API returns objects in a wrapped structure or with extra metadata,
+# you can use search_patch to transform the response to match your desired state.
+
+resource "restapi_object" "user_with_search_patch" {
+  path = "/api/users"
+  data = jsonencode({
+    id    = "user123"
+    name  = "John Doe"
+    email = "john@example.com"
+  })
+
+  # Search for the object by email and transform the response
+  read_search = {
+    search_key   = "email"
+    search_value = "john@example.com"
+
+    # If API returns: {"data": {"id": "user123", "name": "John Doe", ...}, "metadata": {...}}
+    # Transform it to: {"id": "user123", "name": "John Doe", ...}
+    search_patch = jsonencode([
+      { op = "copy", from = "/data/id", path = "/id" },
+      { op = "copy", from = "/data/name", path = "/name" },
+      { op = "copy", from = "/data/email", path = "/email" },
+      { op = "remove", path = "/data" },
+      { op = "remove", path = "/metadata" }
+    ])
+  }
+}
+
+# Example: Remove server-generated fields from API responses
+resource "restapi_object" "clean_response" {
+  path = "/api/resources"
+  data = jsonencode({
+    id   = "resource456"
+    name = "My Resource"
+  })
+
+  read_search = {
+    search_key   = "id"
+    search_value = "{id}" # {id} placeholder is replaced with the object's ID
+
+    # Remove fields that the server adds but Terraform shouldn't manage
+    search_patch = jsonencode([
+      { op = "remove", path = "/createdAt" },
+      { op = "remove", path = "/updatedAt" },
+      { op = "remove", path = "/metadata" }
+    ])
+  }
 }
 ```
 
@@ -32,7 +85,7 @@ resource "restapi_object" "Foo2" {
 
 - `create_method` (String) Defaults to `create_method` set on the provider. Allows per-resource override of `create_method` (see `create_method` provider config documentation)
 - `create_path` (String) Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.
-- `debug` (Boolean) Whether to emit verbose debug output while working with the API object on the server.
+- `debug` (Boolean) Whether to emit the HTTP request and response to STDOUT while working with the API object on the server.
 - `destroy_data` (String) Valid JSON object to pass during to destroy requests.
 - `destroy_method` (String) Defaults to `destroy_method` set on the provider. Allows per-resource override of `destroy_method` (see `destroy_method` provider config documentation)
 - `destroy_path` (String) Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
@@ -40,12 +93,13 @@ resource "restapi_object" "Foo2" {
 - `id_attribute` (String) Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)
 - `ignore_all_server_changes` (Boolean) By default Terraform will attempt to revert changes to remote resources. Set this to 'true' to ignore any remote changes. Default: false
 - `ignore_changes_to` (List of String) A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. To ignore changes to nested fields, use the dot syntax: 'metadata.timestamp'
+- `ignore_server_additions` (Boolean) When set to 'true', fields added by the server (but not present in your configuration) will be ignored for drift detection. This prevents resource recreation when the API returns additional fields like defaults, timestamps, or metadata. Unlike 'ignore_all_server_changes', this still detects when the server modifies fields you explicitly configured. Default: false
 - `object_id` (String) Defaults to the id learned by the provider during normal operations and `id_attribute`. Allows you to set the id manually. This is used in conjunction with the `*_path` attributes.
 - `query_string` (String) Query string to be included in the path
 - `read_data` (String) Valid JSON object to pass during read requests.
 - `read_method` (String) Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation)
 - `read_path` (String) Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
-- `read_search` (Map of String) Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)
+- `read_search` (Attributes) Custom search for `read_path`. This map will take `search_data`, `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation) (see [below for nested schema](#nestedatt--read_search))
 - `update_data` (String) Valid JSON object to pass during to update requests.
 - `update_method` (String) Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)
 - `update_path` (String) Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
@@ -55,7 +109,22 @@ resource "restapi_object" "Foo2" {
 - `api_data` (Map of String) After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
 - `api_response` (String) The raw body of the HTTP response from the last read of the object.
 - `create_response` (String) The raw body of the HTTP response returned when creating the object.
-- `id` (String) The ID of this resource.
+- `id` (String) The ID of the object.
+
+<a id="nestedatt--read_search"></a>
+### Nested Schema for `read_search`
+
+Required:
+
+- `search_key` (String) When reading search results from the API, this key is used to identify the specific record to read. This should be a unique record such as 'name'. Similar to results_key, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.
+- `search_value` (String) The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used. Supports interpolation of {id} placeholder with the object's ID.
+
+Optional:
+
+- `query_string` (String) An optional query string to send when performing the search.
+- `results_key` (String) When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.
+- `search_data` (String) Valid JSON object to pass to search request as body
+- `search_patch` (String) A JSON Patch (RFC 6902) to apply to the search result before storing in state. This allows transformation of the API response to match the expected data structure. Example: [{"op":"move","from":"/old","path":"/new"}]
 
 ## Import
 

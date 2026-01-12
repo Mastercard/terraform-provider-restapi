@@ -3,12 +3,12 @@
 page_title: "restapi_object Data Source - restapi"
 subcategory: ""
 description: |-
-  Performs a cURL get command on the specified url.
+  Acting as a restful API client, this object supports POST, GET, PUT and DELETE on the specified url
 ---
 
 # restapi_object (Data Source)
 
-Performs a cURL get command on the specified url.
+Acting as a restful API client, this object supports POST, GET, PUT and DELETE on the specified url
 
 ## Example Usage
 
@@ -43,4 +43,4 @@ data "restapi_object" "John" {
 
 - `api_data` (Map of String) After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
 - `api_response` (String) The raw body of the HTTP response from the last read of the object.
-- `id` (String) The ID of this resource.
+- `id` (String) The ID of the object.

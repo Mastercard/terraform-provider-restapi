@@ -20,13 +20,6 @@ type deltaTestCase struct {
 }
 
 var deltaTestCases = []deltaTestCase{
-	{
-		testCase:       "Server changes the value of a field (ignored)",
-		o1:             MapAny{"foo": "bar"},
-		o2:             MapAny{"foo": "changed"},
-		ignoreList:     []string{"foo"},
-		resultHasDelta: false,
-	},
 
 	// Various cases where there are no changes
 	{
@@ -67,6 +60,7 @@ var deltaTestCases = []deltaTestCase{
 	// values again with one or more ignore_lists.
 
 	// Change a field
+
 	{
 		testCase:       "Server changes the value of a field",
 		o1:             MapAny{"foo": "bar"},
@@ -109,6 +103,7 @@ var deltaTestCases = []deltaTestCase{
 	},
 
 	// Add a field
+
 	{
 		testCase:       "Server adds a field",
 		o1:             MapAny{"foo": "bar"},
@@ -126,6 +121,7 @@ var deltaTestCases = []deltaTestCase{
 	},
 
 	// Remove a field
+
 	{
 		testCase:       "Server removes a field",
 		o1:             MapAny{"foo": "bar", "baz": "foobar"},
@@ -168,6 +164,7 @@ var deltaTestCases = []deltaTestCase{
 	},
 
 	// Deep fields (but ignored)
+
 	{
 		testCase:       "Server changes a deep field (ignored)",
 		o1:             MapAny{"outside": MapAny{"change": "a"}},
@@ -183,6 +180,7 @@ var deltaTestCases = []deltaTestCase{
 		ignoreList:     []string{"outside.add"},
 		resultHasDelta: false,
 	},
+
 	{
 		testCase:       "Server removes a deep field (ignored)",
 		o1:             MapAny{"outside": MapAny{"change": "a", "remove": "a"}},
@@ -403,7 +401,7 @@ func generateTypeConversionTests() []deltaTestCase {
 func TestHasDelta(t *testing.T) {
 	// Run the main test cases
 	for _, testCase := range deltaTestCases {
-		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList)
+		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList, false)
 		if result != testCase.resultHasDelta && !testCase.ignoreAll {
 			t.Errorf("delta_checker_test.go: Test Case [%s] wanted [%v] got [%v]", testCase.testCase, testCase.resultHasDelta, result)
 		}
@@ -411,7 +409,7 @@ func TestHasDelta(t *testing.T) {
 
 	// Test type changes
 	for _, testCase := range generateTypeConversionTests() {
-		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList)
+		_, result := getDelta(testCase.o1, testCase.o2, testCase.ignoreList, false)
 		if result != testCase.resultHasDelta {
 			t.Errorf("delta_checker_test.go: TYPE CONVERSION Test Case [%d:%s] wanted [%v] got [%v]", testCase.testId, testCase.testCase, testCase.resultHasDelta, result)
 		}
@@ -451,8 +449,88 @@ func TestHasDeltaModifiedResource(t *testing.T) {
 
 	ignoreList := []string{"hairball", "hobbies.sleeping", "name"}
 
-	modified, _ := getDelta(recordedInput, actualInput, ignoreList)
+	modified, _ := getDelta(recordedInput, actualInput, ignoreList, false)
 	if !reflect.DeepEqual(expectedOutput, modified) {
 		t.Errorf("delta_checker_test.go: Unexpected delta: expected %v but got %v", expectedOutput, modified)
+	}
+}
+
+func TestIgnoreServerAdditions(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		recorded              map[string]interface{}
+		actual                map[string]interface{}
+		ignoreServerAdditions bool
+		expectedHasChanges    bool
+		expectedResult        map[string]interface{}
+	}{
+		{
+			name:                  "Server adds field - not ignored",
+			recorded:              map[string]interface{}{"foo": "bar"},
+			actual:                map[string]interface{}{"foo": "bar", "status": "active"},
+			ignoreServerAdditions: false,
+			expectedHasChanges:    true,
+			expectedResult:        map[string]interface{}{"foo": "bar", "status": "active"},
+		},
+		{
+			name:                  "Server adds field - ignored",
+			recorded:              map[string]interface{}{"foo": "bar"},
+			actual:                map[string]interface{}{"foo": "bar", "status": "active"},
+			ignoreServerAdditions: true,
+			expectedHasChanges:    false,
+			expectedResult:        map[string]interface{}{"foo": "bar"},
+		},
+		{
+			name:                  "Server adds multiple fields - ignored",
+			recorded:              map[string]interface{}{"name": "test"},
+			actual:                map[string]interface{}{"name": "test", "created_at": "2025-01-01", "updated_at": "2025-01-02", "status": "active"},
+			ignoreServerAdditions: true,
+			expectedHasChanges:    false,
+			expectedResult:        map[string]interface{}{"name": "test"},
+		},
+		{
+			name:                  "Server changes configured field - not affected by ignoreServerAdditions",
+			recorded:              map[string]interface{}{"name": "original"},
+			actual:                map[string]interface{}{"name": "changed", "status": "active"},
+			ignoreServerAdditions: true,
+			expectedHasChanges:    true,
+			expectedResult:        map[string]interface{}{"name": "changed"},
+		},
+		{
+			name:                  "Server adds nested field - ignored",
+			recorded:              map[string]interface{}{"config": map[string]interface{}{"enabled": true}},
+			actual:                map[string]interface{}{"config": map[string]interface{}{"enabled": true, "timestamp": "2025-01-01"}},
+			ignoreServerAdditions: true,
+			expectedHasChanges:    false,
+			expectedResult:        map[string]interface{}{"config": map[string]interface{}{"enabled": true}},
+		},
+		{
+			name:                  "Server adds nested field - not ignored",
+			recorded:              map[string]interface{}{"config": map[string]interface{}{"enabled": true}},
+			actual:                map[string]interface{}{"config": map[string]interface{}{"enabled": true, "timestamp": "2025-01-01"}},
+			ignoreServerAdditions: false,
+			expectedHasChanges:    true,
+			expectedResult:        map[string]interface{}{"config": map[string]interface{}{"enabled": true, "timestamp": "2025-01-01"}},
+		},
+		{
+			name:                  "Server adds and modifies fields - correctly distinguishes",
+			recorded:              map[string]interface{}{"name": "test", "count": 5},
+			actual:                map[string]interface{}{"name": "test-modified", "count": 5, "created_at": "2025-01-01"},
+			ignoreServerAdditions: true,
+			expectedHasChanges:    true,
+			expectedResult:        map[string]interface{}{"name": "test-modified", "count": 5},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, hasChanges := getDelta(tc.recorded, tc.actual, []string{}, tc.ignoreServerAdditions)
+			if hasChanges != tc.expectedHasChanges {
+				t.Errorf("Expected hasChanges=%v, got %v", tc.expectedHasChanges, hasChanges)
+			}
+			if !reflect.DeepEqual(result, tc.expectedResult) {
+				t.Errorf("Expected result=%v, got %v", tc.expectedResult, result)
+			}
+		})
 	}
 }

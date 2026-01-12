@@ -7,8 +7,9 @@ import (
 
 // getDelta performs a deep comparison of two maps - the resource as recorded in state, and the resource as returned by the API.
 // Accepts a third argument that is a set of fields that are to be ignored when looking for differences.
+// Accepts a fourth argument ignoreServerAdditions - when true, fields added by the server (but not in recorded) will be ignored.
 // Returns 1. the recordedResource overlaid with fields that have been modified in actualResource but not ignored, and 2. a bool true if there were any changes.
-func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ignoreList []string) (modifiedResource map[string]interface{}, hasChanges bool) {
+func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ignoreList []string, ignoreServerAdditions bool) (modifiedResource map[string]interface{}, hasChanges bool) {
 	modifiedResource = map[string]interface{}{}
 	hasChanges = false
 
@@ -44,7 +45,7 @@ func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ig
 			}
 			// Recursively compare
 			deeperIgnoreList := _descendIgnoreList(key, ignoreList)
-			if modifiedSubResource, hasChange := getDelta(subMapA, subMapB, deeperIgnoreList); hasChange {
+			if modifiedSubResource, hasChange := getDelta(subMapA, subMapB, deeperIgnoreList, ignoreServerAdditions); hasChange {
 				modifiedResource[key] = modifiedSubResource
 				hasChanges = true
 			} else {
@@ -83,6 +84,10 @@ func getDelta(recorded map[string]interface{}, actual map[string]interface{}, ig
 		}
 
 		// If we've gotten here, that means actualResource has an additional key that wasn't in recordedResource
+		// When ignoreServerAdditions is true, we don't consider server-added fields as changes
+		if ignoreServerAdditions {
+			continue
+		}
 		modifiedResource[key] = valActual
 		hasChanges = true
 	}

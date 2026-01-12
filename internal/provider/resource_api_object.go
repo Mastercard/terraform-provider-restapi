@@ -50,6 +50,7 @@ type RestAPIObjectResourceModel struct {
 	DestroyData            jsontypes.Normalized `tfsdk:"destroy_data"`
 	IgnoreChangesTo        types.List           `tfsdk:"ignore_changes_to"`
 	IgnoreAllServerChanges types.Bool           `tfsdk:"ignore_all_server_changes"`
+	IgnoreServerAdditions  types.Bool           `tfsdk:"ignore_server_additions"`
 
 	ID             types.String `tfsdk:"id"`
 	APIData        types.Map    `tfsdk:"api_data"`
@@ -173,6 +174,10 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"ignore_all_server_changes": schema.BoolAttribute{
 				Description: "By default Terraform will attempt to revert changes to remote resources. Set this to 'true' to ignore any remote changes. Default: false",
+				Optional:    true,
+			},
+			"ignore_server_additions": schema.BoolAttribute{
+				Description: "When set to 'true', fields added by the server (but not present in your configuration) will be ignored for drift detection. This prevents resource recreation when the API returns additional fields like defaults, timestamps, or metadata. Unlike 'ignore_all_server_changes', this still detects when the server modifies fields you explicitly configured. Default: false",
 				Optional:    true,
 			},
 			"read_search": schema.SingleNestedAttribute{
@@ -343,7 +348,8 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 				"stateData": stateData,
 			})
 
-			mergedData, hasDelta := getDelta(stateData, planData, ignoreFields)
+			ignoreServerAdditions := !state.IgnoreServerAdditions.IsNull() && state.IgnoreServerAdditions.ValueBool()
+			mergedData, hasDelta := getDelta(stateData, planData, ignoreFields, ignoreServerAdditions)
 			tflog.Debug(ctx, "Read: after ignoring", map[string]interface{}{
 				"mergedData": mergedData,
 				"hasDelta":   hasDelta,
