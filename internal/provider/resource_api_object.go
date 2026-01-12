@@ -58,11 +58,12 @@ type RestAPIObjectResourceModel struct {
 }
 
 type ReadSearchModel struct {
-	SearchData  jsontypes.Normalized `tfsdk:"search_data"`
-	SearchKey   types.String         `tfsdk:"search_key"`
-	SearchValue types.String         `tfsdk:"search_value"`
-	ResultsKey  types.String         `tfsdk:"results_key"`
-	QueryString types.String         `tfsdk:"query_string"`
+	SearchData   jsontypes.Normalized `tfsdk:"search_data"`
+	SearchKey    types.String         `tfsdk:"search_key"`
+	SearchValue  types.String         `tfsdk:"search_value"`
+	ResultsKey   types.String         `tfsdk:"results_key"`
+	QueryString  types.String         `tfsdk:"query_string"`
+	SearchPatch  jsontypes.Normalized `tfsdk:"search_patch"`
 }
 
 func NewRestAPIObjectResource() resource.Resource {
@@ -198,6 +199,11 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 					"results_key": schema.StringAttribute{
 						Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.",
 						Optional:    true,
+					},
+					"search_patch": schema.StringAttribute{
+						Description: "A JSON Patch (RFC 6902) to apply to the search result before storing in state. This allows transformation of the API response to match the expected data structure. Example: [{\"op\":\"move\",\"from\":\"/old\",\"path\":\"/new\"}]",
+						Optional:    true,
+						CustomType:  jsontypes.NormalizedType{},
 					},
 				},
 			},
@@ -632,6 +638,9 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		}
 		if !model.ReadSearch.SearchData.IsNull() && !model.ReadSearch.SearchData.IsUnknown() {
 			readSearch["search_data"] = model.ReadSearch.SearchData.ValueString()
+		}
+		if !model.ReadSearch.SearchPatch.IsNull() && !model.ReadSearch.SearchPatch.IsUnknown() {
+			readSearch["search_patch"] = model.ReadSearch.SearchPatch.ValueString()
 		}
 		opts.ReadSearch = readSearch
 	}

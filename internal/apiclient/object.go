@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/davecgh/go-spew/spew"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -62,6 +63,7 @@ type APIObject struct {
 	destroyData map[string]interface{} // Data to send during Destroy operation
 	apiData     map[string]interface{} // Data from the most recent read operation of the API object, as massaged to a map
 	apiResponse string                 // Raw API response from most recent read operation
+	searchPatch jsonpatch.Patch        // Pre-compiled JSON Patch for search_patch transformation
 }
 
 // NewAPIObject makes an APIobject to manage a RESTful object in an API
@@ -187,6 +189,15 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		if err != nil {
 			return &obj, fmt.Errorf("error parsing destroy data provided: %v", err.Error())
 		}
+	}
+
+	if searchPatchStr := opts.ReadSearch["search_patch"]; searchPatchStr != "" {
+		tflog.Debug(ctx, "Compiling search_patch", map[string]interface{}{"search_patch": searchPatchStr})
+		patch, err := jsonpatch.DecodePatch([]byte(searchPatchStr))
+		if err != nil {
+			return &obj, fmt.Errorf("failed to compile search_patch: %w", err)
+		}
+		obj.searchPatch = patch
 	}
 
 	tflog.Debug(ctx, "Constructed object", map[string]interface{}{"object": obj.String()})
@@ -352,6 +363,18 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 			obj.ID = ""
 			return nil
 		}
+
+		// Apply search_patch if configured
+		if obj.searchPatch != nil {
+			tflog.Debug(ctx, "Applying search_patch transformation")
+			patchedObj, err := ApplyJSONPatch(ctx, objFound, obj.searchPatch)
+			if err != nil {
+				return fmt.Errorf("failed to apply search_patch: %w", err)
+			}
+			objFound = patchedObj
+			tflog.Debug(ctx, "Successfully applied search_patch")
+		}
+
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateInternalState(string(objFoundString))
 	}

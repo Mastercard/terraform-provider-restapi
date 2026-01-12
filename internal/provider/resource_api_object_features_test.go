@@ -345,3 +345,121 @@ resource "restapi_object" "Test" {
 		},
 	})
 }
+
+// TestAccRestApiObject_ReadPatch tests the search_patch feature for transforming API responses
+func TestAccRestApiObject_ReadPatch(t *testing.T) {
+	debug := false
+
+	// Set up API with objects that have nested data structure
+	// search_patch will unwrap them when reading via search
+	apiServerObjects := map[string]map[string]interface{}{
+		"wrapped1": {
+			"id": "wrapped1",
+			"data": map[string]interface{}{
+				"name":   "Wrapped Object",
+				"status": "active",
+			},
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8110, apiServerObjects, map[string]string{}, true, debug, "")
+	os.Setenv("REST_API_URI", "http://127.0.0.1:8110")
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Test search_patch - it unwraps the nested structure during read
+				Config: `
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id     = "wrapped1"
+    name   = "Wrapped Object"
+    status = "active"
+  })
+
+  # Disable writes since server has wrapped structure
+  create_method = "GET"
+  update_method = "GET"
+
+  read_search = {
+    search_key   = "id"
+    search_value = "wrapped1"
+    # Unwrap /data field: copy contents to root, then remove wrapper
+    search_patch = jsonencode([
+      { op = "copy", from = "/data/name", path = "/name" },
+      { op = "copy", from = "/data/status", path = "/status" },
+      { op = "remove", path = "/data" }
+    ])
+  }
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "wrapped1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.id", "wrapped1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Wrapped Object"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.status", "active"),
+				),
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_ReadPatchRemove tests using search_patch to remove unwanted fields
+func TestAccRestApiObject_ReadPatchRemove(t *testing.T) {
+	debug := false
+
+	// API returns objects with server-generated metadata that we want to strip
+	apiServerObjects := map[string]map[string]interface{}{
+		"meta1": {
+			"id":        "meta1",
+			"name":      "Object with Metadata",
+			"metadata":  map[string]interface{}{"server": "timestamp", "version": "v1"},
+			"createdAt": "2024-01-01T00:00:00Z",
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8111, apiServerObjects, map[string]string{}, true, debug, "")
+	os.Setenv("REST_API_URI", "http://127.0.0.1:8111")
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Remove server-generated fields with JSON Patch
+				Config: `
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "meta1"
+    name = "Object with Metadata"
+  })
+
+  # Use GET to avoid writes
+  create_method = "GET"
+  update_method = "GET"
+
+  read_search = {
+    search_key   = "id"
+    search_value = "meta1"
+    search_patch = jsonencode([
+      { op = "remove", path = "/metadata" },
+      { op = "remove", path = "/createdAt" }
+    ])
+  }
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "meta1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.id", "meta1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Object with Metadata"),
+				),
+			},
+		},
+	})
+}

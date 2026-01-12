@@ -88,6 +88,11 @@ func (svr *Fakeserver) GetServer() *http.Server {
 	return svr.server
 }
 
+/*GetObjects returns the objects map for testing purposes*/
+func (svr *Fakeserver) GetObjects() map[string]map[string]interface{} {
+	return svr.objects
+}
+
 func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 	var obj map[string]interface{}
 	var id string

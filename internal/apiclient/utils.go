@@ -2,12 +2,39 @@ package restapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
+
+// ApplyJSONPatch applies a pre-compiled JSON Patch to a map[string]interface{} object
+// Returns the patched object or an error if the patch cannot be applied
+func ApplyJSONPatch(ctx context.Context, obj map[string]interface{}, patch jsonpatch.Patch) (map[string]interface{}, error) {
+	if patch == nil {
+		return obj, nil
+	}
+
+	objBytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal object for patching: %w", err)
+	}
+
+	patchedBytes, err := patch.Apply(objBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply patch: %w", err)
+	}
+
+	var patchedObj map[string]interface{}
+	if err := json.Unmarshal(patchedBytes, &patchedObj); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal patched object: %w", err)
+	}
+
+	return patchedObj, nil
+}
 
 // GetStringAtKey uses GetObjectAtKey to verify the resulting object is either a JSON string or Number and returns it as a string
 func GetStringAtKey(ctx context.Context, data map[string]interface{}, path string) (string, error) {

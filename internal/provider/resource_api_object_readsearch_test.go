@@ -102,6 +102,23 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 				"search_value": "{id}", // Not yet substituted at this stage
 			},
 		},
+		{
+			name: "read_search_with_search_patch",
+			model: &RestAPIObjectResourceModel{
+				Path: types.StringValue("/api/objects"),
+				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				ReadSearch: &ReadSearchModel{
+					SearchKey:    types.StringValue("email"),
+					SearchValue:  types.StringValue("test@example.com"),
+					SearchPatch:  jsontypes.NewNormalizedValue(`[{"op":"move","from":"/data","path":"/"}]`),
+				},
+			},
+			expectedSearch: map[string]string{
+				"search_key":   "email",
+				"search_value": "test@example.com",
+				"search_patch": `[{"op":"move","from":"/data","path":"/"}]`,
+			},
+		},
 	}
 
 	for _, tt := range tests {
