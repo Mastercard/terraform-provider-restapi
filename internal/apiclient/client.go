@@ -175,12 +175,16 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		cookieJar, _ = cookiejar.New(nil)
 	}
 
-	rateLimit := rate.Limit(opt.RateLimit)
-
-	// Bucket size determines burst capacity - at minimum 1 request, otherwise rounded rate
-	bucketSize := int(math.Max(math.Round(opt.RateLimit), 1))
-	tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.RateLimit, "bucketSize": bucketSize})
-	rateLimiter := rate.NewLimiter(rateLimit, bucketSize)
+	var rateLimiter *rate.Limiter
+	if opt.RateLimit > 0 {
+		rateLimit := rate.Limit(opt.RateLimit)
+		// Bucket size determines burst capacity - at minimum 1 request, otherwise rounded rate
+		bucketSize := int(math.Max(math.Round(opt.RateLimit), 1))
+		tflog.Info(ctx, "rate limit configured", map[string]interface{}{"rateLimit": opt.RateLimit, "bucketSize": bucketSize})
+		rateLimiter = rate.NewLimiter(rateLimit, bucketSize)
+	} else {
+		tflog.Info(ctx, "rate limiting disabled", nil)
+	}
 
 	tmpClient := cleanhttp.DefaultClient()
 	tmpClient.Timeout = time.Second * time.Duration(opt.Timeout)
