@@ -104,13 +104,13 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		opts.CreatePath = opts.Path
 	}
 	if opts.ReadPath == "" {
-		opts.ReadPath = opts.Path + "/{id}"
+		opts.ReadPath = appendIdToPath(opts.Path)
 	}
 	if opts.UpdatePath == "" {
-		opts.UpdatePath = opts.Path + "/{id}"
+		opts.UpdatePath = appendIdToPath(opts.Path)
 	}
 	if opts.DestroyPath == "" {
-		opts.DestroyPath = opts.Path + "/{id}"
+		opts.DestroyPath = appendIdToPath(opts.Path)
 	}
 	if opts.SearchPath == "" {
 		opts.SearchPath = opts.Path
@@ -599,4 +599,19 @@ func (obj *APIObject) GetReadSearch() map[string]string {
 		readSearch[k] = v
 	}
 	return readSearch
+}
+
+// appendIdToPath appends /{id} to a path in a robust way that handles query strings.
+// If the path already contains {id}, it returns the path unchanged.
+// If the path contains query parameters, it inserts /{id} before the query string.
+// Otherwise, it appends /{id} to the end of the path.
+func appendIdToPath(path string) string {
+	if strings.Contains(path, "{id}") {
+		return path
+	}
+	if strings.Contains(path, "?") {
+		parts := strings.SplitN(path, "?", 2)
+		return parts[0] + "/{id}?" + parts[1]
+	}
+	return path + "/{id}"
 }
