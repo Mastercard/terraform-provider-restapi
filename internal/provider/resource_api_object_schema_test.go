@@ -126,6 +126,27 @@ func TestResourceObject_valid(t *testing.T) {
 				}
 			}`,
 
+		"with_full_read_search": `
+			provider "restapi" {
+               	uri = "http://localhost:8080/"
+			}
+			resource "restapi_object" "test" {
+				path = "/api/objects"
+				data = jsonencode({
+					name = "test"
+					email = "test@example.com"
+				})
+				read_search = {
+					search_key = "email"
+					search_value = "test@example.com"
+					results_key = "data"
+					query_string = "status=active"
+					search_data = jsonencode({
+						filter = "active"
+					})
+				}
+			}`,
+
 		"with_overrides": `
 			provider "restapi" {
                	uri = "http://localhost:8080/"

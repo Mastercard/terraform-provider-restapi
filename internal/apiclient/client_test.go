@@ -143,6 +143,44 @@ func setupAPIClientServer() {
 	serverMux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/ok", http.StatusPermanentRedirect)
 	})
+	serverMux.HandleFunc("/error/400", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	})
+	serverMux.HandleFunc("/error/401", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
+	serverMux.HandleFunc("/error/404", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+	})
+	serverMux.HandleFunc("/error/500", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	})
+	serverMux.HandleFunc("/empty", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Send empty body
+	})
+	serverMux.HandleFunc("/xssi", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(")]}'\n{\"data\":\"test\"}"))
+	})
+	serverMux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("{\"id\":\"123\",\"name\":\"test\"}"))
+	})
+	serverMux.HandleFunc("/check-auth", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth == "" {
+			http.Error(w, "Missing Authorization", http.StatusUnauthorized)
+			return
+		}
+		w.Write([]byte("Authorized"))
+	})
+	serverMux.HandleFunc("/check-header", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Custom-Header") != "test-value" {
+			http.Error(w, "Missing or invalid header", http.StatusBadRequest)
+			return
+		}
+		w.Write([]byte("Header OK"))
+	})
 
 	apiClientServer = &http.Server{
 		Addr:    "127.0.0.1:8083",
@@ -447,4 +485,229 @@ func TestNewAPIClientWithoutOAuth(t *testing.T) {
 			assert.Nil(t, client.oauthConfig, "OAuth config should be nil when incomplete")
 		})
 	}
+}
+
+func TestSendRequestErrors(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:       "http://127.0.0.1:8083",
+		Timeout:   2,
+		Debug:     debug,
+		RateLimit: 0,
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	tests := []struct {
+		name           string
+		method         string
+		path           string
+		data           string
+		expectedStatus int
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "http_400_error",
+			method:         "GET",
+			path:           "/error/400",
+			expectedStatus: 400,
+			expectError:    true,
+			errorContains:  "unexpected response code '400'",
+		},
+		{
+			name:           "http_401_error",
+			method:         "GET",
+			path:           "/error/401",
+			expectedStatus: 401,
+			expectError:    true,
+			errorContains:  "unexpected response code '401'",
+		},
+		{
+			name:           "http_404_error",
+			method:         "GET",
+			path:           "/error/404",
+			expectedStatus: 404,
+			expectError:    true,
+			errorContains:  "unexpected response code '404'",
+		},
+		{
+			name:           "http_500_error",
+			method:         "GET",
+			path:           "/error/500",
+			expectedStatus: 0, // retryablehttp doesn't return status on retry exhaustion
+			expectError:    true,
+			errorContains:  "giving up after",
+		},
+		{
+			name:           "empty_response_body",
+			method:         "GET",
+			path:           "/empty",
+			expectedStatus: 200,
+			expectError:    false,
+		},
+		{
+			name:           "json_response",
+			method:         "GET",
+			path:           "/json",
+			expectedStatus: 200,
+			expectError:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, status, err := client.SendRequest(ctx, tt.method, tt.path, tt.data, debug)
+
+			assert.Equal(t, tt.expectedStatus, status, "Status code should match expected")
+
+			if tt.expectError {
+				assert.Error(t, err, "Should return an error")
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+				}
+			} else {
+				assert.NoError(t, err, "Should not return an error")
+				assert.NotEmpty(t, body, "Response body should not be empty")
+			}
+		})
+	}
+}
+
+func TestSendRequestEmptyBodyNormalization(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:     "http://127.0.0.1:8083",
+		Timeout: 2,
+		Debug:   debug,
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	body, status, err := client.SendRequest(ctx, "GET", "/empty", "", debug)
+	require.NoError(t, err, "Should not return an error")
+	assert.Equal(t, 200, status, "Status should be 200")
+	assert.Equal(t, "{}", body, "Empty body should be normalized to {}")
+}
+
+func TestSendRequestXSSIPrefix(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:        "http://127.0.0.1:8083",
+		Timeout:    2,
+		Debug:      debug,
+		XSSIPrefix: ")]}'",
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	body, status, err := client.SendRequest(ctx, "GET", "/xssi", "", debug)
+	require.NoError(t, err, "Should not return an error")
+	assert.Equal(t, 200, status, "Status should be 200")
+	assert.Equal(t, "\n{\"data\":\"test\"}", body, "XSSI prefix should be stripped")
+}
+
+func TestSendRequestWithHeaders(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:     "http://127.0.0.1:8083",
+		Timeout: 2,
+		Debug:   debug,
+		Headers: map[string]string{
+			"X-Custom-Header": "test-value",
+		},
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	body, status, err := client.SendRequest(ctx, "GET", "/check-header", "", debug)
+	require.NoError(t, err, "Should not return an error")
+	assert.Equal(t, 200, status, "Status should be 200")
+	assert.Equal(t, "Header OK", body, "Should receive success response")
+}
+
+func TestSendRequestWithBasicAuth(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:      "http://127.0.0.1:8083",
+		Timeout:  2,
+		Debug:    debug,
+		Username: "testuser",
+		Password: "testpass",
+		Headers: map[string]string{
+			"Authorization": "Basic dGVzdHVzZXI6dGVzdHBhc3M=", // testuser:testpass in base64
+		},
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	body, status, err := client.SendRequest(ctx, "GET", "/check-auth", "", debug)
+	require.NoError(t, err, "Should not return an error")
+	assert.Equal(t, 200, status, "Status should be 200")
+	assert.Equal(t, "Authorized", body, "Should receive authorized response")
+}
+
+func TestSendRequestWithData(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:     "http://127.0.0.1:8083",
+		Timeout: 2,
+		Debug:   debug,
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	testData := `{"name":"test","value":123}`
+	body, status, err := client.SendRequest(ctx, "POST", "/json", testData, debug)
+	require.NoError(t, err, "Should not return an error")
+	assert.Equal(t, 200, status, "Status should be 200")
+	assert.NotEmpty(t, body, "Response body should not be empty")
+}
+
+func TestSendRequestConnectionError(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	// Don't start a server - should get connection error
+	opt := &APIClientOpt{
+		URI:     "http://127.0.0.1:9999", // Non-existent server
+		Timeout: 2,
+		Debug:   debug,
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	_, _, err = client.SendRequest(ctx, "GET", "/test", "", debug)
+	assert.Error(t, err, "Should return connection error")
+	assert.Contains(t, err.Error(), "connection refused", "Should contain connection refused error")
 }

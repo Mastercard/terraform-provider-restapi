@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testDebug = false
@@ -333,4 +335,261 @@ func TestAPIObject(t *testing.T) {
 	if testDebug {
 		fmt.Println("api_object_test.go: Done")
 	}
+}
+
+func TestGetApiDataAndResponse(t *testing.T) {
+	ctx := context.Background()
+
+	testObjects := map[string]map[string]interface{}{
+		"test1": {
+			"id":    "test1",
+			"name":  "Test Object",
+			"value": 123,
+		},
+	}
+	svr := fakeserver.NewFakeServer(8081, testObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	client, _ := NewAPIClient(&APIClientOpt{
+		URI:     "http://127.0.0.1:8081",
+		Timeout: 2,
+	})
+
+	obj, _ := NewAPIObject(client, &APIObjectOpts{
+		Path: "/api/objects",
+		ID:   "test1",
+	})
+
+	err := obj.ReadObject(ctx)
+	require.NoError(t, err, "ReadObject should not return an error")
+
+	apiData := obj.GetApiData()
+	assert.NotNil(t, apiData, "GetApiData should return a map")
+	assert.Equal(t, "test1", apiData["id"], "API data should contain correct id")
+	assert.Equal(t, "Test Object", apiData["name"], "API data should contain correct name")
+	assert.Equal(t, "123", apiData["value"], "API data should contain correct value")
+
+	apiResponse := obj.GetApiResponse()
+	assert.NotEmpty(t, apiResponse, "GetApiResponse should return non-empty string")
+	assert.Contains(t, apiResponse, "test1", "API response should contain the object ID")
+}
+
+func TestReadObject404Handling(t *testing.T) {
+	ctx := context.Background()
+
+	testObjects := map[string]map[string]interface{}{}
+	svr := fakeserver.NewFakeServer(8081, testObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	client, _ := NewAPIClient(&APIClientOpt{
+		URI:     "http://127.0.0.1:8081",
+		Timeout: 2,
+	})
+
+	obj, _ := NewAPIObject(client, &APIObjectOpts{
+		Path: "/api/objects",
+		ID:   "nonexistent",
+	})
+
+	err := obj.ReadObject(ctx)
+
+	assert.NoError(t, err, "ReadObject should not return error on 404")
+	assert.Equal(t, "", obj.ID, "ID should be cleared after 404")
+}
+
+func TestReadObjectWithReadSearch(t *testing.T) {
+	ctx := context.Background()
+
+	testObjects := map[string]map[string]interface{}{
+		"obj1": {
+			"id":     "obj1",
+			"name":   "First Object",
+			"status": "active",
+		},
+		"obj2": {
+			"id":     "obj2",
+			"name":   "Second Object",
+			"status": "inactive",
+		},
+		"obj3": {
+			"id":     "obj3",
+			"name":   "Third Object",
+			"status": "active",
+		},
+	}
+	svr := fakeserver.NewFakeServer(8081, testObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	client, _ := NewAPIClient(&APIClientOpt{
+		URI:     "http://127.0.0.1:8081",
+		Timeout: 2,
+	})
+
+	obj, _ := NewAPIObject(client, &APIObjectOpts{
+		Path:       "/api/objects",
+		SearchPath: "/api/objects",
+		ID:         "obj2",
+		ReadSearch: map[string]string{
+			"search_key":   "name",
+			"search_value": "Second Object",
+		},
+	})
+
+	err := obj.ReadObject(ctx)
+	require.NoError(t, err, "ReadObject with search should not return an error")
+
+	assert.Equal(t, "obj2", obj.ID, "Should find correct object by search")
+
+	apiData := obj.GetApiData()
+	assert.Equal(t, "Second Object", apiData["name"], "Should have correct object data from search")
+}
+
+func TestReadObjectSearchNotFound(t *testing.T) {
+	ctx := context.Background()
+
+	testObjects := map[string]map[string]interface{}{
+		"obj1": {
+			"id":   "obj1",
+			"name": "Existing Object",
+		},
+	}
+	svr := fakeserver.NewFakeServer(8081, testObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	client, _ := NewAPIClient(&APIClientOpt{
+		URI:     "http://127.0.0.1:8081",
+		Timeout: 2,
+	})
+
+	obj, _ := NewAPIObject(client, &APIObjectOpts{
+		Path:       "/api/objects",
+		SearchPath: "/api/objects",
+		ID:         "obj999",
+		ReadSearch: map[string]string{
+			"search_key":   "name",
+			"search_value": "NonExistent Object",
+		},
+	})
+
+	err := obj.ReadObject(ctx)
+	assert.NoError(t, err, "ReadObject with no search results should not return error")
+	assert.Equal(t, "", obj.ID, "ID should be cleared when search finds nothing")
+}
+
+func TestFindObjectEdgeCases(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		objects       map[string]map[string]interface{}
+		searchKey     string
+		searchValue   string
+		resultsKey    string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:          "empty_results_array",
+			objects:       map[string]map[string]interface{}{},
+			searchKey:     "name",
+			searchValue:   "test",
+			expectError:   true,
+			errorContains: "failed to find an object",
+		},
+		{
+			name: "missing_search_key_in_results",
+			objects: map[string]map[string]interface{}{
+				"obj1": {
+					"id":          "obj1",
+					"other_field": "value",
+				},
+			},
+			searchKey:     "name",
+			searchValue:   "test",
+			expectError:   true,
+			errorContains: "failed to get the value of 'name'",
+		},
+		{
+			name: "missing_id_attribute",
+			objects: map[string]map[string]interface{}{
+				"obj1": {
+					"name": "test",
+				},
+			},
+			searchKey:     "name",
+			searchValue:   "test",
+			expectError:   true,
+			errorContains: "failed to find id_attribute",
+		},
+		{
+			name: "successful_search",
+			objects: map[string]map[string]interface{}{
+				"obj1": {
+					"id":   "obj1",
+					"name": "test",
+				},
+			},
+			searchKey:   "name",
+			searchValue: "test",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svr := fakeserver.NewFakeServer(8081, tt.objects, map[string]string{}, true, false, "")
+			defer svr.Shutdown()
+
+			client, _ := NewAPIClient(&APIClientOpt{
+				URI:     "http://127.0.0.1:8081",
+				Timeout: 2,
+			})
+
+			obj, _ := NewAPIObject(client, &APIObjectOpts{
+				Path:       "/api/objects",
+				SearchPath: "/api/objects",
+			})
+
+			result, err := obj.FindObject(ctx, "", tt.searchKey, tt.searchValue, tt.resultsKey, "")
+
+			if tt.expectError {
+				assert.Error(t, err, "FindObject should return an error")
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+				}
+				assert.Nil(t, result, "Result should be nil on error")
+			} else {
+				assert.NoError(t, err, "FindObject should not return an error")
+				assert.NotNil(t, result, "Result should not be nil")
+			}
+		})
+	}
+}
+
+func TestFindObjectWithResultsKey(t *testing.T) {
+	ctx := context.Background()
+
+	testObjects := map[string]map[string]interface{}{
+		"obj1": {
+			"id":   "obj1",
+			"name": "Test Object",
+		},
+	}
+	svr := fakeserver.NewFakeServer(8081, testObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	client, _ := NewAPIClient(&APIClientOpt{
+		URI:     "http://127.0.0.1:8081",
+		Timeout: 2,
+	})
+
+	obj, _ := NewAPIObject(client, &APIObjectOpts{
+		Path:       "/api/objects",
+		SearchPath: "/api/object_list", // This endpoint returns {"list": [...], "results": true, ...}
+	})
+
+	result, err := obj.FindObject(ctx, "", "name", "Test Object", "list", "")
+	assert.NoError(t, err, "FindObject with results_key should not return an error")
+	assert.NotNil(t, result, "Result should not be nil")
+	assert.Equal(t, "obj1", obj.ID, "Should find the correct object ID")
 }

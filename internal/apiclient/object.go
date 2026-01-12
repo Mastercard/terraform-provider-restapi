@@ -315,38 +315,17 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		return fmt.Errorf("cannot read an object unless the ID has been set")
 	}
 
-	getPath := obj.readPath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		getPath = fmt.Sprintf("%s?%s", obj.readPath, obj.queryString)
-	}
-
-	send := ""
-	if len(obj.readData) > 0 {
-		readData, _ := json.Marshal(obj.readData)
-		send = string(readData)
-		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
-	}
-
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
-	if err != nil {
-		// 404 during refresh means the object was deleted outside Terraform.
-		// Clear the ID to remove it from state gracefully.
-		if strings.Contains(err.Error(), "unexpected response code '404'") {
-			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.readPath})
-			obj.ID = ""
-			return nil
-		}
-		return err
-	}
-
 	// If read_search is configured, use FindObject to locate the resource by search criteria
 	// instead of using the ID directly. This handles APIs that require searching for objects.
 	searchKey := obj.readSearch["search_key"]
 	searchValue := obj.readSearch["search_value"]
 
 	if searchKey != "" && searchValue != "" {
-		obj.searchPath = strings.Replace(obj.readPath, "{id}", obj.ID, -1)
+		// Ensure searchPath is set correctly. If not explicitly set, derive it from readPath
+		// by removing the /{id} suffix to get the collection endpoint.
+		if obj.searchPath == "" {
+			obj.searchPath = strings.TrimSuffix(obj.readPath, "/{id}")
+		}
 
 		queryString := obj.readSearch["query_string"]
 		// Merge object-level query string with search-specific query string
@@ -372,6 +351,32 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		}
 		objFoundString, _ := json.Marshal(objFound)
 		return obj.updateInternalState(string(objFoundString))
+	}
+
+	// Normal read path (no search configured)
+	getPath := obj.readPath
+	if obj.queryString != "" {
+		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
+		getPath = fmt.Sprintf("%s?%s", obj.readPath, obj.queryString)
+	}
+
+	send := ""
+	if len(obj.readData) > 0 {
+		readData, _ := json.Marshal(obj.readData)
+		send = string(readData)
+		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
+	}
+
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
+	if err != nil {
+		// 404 during refresh means the object was deleted outside Terraform.
+		// Clear the ID to remove it from state gracefully.
+		if strings.Contains(err.Error(), "unexpected response code '404'") {
+			tflog.Warn(ctx, "404 error while refreshing state. Removing from state.", map[string]interface{}{"id": obj.ID, "path": obj.readPath})
+			obj.ID = ""
+			return nil
+		}
+		return err
 	}
 
 	return obj.updateInternalState(resultString)
@@ -464,7 +469,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	tflog.Debug(ctx, "Calling API on path", map[string]interface{}{"path": searchPath})
 	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData, obj.debug)
 	if err != nil {
-		return objFound, err
+		return nil, err
 	}
 
 	// Parse it seeking JSON data
@@ -472,7 +477,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	var result interface{}
 	err = json.Unmarshal([]byte(resultString), &result)
 	if err != nil {
-		return objFound, err
+		return nil, err
 	}
 
 	if resultsKey != "" {
@@ -483,20 +488,20 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		// results_key points to a nested location in the response where the array of objects lives.
 		// For example, if the API returns {"data": [{...}, {...}]}, results_key would be "data".
 		if _, ok = result.(map[string]interface{}); !ok {
-			return objFound, fmt.Errorf("the results of a GET to '%s' did not return a map. Cannot search within for results_key '%s'", searchPath, resultsKey)
+			return nil, fmt.Errorf("the results of a GET to '%s' did not return a map. Cannot search within for results_key '%s'", searchPath, resultsKey)
 		}
 
 		tmp, err = GetObjectAtKey(result.(map[string]interface{}), resultsKey)
 		if err != nil {
-			return objFound, fmt.Errorf("error finding results_key: %s", err)
+			return nil, fmt.Errorf("error finding results_key: %s", err)
 		}
 		if dataArray, ok = tmp.([]interface{}); !ok {
-			return objFound, fmt.Errorf("the data at results_key location '%s' is not an array. It is a '%s'", resultsKey, reflect.TypeOf(tmp))
+			return nil, fmt.Errorf("the data at results_key location '%s' is not an array. It is a '%s'", resultsKey, reflect.TypeOf(tmp))
 		}
 	} else {
 		tflog.Debug(ctx, "results_key is not set - coaxing data to array of interfaces", nil)
 		if dataArray, ok = result.([]interface{}); !ok {
-			return objFound, fmt.Errorf("the results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", searchPath, reflect.TypeOf(result))
+			return nil, fmt.Errorf("the results of a GET to '%s' did not return an array. It is a '%s'. Perhaps you meant to add a results_key?", searchPath, reflect.TypeOf(result))
 		}
 	}
 
@@ -505,7 +510,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		var hash map[string]interface{}
 
 		if hash, ok = item.(map[string]interface{}); !ok {
-			return objFound, fmt.Errorf("the elements being searched for data are not a map of key value pairs")
+			return nil, fmt.Errorf("the elements being searched for data are not a map of key value pairs")
 		}
 
 		tflog.Debug(ctx, "Examining item in results array", map[string]interface{}{"item": hash})
@@ -513,7 +518,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 
 		tmp, err := GetStringAtKey(hash, searchKey)
 		if err != nil {
-			return objFound, fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err)
+			return nil, fmt.Errorf("failed to get the value of '%s' in the results array at '%s': %s", searchKey, resultsKey, err)
 		}
 
 		// We found our record
@@ -521,21 +526,21 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 			objFound = hash
 			obj.ID, err = GetStringAtKey(hash, obj.IDAttribute)
 			if err != nil {
-				return objFound, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.IDAttribute, err)
+				return nil, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.IDAttribute, err)
 			}
 
 			tflog.Debug(ctx, "Found ID '%s'", map[string]interface{}{"id": obj.ID})
 
 			// But there is no id attribute???
 			if obj.ID == "" {
-				return objFound, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, obj.IDAttribute)
+				return nil, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, obj.IDAttribute)
 			}
 			break
 		}
 	}
 
 	if obj.ID == "" {
-		return objFound, fmt.Errorf("failed to find an object with the '%s' key = '%s' at %s", searchKey, searchValue, searchPath)
+		return nil, fmt.Errorf("failed to find an object with the '%s' key = '%s' at %s", searchKey, searchValue, searchPath)
 	}
 
 	return objFound, nil
@@ -556,4 +561,16 @@ func (obj *APIObject) GetApiData() map[string]string {
 // GetApiResponse returns a copy of the raw API response from the APIObject
 func (obj *APIObject) GetApiResponse() string {
 	return obj.apiResponse
+}
+
+// GetReadSearch returns a copy of the read_search configuration
+func (obj *APIObject) GetReadSearch() map[string]string {
+	if obj.readSearch == nil {
+		return nil
+	}
+	readSearch := make(map[string]string)
+	for k, v := range obj.readSearch {
+		readSearch[k] = v
+	}
+	return readSearch
 }

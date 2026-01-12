@@ -613,9 +613,28 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		DestroyMethod: existingOrProviderOrDefaultString(model.DestroyMethod, client.Opts.DestroyMethod, "DELETE"),
 		DestroyData:   model.DestroyData.ValueString(),
 
-		//TODO: Update readsearch implementation
-		//ReadSearch:             model.ReadSearch.ValueString(),
 		QueryString: existingOrDefaultString(model.QueryString, ""),
+	}
+
+	// Wire up read_search if configured
+	if model.ReadSearch != nil {
+		readSearch := make(map[string]string)
+		if !model.ReadSearch.SearchKey.IsNull() && !model.ReadSearch.SearchKey.IsUnknown() {
+			readSearch["search_key"] = model.ReadSearch.SearchKey.ValueString()
+		}
+		if !model.ReadSearch.SearchValue.IsNull() && !model.ReadSearch.SearchValue.IsUnknown() {
+			readSearch["search_value"] = model.ReadSearch.SearchValue.ValueString()
+		}
+		if !model.ReadSearch.ResultsKey.IsNull() && !model.ReadSearch.ResultsKey.IsUnknown() {
+			readSearch["results_key"] = model.ReadSearch.ResultsKey.ValueString()
+		}
+		if !model.ReadSearch.QueryString.IsNull() && !model.ReadSearch.QueryString.IsUnknown() {
+			readSearch["query_string"] = model.ReadSearch.QueryString.ValueString()
+		}
+		if !model.ReadSearch.SearchData.IsNull() && !model.ReadSearch.SearchData.IsUnknown() {
+			readSearch["search_data"] = model.ReadSearch.SearchData.ValueString()
+		}
+		opts.ReadSearch = readSearch
 	}
 
 	// Allow user to specify the ID manually
