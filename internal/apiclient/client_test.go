@@ -41,7 +41,7 @@ func TestAPIClient(t *testing.T) {
 
 	// Notice the intentional trailing /
 	opt := &APIClientOpt{
-		URI:                 "http://127.0.0.1:8083",
+		URI:                 "http://127.0.0.1:8083/",
 		Insecure:            false,
 		Username:            "",
 		Password:            "",
