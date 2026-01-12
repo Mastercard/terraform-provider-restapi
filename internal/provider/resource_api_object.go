@@ -192,7 +192,7 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 						Required:    true,
 					},
 					"search_value": schema.StringAttribute{
-						Description: "The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used.",
+						Description: "The value of 'search_key' will be compared to this value to determine if the correct object was found. Example: if 'search_key' is 'name' and 'search_value' is 'foo', the record in the array returned by the API with name=foo will be used. Supports interpolation of {id} placeholder with the object's ID.",
 						Required:    true,
 					},
 					"results_key": schema.StringAttribute{

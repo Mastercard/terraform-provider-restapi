@@ -87,6 +87,21 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 				"results_key":  "results",
 			},
 		},
+		{
+			name: "read_search_with_id_placeholder",
+			model: &RestAPIObjectResourceModel{
+				Path: types.StringValue("/api/objects"),
+				Data: jsontypes.NewNormalizedValue(`{"id":"test-123"}`),
+				ReadSearch: &ReadSearchModel{
+					SearchKey:   types.StringValue("objectId"),
+					SearchValue: types.StringValue("{id}"),
+				},
+			},
+			expectedSearch: map[string]string{
+				"search_key":   "objectId",
+				"search_value": "{id}", // Not yet substituted at this stage
+			},
+		},
 	}
 
 	for _, tt := range tests {

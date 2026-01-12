@@ -320,6 +320,9 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	searchKey := obj.readSearch["search_key"]
 	searchValue := obj.readSearch["search_value"]
 
+	// Support {id} placeholder substitution in search_value
+	searchValue = strings.ReplaceAll(searchValue, "{id}", obj.ID)
+
 	if searchKey != "" && searchValue != "" {
 		// Ensure searchPath is set correctly. If not explicitly set, derive it from readPath
 		// by removing the /{id} suffix to get the collection endpoint.

@@ -256,3 +256,92 @@ resource "restapi_object" "Test" {
 		},
 	})
 }
+
+// TestAccRestApiObject_ReadSearchIdSubstitution tests the {id} placeholder substitution in read_search.search_value
+// This allows APIs where the search endpoint requires the ID as a filter parameter rather than in the URL path
+func TestAccRestApiObject_ReadSearchIdSubstitution(t *testing.T) {
+	debug := false
+
+	// Set up initial objects with a structure that requires searching
+	apiServerObjects := map[string]map[string]interface{}{
+		"search1": {
+			"id":     "search1",
+			"name":   "Test Object",
+			"status": "active",
+		},
+		"search2": {
+			"id":     "search2",
+			"name":   "Another Object",
+			"status": "active",
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8109, apiServerObjects, map[string]string{}, true, debug, "")
+	os.Setenv("REST_API_URI", "http://127.0.0.1:8109")
+
+	opt := &apiclient.APIClientOpt{
+		URI:                 "http://127.0.0.1:8109/",
+		Timeout:             2,
+		WriteReturnsObject:  true,
+		CreateReturnsObject: true,
+		Debug:               debug,
+	}
+	client, err := apiclient.NewAPIClient(opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id     = "search1"
+    name   = "Test Object"
+    status = "active"
+  })
+
+  read_search = {
+    search_key   = "id"
+    search_value = "{id}"  # This will be replaced with "search1" during read
+  }
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("restapi_object.Test", "search1", client),
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "search1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Test Object"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.status", "active"),
+				),
+			},
+			{
+				// Update the object and verify read_search with {id} still works
+				Config: `
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id     = "search1"
+    name   = "Updated Object"
+    status = "active"
+  })
+
+  read_search = {
+    search_key   = "id"
+    search_value = "{id}"
+  }
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("restapi_object.Test", "search1", client),
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "search1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Updated Object"),
+				),
+			},
+		},
+	})
+}
