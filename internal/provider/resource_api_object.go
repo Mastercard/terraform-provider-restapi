@@ -143,7 +143,6 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 			"force_new": schema.ListAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
-				// TODO: Add plan modifier
 				Description: "Any changes to these values will result in recreating the resource instead of updating.",
 			},
 			"read_data": schema.StringAttribute{
@@ -433,7 +432,7 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 				if stateValue, err := getNestedValue(stateData, field); err == nil {
 					planValue, _ := getNestedValue(planData, field)
 					if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
-						resp.RequiresReplace = append(resp.RequiresReplace, path.Root("data").AtName(field))
+						resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
 					}
 				}
 			}

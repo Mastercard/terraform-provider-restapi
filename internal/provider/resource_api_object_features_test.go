@@ -7,6 +7,7 @@ import (
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
 	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
 
 // TestAccRestApiObject_IgnoreChangesTo tests the ignore_changes_to feature
@@ -83,7 +84,9 @@ resource "restapi_object" "Test" {
 	})
 }
 
-// TestAccRestApiObject_ForceNew tests that changing non-force_new fields doesn't trigger replacement
+// TestAccRestApiObject_ForceNew tests that the force_new attribute works correctly:
+// - Changing fields NOT in force_new should update in-place (PUT)
+// - Changing fields in force_new should trigger destroy+recreate (DELETE+POST)
 func TestAccRestApiObject_ForceNew(t *testing.T) {
 	debug := false
 
@@ -143,6 +146,27 @@ resource "restapi_object" "Test" {
 					resource.TestCheckResourceAttr("restapi_object.Test", "id", "forcenew1"),
 					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Updated"),
 				),
+			},
+			{
+				// Changing type (in force_new) should trigger destroy+recreate
+				Config: `
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = "{ \"id\": \"forcenew1\", \"type\": \"B\", \"name\": \"Updated\" }"
+  force_new = ["type"]
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("restapi_object.Test", "forcenew1", client),
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "forcenew1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.type", "B"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Updated"),
+				),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("restapi_object.Test", plancheck.ResourceActionDestroyBeforeCreate),
+					},
+				},
 			},
 		},
 	})
