@@ -19,19 +19,20 @@ type RestAPIObjectDataSource struct {
 }
 
 type RestAPIObjectDataSourceModel struct {
-	Path            types.String         `tfsdk:"path"`
-	SearchPath      types.String         `tfsdk:"search_path"`
-	QueryString     types.String         `tfsdk:"query_string"`
-	ReadQueryString types.String         `tfsdk:"read_query_string"`
-	SearchData      jsontypes.Normalized `tfsdk:"search_data"`
-	SearchKey       types.String         `tfsdk:"search_key"`
-	SearchValue     types.String         `tfsdk:"search_value"`
-	ResultsKey      types.String         `tfsdk:"results_key"`
-	IDAttribute     types.String         `tfsdk:"id_attribute"`
-	Debug           types.Bool           `tfsdk:"debug"`
-	ID              types.String         `tfsdk:"id"`
-	APIData         types.Map            `tfsdk:"api_data"`
-	APIResponse     types.String         `tfsdk:"api_response"`
+	Path                  types.String         `tfsdk:"path"`
+	SearchPath            types.String         `tfsdk:"search_path"`
+	QueryString           types.String         `tfsdk:"query_string"`
+	ReadQueryString       types.String         `tfsdk:"read_query_string"`
+	SearchData            jsontypes.Normalized `tfsdk:"search_data"`
+	SearchKey             types.String         `tfsdk:"search_key"`
+	SearchValue           types.String         `tfsdk:"search_value"`
+	ResultsKey            types.String         `tfsdk:"results_key"`
+	ResultsContainsObject types.Bool           `tfsdk:"results_contains_object"`
+	IDAttribute           types.String         `tfsdk:"id_attribute"`
+	Debug                 types.Bool           `tfsdk:"debug"`
+	ID                    types.String         `tfsdk:"id"`
+	APIData               types.Map            `tfsdk:"api_data"`
+	APIResponse           types.String         `tfsdk:"api_response"`
 }
 
 func NewRestAPIObjectDataSource() datasource.DataSource {
@@ -81,6 +82,10 @@ func (r *RestAPIObjectDataSource) Schema(ctx context.Context, req datasource.Sch
 			},
 			"results_key": schema.StringAttribute{
 				Description: "When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.",
+				Optional:    true,
+			},
+			"results_contains_object": schema.BoolAttribute{
+				Description: "When set to true, the provider will use the object from the search results directly instead of performing a second GET request to fetch the full object. This is useful when the search endpoint already returns all the data you need, or when the individual object endpoint doesn't exist.",
 				Optional:    true,
 			},
 			"id_attribute": schema.StringAttribute{
@@ -183,7 +188,7 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	_, err = obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, send)
+	foundData, err := obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, send)
 	if err != nil {
 		tflog.Error(ctx, "Error finding API object", map[string]interface{}{"error": err})
 		resp.Diagnostics.AddError(
@@ -193,15 +198,28 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	// Found - read it to populate all data
-	err = obj.ReadObject(ctx)
-	if err != nil {
-		tflog.Error(ctx, "Error reading API object", map[string]interface{}{"error": err})
-		resp.Diagnostics.AddError(
-			"Error Reading API Object",
-			fmt.Sprintf("Could not read API object: %s", err.Error()),
-		)
-		return
+	if state.ResultsContainsObject.ValueBool() {
+		tflog.Debug(ctx, "Using search results directly (results_contains_object=true)", nil)
+		err = obj.SetDataFromMap(foundData)
+		if err != nil {
+			tflog.Error(ctx, "Error setting API object data from search results", map[string]interface{}{"error": err})
+			resp.Diagnostics.AddError(
+				"Error Setting API Object Data",
+				fmt.Sprintf("Could not set API object data from search results: %s", err.Error()),
+			)
+			return
+		}
+	} else {
+		tflog.Debug(ctx, "Performing second call to read full object", nil)
+		err = obj.ReadObject(ctx)
+		if err != nil {
+			tflog.Error(ctx, "Error reading API object", map[string]interface{}{"error": err})
+			resp.Diagnostics.AddError(
+				"Error Reading API Object",
+				fmt.Sprintf("Could not read API object: %s", err.Error()),
+			)
+			return
+		}
 	}
 
 	tflog.Debug(ctx, "Found object", map[string]interface{}{

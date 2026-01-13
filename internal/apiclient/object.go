@@ -232,6 +232,16 @@ func (obj *APIObject) String() string {
 	return buffer.String()
 }
 
+// SetDataFromMap sets the object's internal state from a map
+// This allows more fine-grained manipulation of an object's data, outside of reads to the API
+func (obj *APIObject) SetDataFromMap(d map[string]interface{}) error {
+	foundDataJSON, err := json.Marshal(d)
+	if err != nil {
+		return fmt.Errorf("failed to marshal found data: %w", err)
+	}
+	return obj.updateInternalState(string(foundDataJSON))
+}
+
 // updateInternalState is a centralized function to ensure that our data as managed by
 // the api_object is updated with data that has come back from the API
 func (obj *APIObject) updateInternalState(state string) error {

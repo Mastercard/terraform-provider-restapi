@@ -164,3 +164,99 @@ func TestAccRestapiobject_Basic(t *testing.T) {
 
 	svr.Shutdown()
 }
+
+// TestAccRestapiObjectDataSource_ResultsContainsObject tests the results_contains_object parameter
+// which allows using search results directly without a second GET request
+func TestAccRestapiObjectDataSource_ResultsContainsObject(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8083, apiServerObjects, map[string]string{}, true, debug, "")
+	os.Setenv("REST_API_URI", "http://127.0.0.1:8083")
+
+	opt := &apiclient.APIClientOpt{
+		URI:                 "http://127.0.0.1:8083/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  false,
+		CreateReturnsObject: false,
+		Debug:               debug,
+	}
+	client, err := apiclient.NewAPIClient(opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test objects - simulating a search endpoint that returns complete data
+	client.SendRequest(ctx, "POST", "/api/objects", `
+    {
+      "id": "user1",
+      "username": "john_doe",
+      "email": "john@example.com",
+      "full_name": "John Doe"
+    }
+  `, debug)
+
+	client.SendRequest(ctx, "POST", "/api/objects", `
+    {
+      "id": "user2",
+      "username": "jane_smith",
+      "email": "jane@example.com",
+      "full_name": "Jane Smith"
+    }
+  `, debug)
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+            data "restapi_object" "user_search" {
+               path = "/api/objects"
+               search_key = "username"
+               search_value = "john_doe"
+               results_contains_object = true
+               debug = %t
+            }
+          `, debug),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("data.restapi_object.user_search", "user1", client),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "id", "user1"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "api_data.username", "john_doe"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "api_data.email", "john@example.com"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "api_data.full_name", "John Doe"),
+				),
+			},
+			{
+				// Test with results_key AND results_contains_object
+				Config: fmt.Sprintf(`
+            data "restapi_object" "user_with_results_key" {
+               path = "/api/objects"
+               search_path = "/api/object_list"
+               search_key = "username"
+               search_value = "jane_smith"
+               results_key = "list"
+               results_contains_object = true
+               debug = %t
+            }
+          `, debug),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("data.restapi_object.user_with_results_key", "user2", client),
+					resource.TestCheckResourceAttr("data.restapi_object.user_with_results_key", "id", "user2"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_with_results_key", "api_data.username", "jane_smith"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_with_results_key", "api_data.full_name", "Jane Smith"),
+				),
+			},
+		},
+	})
+
+	svr.Shutdown()
+}

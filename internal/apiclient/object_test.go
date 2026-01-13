@@ -602,3 +602,54 @@ func TestFindObjectWithResultsKey(t *testing.T) {
 	assert.NotNil(t, result, "Result should not be nil")
 	assert.Equal(t, "obj1", obj.ID, "Should find the correct object ID")
 }
+
+func TestSetDataFromFound(t *testing.T) {
+	client, _ := NewAPIClient(&APIClientOpt{
+		URI:         "http://127.0.0.1:8081",
+		Timeout:     2,
+		IDAttribute: "id",
+	})
+
+	obj, _ := NewAPIObject(client, &APIObjectOpts{
+		Path:        "/api/objects",
+		IDAttribute: "id",
+	})
+
+	// Simulate data returned from FindObject
+	foundData := map[string]interface{}{
+		"id":    "test123",
+		"name":  "Test User",
+		"email": "test@example.com",
+		"nested": map[string]interface{}{
+			"field": "value",
+		},
+	}
+
+	// Set the data using SetDataFromMap
+	err := obj.SetDataFromMap(foundData)
+	assert.NoError(t, err, "SetDataFromMap should not return an error")
+
+	// Verify the object ID was set
+	assert.Equal(t, "test123", obj.ID, "Object ID should be set from found data")
+
+	// Verify api_data is populated correctly
+	apiData := obj.GetApiData()
+	assert.Equal(t, "test123", apiData["id"], "api_data should contain id")
+	assert.Equal(t, "Test User", apiData["name"], "api_data should contain name")
+	assert.Equal(t, "test@example.com", apiData["email"], "api_data should contain email")
+
+	// Verify api_response contains the JSON
+	apiResponse := obj.GetApiResponse()
+	assert.Contains(t, apiResponse, "test123", "api_response should contain the data as JSON")
+	assert.Contains(t, apiResponse, "Test User", "api_response should contain the data as JSON")
+
+	// Test with invalid data (empty map should fail to set ID)
+	obj2, _ := NewAPIObject(client, &APIObjectOpts{
+		Path:        "/api/objects",
+		IDAttribute: "id",
+	})
+
+	emptyData := map[string]interface{}{}
+	err = obj2.SetDataFromMap(emptyData)
+	assert.Error(t, err, "SetDataFromMap should return error when ID cannot be extracted")
+}
