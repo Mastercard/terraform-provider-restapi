@@ -72,6 +72,31 @@ type RetriesDataModel struct {
 
 type ProviderData struct {
 	client *apiclient.APIClient
+	opts   *apiclient.APIClientOpt
+}
+
+// GetClient returns the API client, creating it if necessary.
+// This allows for lazy initialization when lazy parameters become available.
+func (pd *ProviderData) GetClient() (*apiclient.APIClient, error) {
+	if pd.client != nil {
+		return pd.client, nil
+	}
+
+	if pd.opts == nil {
+		return nil, fmt.Errorf("provider configuration not available")
+	}
+
+	if pd.opts.URI == "" {
+		return nil, fmt.Errorf("provider URI is not set - it may depend on a resource that hasn't been created yet")
+	}
+
+	client, err := apiclient.NewAPIClient(pd.opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	pd.client = client
+	return client, nil
 }
 
 func (p *RestAPIProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -456,30 +481,45 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	client, err := apiclient.NewAPIClient(opt)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Create REST API Client",
-			fmt.Sprintf("An unexpected error was encountered trying to create the REST API client. "+
-				"Please verify your configuration settings are correct. Error: %s", err.Error()),
-		)
-		return
+	// If URI is empty/unknown (depends on another resource), we'll defer client creation
+	// until a resource/datasource calls GetClient()
+	var client *apiclient.APIClient
+	var err error
+
+	if opt.URI != "" {
+		client, err = apiclient.NewAPIClient(opt)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Create REST API Client",
+				fmt.Sprintf("An unexpected error was encountered trying to create the REST API client. "+
+					"Please verify your configuration settings are correct. Error: %s", err.Error()),
+			)
+			return
+		}
 	}
 
 	// If a test_path is provided, issue a read_method request to it
-	tmp := existingOrEnvOrDefaultString(&resp.Diagnostics, "test_path", data.TestPath, "REST_API_TEST_PATH", "", false)
-	if tmp != "" {
-		_, _, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Test Request Failed",
-				fmt.Sprintf("A test request to %v after setting up the provider did not return an OK response - is your configuration correct? %v", tmp, err),
+	if tmp := existingOrEnvOrDefaultString(&resp.Diagnostics, "test_path", data.TestPath, "REST_API_TEST_PATH", "", false); tmp != "" {
+		if client == nil {
+			resp.Diagnostics.AddWarning(
+				"Cannot Test Connection",
+				"A test_path is configured but the provider URI is not yet known. The provider cannot test the connection. "+
+					"Please ensure the provider URI is statically configured or depends on resources that have already been created.",
 			)
+		} else {
+			_, _, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Test Request Failed",
+					fmt.Sprintf("A test request to %v after setting up the provider did not return an OK response - is your configuration correct? %v", tmp, err),
+				)
+			}
 		}
 	}
 
 	providerData := &ProviderData{
 		client: client,
+		opts:   opt,
 	}
 	resp.ResourceData = providerData
 	resp.DataSourceData = providerData

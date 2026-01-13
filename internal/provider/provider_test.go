@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -348,4 +349,69 @@ func TestProvider_invalid(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestAccProvider_DependentURI tests issue #291: provider URI depending on resource outputs
+// This simulates scenarios like azurerm_databricks_workspace where the URI is unknown during plan
+func TestAccProvider_DependentURI(t *testing.T) {
+	// Start fake server
+	apiServerObjects := make(map[string]map[string]interface{})
+	svr := fakeserver.NewFakeServer(8082, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.Test(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccProviderDependentURIConfig(),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.dependent", "id", "dep1"),
+					resource.TestCheckResourceAttr("restapi_object.dependent", "api_data.name", "Dependent Object"),
+				),
+			},
+		},
+	})
+}
+
+func testAccProviderDependentURIConfig() string {
+	return `
+
+# Bootstrap provider with known URI (used to create the api_endpoint resource)
+provider "restapi" {
+  alias = "bootstrap"
+  uri = "http://127.0.0.1:8082"
+  write_returns_object = true
+}
+
+# Simulate a resource that provides the API endpoint (like azurerm_databricks_workspace)
+# In real usage, this would be a resource whose output is unknown during plan
+resource "restapi_object" "api_endpoint" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "config1"
+    endpoint_host = "127.0.0.1:8082"
+  })
+  provider = restapi.bootstrap
+}
+
+
+# Main provider whose URI depends on the api_endpoint resource
+# During plan phase, this URI is unknown, but during apply it becomes known
+provider "restapi" {
+  uri = "http://${restapi_object.api_endpoint.api_data["endpoint_host"]}"
+  write_returns_object = true
+}
+
+# This resource uses the provider with dependent URI
+# It should be plannable even though the URI is unknown during initial plan
+resource "restapi_object" "dependent" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "dep1"
+    name = "Dependent Object"
+    value = "Created with dynamically determined URI"
+  })
+}
+`
 }

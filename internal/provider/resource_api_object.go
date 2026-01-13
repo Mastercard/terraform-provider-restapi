@@ -265,7 +265,17 @@ func (r *RestAPIObjectResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	tflog.Debug(ctx, "Create routine called", map[string]interface{}{"object": plan})
-	obj, err := makeAPIObject(ctx, r.providerData.client, "", &plan)
+
+	client, err := r.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Provider Not Configured",
+			fmt.Sprintf("Failed to get API client: %s", err.Error()),
+		)
+		return
+	}
+
+	obj, err := makeAPIObject(ctx, client, "", &plan)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Creating API Object",
@@ -299,7 +309,17 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
-	obj, err := makeAPIObject(ctx, r.providerData.client, state.ID.ValueString(), &state)
+
+	client, err := r.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Provider Not Configured",
+			fmt.Sprintf("Failed to get API client: %s", err.Error()),
+		)
+		return
+	}
+
+	obj, err := makeAPIObject(ctx, client, state.ID.ValueString(), &state)
 	if err != nil {
 		if strings.Contains(err.Error(), "error parsing data provided") {
 			tflog.Warn(ctx, "The data passed from Terraform's state is invalid!", map[string]interface{}{"error": err})
@@ -471,7 +491,17 @@ func (r *RestAPIObjectResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	tflog.Debug(ctx, "Update routine called", map[string]interface{}{"object": plan})
-	obj, err := makeAPIObject(ctx, r.providerData.client, plan.ID.ValueString(), &plan)
+
+	client, err := r.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Provider Not Configured",
+			fmt.Sprintf("Failed to get API client: %s", err.Error()),
+		)
+		return
+	}
+
+	obj, err := makeAPIObject(ctx, client, plan.ID.ValueString(), &plan)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Creating API Object",
@@ -515,8 +545,18 @@ func (r *RestAPIObjectResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	tflog.Debug(ctx, "Delete routine called", map[string]interface{}{"object": state})
-	obj, err := makeAPIObject(ctx, r.providerData.client, state.ID.ValueString(), &state)
+	tflog.Debug(ctx, "Delete routine called", map[string]interface{}{"state": state})
+
+	client, err := r.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Provider Not Configured",
+			fmt.Sprintf("Failed to get API client: %s", err.Error()),
+		)
+		return
+	}
+
+	obj, err := makeAPIObject(ctx, client, state.ID.ValueString(), &state)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Creating API Object",
@@ -571,7 +611,16 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 		IgnoreChangesTo: types.ListNull(types.StringType),
 	}
 
-	obj, err := makeAPIObject(ctx, r.providerData.client, "", &data)
+	client, err := r.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Provider Not Configured",
+			fmt.Sprintf("Failed to get API client: %s", err.Error()),
+		)
+		return
+	}
+
+	obj, err := makeAPIObject(ctx, client, "", &data)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Creating API Object",

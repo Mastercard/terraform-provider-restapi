@@ -143,7 +143,15 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 	resultsKey := existingOrDefaultString(state.ResultsKey, "")
 
 	send := ""
-	client := r.providerData.client
+
+	client, err := r.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Provider Not Configured",
+			fmt.Sprintf("Failed to get API client: %s", err.Error()),
+		)
+		return
+	}
 
 	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
 
