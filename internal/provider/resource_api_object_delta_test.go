@@ -283,11 +283,11 @@ func TestModifyPlan(t *testing.T) {
 	}
 	apiServerObjects := make(map[string]map[string]interface{})
 
-	svr := fakeserver.NewFakeServer(8083, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8083")
+	svr := fakeserver.NewFakeServer(8120, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
 
 	opt := &apiclient.APIClientOpt{
-		URI:                 "http://127.0.0.1:8083/",
+		URI:                 "http://127.0.0.1:8120/",
 		Insecure:            false,
 		Username:            "",
 		Password:            "",

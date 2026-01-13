@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"os"
 	"regexp"
 	"testing"
 
@@ -356,7 +357,7 @@ func TestProvider_invalid(t *testing.T) {
 func TestAccProvider_DependentURI(t *testing.T) {
 	// Start fake server
 	apiServerObjects := make(map[string]map[string]interface{})
-	svr := fakeserver.NewFakeServer(8082, apiServerObjects, map[string]string{}, true, false, "")
+	svr := fakeserver.NewFakeServer(8113, apiServerObjects, map[string]string{}, true, false, "")
 	defer svr.Shutdown()
 
 	resource.Test(t, resource.TestCase{
@@ -380,7 +381,7 @@ func testAccProviderDependentURIConfig() string {
 # Bootstrap provider with known URI (used to create the api_endpoint resource)
 provider "restapi" {
   alias = "bootstrap"
-  uri = "http://127.0.0.1:8082"
+  uri = "http://127.0.0.1:8113"
   write_returns_object = true
 }
 
@@ -390,7 +391,7 @@ resource "restapi_object" "api_endpoint" {
   path = "/api/objects"
   data = jsonencode({
     id = "config1"
-    endpoint_host = "127.0.0.1:8082"
+    endpoint_host = "127.0.0.1:8113"
   })
   provider = restapi.bootstrap
 }
@@ -414,4 +415,46 @@ resource "restapi_object" "dependent" {
   })
 }
 `
+}
+
+// TestAccProvider_EnvironmentVariable tests that provider can be configured via REST_API_URI env var
+func TestAccProvider_EnvironmentVariable(t *testing.T) {
+	// Start fake server on dedicated port
+	apiServerObjects := make(map[string]map[string]interface{})
+	svr := fakeserver.NewFakeServer(8112, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	// Set environment variable for this test
+	os.Setenv("REST_API_URI", "http://127.0.0.1:8112")
+	defer os.Unsetenv("REST_API_URI")
+
+	resource.Test(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+# Provider configured via REST_API_URI environment variable
+# No explicit URI in the provider block
+provider "restapi" {
+  write_returns_object = true
+}
+
+resource "restapi_object" "env_test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "env1"
+    name = "Environment Variable Test"
+    configured_via = "REST_API_URI environment variable"
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.env_test", "id", "env1"),
+					resource.TestCheckResourceAttr("restapi_object.env_test", "api_data.name", "Environment Variable Test"),
+					resource.TestCheckResourceAttr("restapi_object.env_test", "api_data.configured_via", "REST_API_URI environment variable"),
+				),
+			},
+		},
+	})
 }

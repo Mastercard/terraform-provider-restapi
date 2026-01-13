@@ -16,8 +16,8 @@ func TestAccProvider_TestPath(t *testing.T) {
 	debug := false
 	apiServerObjects := make(map[string]map[string]interface{})
 
-	// Start fake server on port 8085
-	svr := fakeserver.NewFakeServer(8085, apiServerObjects, map[string]string{}, true, debug, "")
+	// Start fake server on port 8121
+	svr := fakeserver.NewFakeServer(8121, apiServerObjects, map[string]string{}, true, debug, "")
 	svr.StartInBackground()
 	defer svr.Shutdown()
 
@@ -29,7 +29,7 @@ func TestAccProvider_TestPath(t *testing.T) {
 				{
 					Config: `
 						provider "restapi" {
-							uri       = "http://127.0.0.1:8085/"
+							uri       = "http://127.0.0.1:8121/"
 							test_path = "/api/objects"
 						}
 						
@@ -56,7 +56,7 @@ func TestAccProvider_TestPath(t *testing.T) {
 				{
 					Config: `
 						provider "restapi" {
-							uri       = "http://127.0.0.1:8085/"
+							uri       = "http://127.0.0.1:8121/"
 							test_path = "/api/nonexistent"
 						}
 						

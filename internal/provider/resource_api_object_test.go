@@ -24,11 +24,11 @@ func TestAccRestApiObject_Basic(t *testing.T) {
 	}
 	apiServerObjects := make(map[string]map[string]interface{})
 
-	svr := fakeserver.NewFakeServer(8082, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8082")
+	svr := fakeserver.NewFakeServer(8119, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
 
 	opt := &apiclient.APIClientOpt{
-		URI:                 "http://127.0.0.1:8082/",
+		URI:                 "http://127.0.0.1:8119/",
 		Insecure:            false,
 		Username:            "",
 		Password:            "",
@@ -149,6 +149,10 @@ func testAccCheckRestapiObjectExists(n string, id string, client *apiclient.APIC
 // a name, JSON data and a list of params to set by coaxing it
 // all to maps and then serializing to JSON
 func generateTestResource(name string, data string, params map[string]interface{}, debug bool) string {
+	return generateTestResourceWithURI(name, data, params, debug, "http://127.0.0.1:8119")
+}
+
+func generateTestResourceWithURI(name string, data string, params map[string]interface{}, debug bool, uri string) string {
 	strData, _ := json.Marshal(data)
 	config := []string{
 		`path = "/api/objects"`,
@@ -172,10 +176,14 @@ func generateTestResource(name string, data string, params map[string]interface{
 	}
 
 	return fmt.Sprintf(`
+provider "restapi" {
+  uri = "%s"
+}
+
 resource "restapi_object" "%s" {
 %s
 }
-`, name, strConfig)
+`, uri, name, strConfig)
 }
 
 func mockServer(host string, returnCodes map[string]int, responses map[string]string) *http.Server {
@@ -204,7 +212,7 @@ func mockServer(host string, returnCodes map[string]int, responses map[string]st
 func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 	debug := false
 
-	host := "127.0.0.1:8082"
+	host := "127.0.0.1:8119"
 	returnCodes := map[string]int{
 		"PUT /api/objects/1234": http.StatusBadRequest,
 	}
@@ -214,39 +222,40 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 	srv := mockServer(host, returnCodes, responses)
 	defer srv.Close()
 
-	os.Setenv("REST_API_URI", "http://"+host)
-
 	resource.UnitTest(t, resource.TestCase{
 		IsUnitTest:               true,
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				// Create the resource
-				Config: generateTestResource(
+				Config: generateTestResourceWithURI(
 					"Foo",
 					`{ "id": "1234", "foo": "Bar" }`,
 					make(map[string]interface{}),
 					debug,
+					"http://"+host,
 				),
 				Check: resource.TestCheckResourceAttr("restapi_object.Foo", "data", `{ "id": "1234", "foo": "Bar" }`),
 			},
 			{
 				// Try update. It will fail becuase we return 400 for PUT operations from mock server
-				Config: generateTestResource(
+				Config: generateTestResourceWithURI(
 					"Foo",
 					`{ "id": "1234", "foo": "Updated" }`,
 					make(map[string]interface{}),
 					debug,
+					"http://"+host,
 				),
 				ExpectError: regexp.MustCompile("unexpected response code '400'"),
 			},
 			{
 				// Expecting plan to be non-empty because the failed apply above shouldn't update terraform state
-				Config: generateTestResource(
+				Config: generateTestResourceWithURI(
 					"Foo",
 					`{ "id": "1234", "foo": "Updated" }`,
 					make(map[string]interface{}),
 					debug,
+					"http://"+host,
 				),
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,

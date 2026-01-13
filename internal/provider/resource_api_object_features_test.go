@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"os"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
@@ -23,7 +22,7 @@ func TestAccRestApiObject_IgnoreChangesTo(t *testing.T) {
 	}
 
 	svr := fakeserver.NewFakeServer(8103, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8103")
+	defer svr.Shutdown()
 
 	resource.UnitTest(t, resource.TestCase{
 		IsUnitTest:               true,
@@ -32,6 +31,10 @@ func TestAccRestApiObject_IgnoreChangesTo(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8103"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"ignore1\", \"name\": \"Test\", \"timestamp\": \"2026-01-01T00:00:00Z\" }"
@@ -59,7 +62,7 @@ func TestAccRestApiObject_IgnoreAllServerChanges(t *testing.T) {
 	}
 
 	svr := fakeserver.NewFakeServer(8104, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8104")
+	defer svr.Shutdown()
 
 	resource.UnitTest(t, resource.TestCase{
 		IsUnitTest:               true,
@@ -68,6 +71,10 @@ func TestAccRestApiObject_IgnoreAllServerChanges(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8104"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"ignore2\", \"name\": \"Original\" }"
@@ -93,7 +100,7 @@ func TestAccRestApiObject_ForceNew(t *testing.T) {
 	apiServerObjects := make(map[string]map[string]interface{})
 
 	svr := fakeserver.NewFakeServer(8105, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8105")
+	defer svr.Shutdown()
 
 	opt := &apiclient.APIClientOpt{
 		URI:                 "http://127.0.0.1:8105/",
@@ -120,6 +127,10 @@ func TestAccRestApiObject_ForceNew(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8105"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"forcenew1\", \"type\": \"A\", \"name\": \"Test\" }"
@@ -135,6 +146,10 @@ resource "restapi_object" "Test" {
 			{
 				// Changing name (not in force_new) should update in-place
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8105"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"forcenew1\", \"type\": \"A\", \"name\": \"Updated\" }"
@@ -150,6 +165,10 @@ resource "restapi_object" "Test" {
 			{
 				// Changing type (in force_new) should trigger destroy+recreate
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8105"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"forcenew1\", \"type\": \"B\", \"name\": \"Updated\" }"
@@ -179,7 +198,7 @@ func TestAccRestApiObject_DestroyData(t *testing.T) {
 	apiServerObjects := make(map[string]map[string]interface{})
 
 	svr := fakeserver.NewFakeServer(8107, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8107")
+	defer svr.Shutdown()
 
 	opt := &apiclient.APIClientOpt{
 		URI:                 "http://127.0.0.1:8107/",
@@ -200,6 +219,10 @@ func TestAccRestApiObject_DestroyData(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8107"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"destroy1\", \"name\": \"Test\" }"
@@ -221,7 +244,7 @@ func TestAccRestApiObject_QueryString(t *testing.T) {
 	apiServerObjects := make(map[string]map[string]interface{})
 
 	svr := fakeserver.NewFakeServer(8108, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8108")
+	defer svr.Shutdown()
 
 	opt := &apiclient.APIClientOpt{
 		URI:                 "http://127.0.0.1:8108/",
@@ -242,6 +265,10 @@ func TestAccRestApiObject_QueryString(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8108"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = "{ \"id\": \"query1\", \"name\": \"Test\" }"
@@ -277,7 +304,7 @@ func TestAccRestApiObject_ReadSearchIdSubstitution(t *testing.T) {
 	}
 
 	svr := fakeserver.NewFakeServer(8109, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8109")
+	defer svr.Shutdown()
 
 	opt := &apiclient.APIClientOpt{
 		URI:                 "http://127.0.0.1:8109/",
@@ -298,6 +325,10 @@ func TestAccRestApiObject_ReadSearchIdSubstitution(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8109"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = jsonencode({
@@ -322,6 +353,10 @@ resource "restapi_object" "Test" {
 			{
 				// Update the object and verify read_search with {id} still works
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8109"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = jsonencode({
@@ -363,7 +398,7 @@ func TestAccRestApiObject_ReadPatch(t *testing.T) {
 	}
 
 	svr := fakeserver.NewFakeServer(8110, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8110")
+	defer svr.Shutdown()
 
 	resource.UnitTest(t, resource.TestCase{
 		IsUnitTest:               true,
@@ -373,6 +408,10 @@ func TestAccRestApiObject_ReadPatch(t *testing.T) {
 			{
 				// Test search_patch - it unwraps the nested structure during read
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8110"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = jsonencode({
@@ -423,7 +462,7 @@ func TestAccRestApiObject_ReadPatchRemove(t *testing.T) {
 	}
 
 	svr := fakeserver.NewFakeServer(8111, apiServerObjects, map[string]string{}, true, debug, "")
-	os.Setenv("REST_API_URI", "http://127.0.0.1:8111")
+	defer svr.Shutdown()
 
 	resource.UnitTest(t, resource.TestCase{
 		IsUnitTest:               true,
@@ -433,6 +472,10 @@ func TestAccRestApiObject_ReadPatchRemove(t *testing.T) {
 			{
 				// Remove server-generated fields with JSON Patch
 				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8111"
+}
+
 resource "restapi_object" "Test" {
   path = "/api/objects"
   data = jsonencode({
