@@ -344,8 +344,12 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		queryString := obj.readSearch["query_string"]
 		// Merge object-level query string with search-specific query string
 		if obj.queryString != "" {
-			tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-			queryString = fmt.Sprintf("%s&%s", obj.readSearch["query_string"], obj.queryString)
+			tflog.Debug(ctx, "Adding object-level query string to search", map[string]interface{}{"object_query_string": obj.queryString})
+			if queryString != "" {
+				queryString = fmt.Sprintf("%s&%s", queryString, obj.queryString)
+			} else {
+				queryString = obj.queryString
+			}
 		}
 
 		searchData := ""
