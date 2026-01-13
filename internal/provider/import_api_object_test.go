@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
@@ -52,14 +52,14 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 			},
 			{
 				ResourceName:        "restapi_object.Foo",
-			ImportState:         true,
-			ImportStateId:       "1234",
-			ImportStateIdPrefix: "/api/objects/",
-			ImportStateVerify:   true,
-			// create_response isn't populated during import (we don't know the API response from creation)
-			// object_id is set during import but not during normal resource creation
-			ImportStateVerifyIgnore: []string{"debug", "data", "create_response", "ignore_all_server_changes", "ignore_server_additions", "object_id"},
-		},
+				ImportState:         true,
+				ImportStateId:       "1234",
+				ImportStateIdPrefix: "/api/objects/",
+				ImportStateVerify:   true,
+				// create_response isn't populated during import (we don't know the API response from creation)
+				// object_id is set during import but not during normal resource creation
+				ImportStateVerifyIgnore: []string{"debug", "data", "create_response", "ignore_all_server_changes", "ignore_server_additions", "object_id"},
+			},
 		},
 	})
 

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	restapi "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -59,12 +59,12 @@ type RestAPIObjectResourceModel struct {
 }
 
 type ReadSearchModel struct {
-	SearchData   jsontypes.Normalized `tfsdk:"search_data"`
-	SearchKey    types.String         `tfsdk:"search_key"`
-	SearchValue  types.String         `tfsdk:"search_value"`
-	ResultsKey   types.String         `tfsdk:"results_key"`
-	QueryString  types.String         `tfsdk:"query_string"`
-	SearchPatch  jsontypes.Normalized `tfsdk:"search_patch"`
+	SearchData  jsontypes.Normalized `tfsdk:"search_data"`
+	SearchKey   types.String         `tfsdk:"search_key"`
+	SearchValue types.String         `tfsdk:"search_value"`
+	ResultsKey  types.String         `tfsdk:"results_key"`
+	QueryString types.String         `tfsdk:"query_string"`
+	SearchPatch jsontypes.Normalized `tfsdk:"search_patch"`
 }
 
 func NewRestAPIObjectResource() resource.Resource {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/assert"
@@ -108,9 +108,9 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 				Path: types.StringValue("/api/objects"),
 				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
 				ReadSearch: &ReadSearchModel{
-					SearchKey:    types.StringValue("email"),
-					SearchValue:  types.StringValue("test@example.com"),
-					SearchPatch:  jsontypes.NewNormalizedValue(`[{"op":"move","from":"/data","path":"/"}]`),
+					SearchKey:   types.StringValue("email"),
+					SearchValue: types.StringValue("test@example.com"),
+					SearchPatch: jsontypes.NewNormalizedValue(`[{"op":"move","from":"/data","path":"/"}]`),
 				},
 			},
 			expectedSearch: map[string]string{

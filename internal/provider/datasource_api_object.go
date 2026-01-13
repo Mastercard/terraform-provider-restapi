@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"

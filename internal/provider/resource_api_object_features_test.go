@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
-	apiclient "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
+	"github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
