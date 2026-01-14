@@ -114,7 +114,7 @@ func (svr *Fakeserver) handleAPIObject(w http.ResponseWriter, r *http.Request) {
 	b, _ := io.ReadAll(r.Body)
 
 	if svr.debug {
-		log.Printf("fakeserver.go: Recieved request: %+v\n", r)
+		log.Printf("fakeserver.go: Received request: %+v\n", r)
 		log.Printf("fakeserver.go: Headers:\n")
 		for name, headers := range r.Header {
 			name = strings.ToLower(name)

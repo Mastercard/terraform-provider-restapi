@@ -238,7 +238,7 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 				Check: resource.TestCheckResourceAttr("restapi_object.Foo", "data", `{ "id": "1234", "foo": "Bar" }`),
 			},
 			{
-				// Try update. It will fail becuase we return 400 for PUT operations from mock server
+				// Try update. It will fail because we return 400 for PUT operations from mock server
 				Config: generateTestResourceWithURI(
 					"Foo",
 					`{ "id": "1234", "foo": "Updated" }`,
