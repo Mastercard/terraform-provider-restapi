@@ -15,7 +15,7 @@ This provider is largely feature-complete and in maintenance mode.
 ## About This Provider
 This terraform provider allows you to interact with APIs that may not yet have a first-class provider available by implementing a "dumb" REST API client.
 
-This provider is essentially created to be a terraform-wrapped `cURL` client. Because of this, you need to know quite a bit about the API you are interacting with as opposed to full-featured terraform providers written with a specific API in mind.
+This provider is essentially created to be a terraform-wrapped `cURL` client with JSON support. Because of this, you need to know quite a bit about the API you are interacting with as opposed to full-featured terraform providers written with a specific API in mind.
 
 There are a few requirements about how the API must work for this provider to be able to do its thing:
 * The API is expected to support the following HTTP methods:
@@ -29,6 +29,11 @@ There are a few requirements about how the API must work for this provider to be
     * GET, PUT and DELETE on `/api/v1/things/{id}` manages an existing object
 
 Have a look at the [examples directory](examples) for some use cases.
+
+While this provider can be a good approach if the above semantics are met, it isn't the best option for all cases. There are a few other providers that have been recommended by the community in discussion of issues:
+* [hashicorp/http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) - a data source provider that can make a request and provide raw access to the response headers and payload
+* [salrashid123/http-full](https://registry.terraform.io/providers/salrashid123/http-full/latest/docs) - an extension of the data source capailities in `hashicorp/http` that supports additional verbs and proxying
+* [magodo/restful](https://registry.terraform.io/providers/magodo/restful/latest/docs) - similar capabilities with additional support for [JSON PATCH (RFC6902)](https://datatracker.ietf.org/doc/html/rfc6902)
 
 &nbsp;
 
