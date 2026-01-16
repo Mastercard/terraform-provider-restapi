@@ -51,6 +51,7 @@ type RestAPIObjectResourceModel struct {
 	IgnoreChangesTo        types.List           `tfsdk:"ignore_changes_to"`
 	IgnoreAllServerChanges types.Bool           `tfsdk:"ignore_all_server_changes"`
 	IgnoreServerAdditions  types.Bool           `tfsdk:"ignore_server_additions"`
+	ReadResultsKey         types.String         `tfsdk:"read_results_key"`
 
 	ID             types.String `tfsdk:"id"`
 	APIData        types.Map    `tfsdk:"api_data"`
@@ -93,6 +94,10 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"read_path": schema.StringAttribute{
 				Description: "Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
+				Optional:    true,
+			},
+			"read_results_key": schema.StringAttribute{
+				Description: "Defaults to `read_results_key` set on the provider. Allows per-resource override of `read_results_key`",
 				Optional:    true,
 			},
 			"update_path": schema.StringAttribute{
@@ -649,6 +654,8 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 // makeAPIObject creates APIObjectOpts from the resource model
 func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, model *RestAPIObjectResourceModel) (*apiclient.APIObject, error) {
 	tflog.Debug(ctx, "makeAPIObject routine called", map[string]interface{}{"id": id, "path": model.Path.ValueString()})
+	tflog.Debug(ctx, model.ReadResultsKey.ValueString()+"~~~~~~~~~~~~~~~~~~~~")
+	tflog.Debug(ctx, client.Opts.ReadResultsKey+"~~~~~~~~~~~~~~~~~~~~~~~~")
 
 	opts := &apiclient.APIObjectOpts{
 		Path:  model.Path.ValueString(),
@@ -661,9 +668,10 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		CreatePath:   existingOrDefaultString(model.CreatePath, ""),
 		CreateMethod: existingOrProviderOrDefaultString(model.CreateMethod, client.Opts.CreateMethod, "POST"),
 
-		ReadPath:   existingOrDefaultString(model.ReadPath, ""),
-		ReadMethod: existingOrProviderOrDefaultString(model.ReadMethod, client.Opts.ReadMethod, "GET"),
-		ReadData:   model.ReadData.ValueString(),
+		ReadPath:       existingOrDefaultString(model.ReadPath, ""),
+		ReadMethod:     existingOrProviderOrDefaultString(model.ReadMethod, client.Opts.ReadMethod, "GET"),
+		ReadData:       model.ReadData.ValueString(),
+		ReadResultsKey: existingOrProviderOrDefaultString(model.ReadResultsKey, client.Opts.ReadResultsKey, ""),
 
 		UpdatePath:   existingOrDefaultString(model.UpdatePath, ""),
 		UpdateMethod: existingOrProviderOrDefaultString(model.UpdateMethod, client.Opts.UpdateMethod, "PUT"),

@@ -54,6 +54,7 @@ type RestAPIProviderModel struct {
 	RootCAString        types.String          `tfsdk:"root_ca_string"`
 	OAuthClientCreds    *OAuthClientDataModel `tfsdk:"oauth_client_credentials"`
 	RetriesConfig       *RetriesDataModel     `tfsdk:"retries"`
+	ReadResultsKey      types.String          `tfsdk:"read_results_key"`
 }
 
 type OAuthClientDataModel struct {
@@ -217,6 +218,10 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 				Optional:    true,
 				Description: "When set, the provider will load a root CA certificate as a file for mTLS authentication. This is useful when the API server is using a self-signed certificate and the client needs to trust it.",
 			},
+			"read_results_key": schema.StringAttribute{
+				Optional:    true,
+				Description: "When set, this key will be used to extract results from READ (GET) responses. This value may also be a '/'-delimeted path to the results attribute if it is multple levels deep in the data (such as `data/items` in the case of an object `{ \"data\": { \"items\": [ ... ] }, \"meta\": { ... }} `)",
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"oauth_client_credentials": schema.SingleNestedBlock{
@@ -341,6 +346,7 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 		KeyString:           existingOrEnvOrDefaultString(&resp.Diagnostics, "key_string", data.KeyString, "REST_API_KEY_STRING", "", false),
 		RootCAFile:          existingOrEnvOrDefaultString(&resp.Diagnostics, "root_ca_file", data.RootCAFile, "REST_API_ROOT_CA_FILE", "", false),
 		RootCAString:        existingOrEnvOrDefaultString(&resp.Diagnostics, "root_ca_string", data.RootCAString, "REST_API_ROOT_CA_STRING", "", false),
+		ReadResultsKey:      existingOrEnvOrDefaultString(&resp.Diagnostics, "read_results_key", data.ReadResultsKey, "REST_API_READ_RESULTS_KEY", "", false),
 	}
 
 	// Handle retries configuration
