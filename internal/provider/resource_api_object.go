@@ -654,8 +654,6 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 // makeAPIObject creates APIObjectOpts from the resource model
 func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, model *RestAPIObjectResourceModel) (*apiclient.APIObject, error) {
 	tflog.Debug(ctx, "makeAPIObject routine called", map[string]interface{}{"id": id, "path": model.Path.ValueString()})
-	tflog.Debug(ctx, model.ReadResultsKey.ValueString()+"~~~~~~~~~~~~~~~~~~~~")
-	tflog.Debug(ctx, client.Opts.ReadResultsKey+"~~~~~~~~~~~~~~~~~~~~~~~~")
 
 	opts := &apiclient.APIObjectOpts{
 		Path:  model.Path.ValueString(),
