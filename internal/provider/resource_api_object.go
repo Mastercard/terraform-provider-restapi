@@ -398,7 +398,13 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
-	state.Data = jsontypes.NewNormalizedValue(objString)
+	// However, when ignore_server_additions is true, we should NOT overwrite state.Data with the full API response
+	// because the config only contains the fields the user configured, not the server-added fields
+	if state.IgnoreServerAdditions.IsNull() || !state.IgnoreServerAdditions.ValueBool() {
+		state.Data = jsontypes.NewNormalizedValue(objString)
+	} else {
+		tflog.Debug(ctx, "Read: keeping state.Data unchanged due to ignore_server_additions")
+	}
 	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -451,6 +457,28 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		return
 	}
 
+	// ignore_server_additions
+	// When enabled, use state.Data to prevent drift detection from server-added fields
+	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
+		tflog.Debug(ctx, "ModifyPlan: ignore_server_additions enabled, using state data to prevent drift",
+			map[string]interface{}{
+				"plan_data":  plan.Data.ValueString(),
+				"state_data": state.Data.ValueString(),
+			})
+
+		// Set plan.Data to state.Data to tell Terraform there's no drift
+		// The state.Data was set during Create/Update and contains what we sent to the API
+		// (not the full API response with server additions)
+		plan.Data = state.Data
+		plan.ID = state.ID
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
+		plan.CreateResponse = state.CreateResponse
+
+		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
+		return
+	}
+
 	// If plan has a null field that's missing from state, remove it from plan
 	// This prevents drift detection when the server omits null fields (common REST API behavior)
 	planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
@@ -484,8 +512,8 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 
 		if len(newFields) > 0 {
 			// Re-check if data is still known (it might have been modified above)
-			if plan.Data.IsUnknown() || state.Data.IsUnknown() {
-				tflog.Debug(ctx, "ModifyPlan: skipping force_new check due to unknown data")
+			if plan.Data.IsUnknown() || plan.Data.IsNull() || state.Data.IsUnknown() || state.Data.IsNull() {
+				tflog.Debug(ctx, "ModifyPlan: skipping force_new check due to unknown/null data")
 			} else {
 				planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
 				if resp.Diagnostics.HasError() {
