@@ -760,6 +760,164 @@ resource "restapi_object" "test" {
 	})
 }
 
+// TestAccRestApiObject_IgnoreServerAdditions_DetectsServerModifications verifies that
+// api_data reflects server-side modifications even with ignore_server_additions=true.
+func TestAccRestApiObject_IgnoreServerAdditions_DetectsServerModifications(t *testing.T) {
+	// Start with server data matching user config
+	apiServerObjects := map[string]map[string]interface{}{
+		"detect-mod-1": {
+			"id":   "detect-mod-1",
+			"name": "Original",
+			// Server-added fields (should be ignored)
+			"created_at": "2024-01-01T00:00:00Z",
+			"version":    "1",
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8128, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Step 1: Create resource with ignore_server_additions
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8128"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "detect-mod-1"
+    name = "Original"
+  })
+  ignore_server_additions = true
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.test", "api_data.name", "Original"),
+				),
+			},
+			{
+				// Step 2: Simulate server modifying a user-configured field
+				// by updating the server data before running plan
+				PreConfig: func() {
+					// Modify the server's data to simulate the server changing
+					// a field that the user explicitly configured
+					apiServerObjects["detect-mod-1"]["name"] = "Server Modified"
+					apiServerObjects["detect-mod-1"]["version"] = "2"
+				},
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8128"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "detect-mod-1"
+    name = "Original"
+  })
+  ignore_server_additions = true
+}
+`,
+				// With ignore_server_additions, user-configured fields that the server
+				// modifies SHOULD be detected as drift (unlike ignore_all_server_changes).
+				// The api_data should reflect what the server has.
+				Check: resource.ComposeTestCheckFunc(
+					// api_data should show what the server returned
+					resource.TestCheckResourceAttr("restapi_object.test", "api_data.name", "Server Modified"),
+				),
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_IgnoreServerAdditions_UserConfigChanges verifies that user
+// config changes are detected and applied even with ignore_server_additions=true.
+func TestAccRestApiObject_IgnoreServerAdditions_UserConfigChanges(t *testing.T) {
+	apiServerObjects := map[string]map[string]interface{}{
+		"user-change-1": {
+			"id":   "user-change-1",
+			"name": "Original",
+			// Server-added fields
+			"created_at": "2024-01-01T00:00:00Z",
+			"metadata":   map[string]interface{}{"region": "us-south"},
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8129, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Step 1: Create resource
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8129"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "user-change-1"
+    name = "Original"
+  })
+  ignore_server_additions = true
+}
+`,
+			},
+			{
+				// Step 2: User changes their config - verify plan shows changes (PlanOnly)
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8129"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "user-change-1"
+    name = "User Updated"
+  })
+  ignore_server_additions = true
+}
+`,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				// Step 3: Apply the user's change and verify it took effect
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8129"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "user-change-1"
+    name = "User Updated"
+  })
+  ignore_server_additions = true
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.test", "api_data.name", "User Updated"),
+				),
+			},
+		},
+	})
+}
+
 // TestAccRestApiObject_UnknownDataWithIgnoreServerAdditions tests issue #344 with
 // ignore_server_additions enabled when plan.Data contains unknown values.
 // This is the exact scenario that was failing in the SCC WP module.
