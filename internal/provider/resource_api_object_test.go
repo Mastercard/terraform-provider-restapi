@@ -263,3 +263,574 @@ func TestAccRestApiObject_FailedUpdate(t *testing.T) {
 		},
 	})
 }
+
+// TestAccRestApiObject_PlanAfterApply tests that running plan after apply
+// does not produce errors. This reproduces the issue from GitHub issue #344
+// where the data attribute was read as empty during plan.
+func TestAccRestApiObject_PlanAfterApply(t *testing.T) {
+	debug := false
+
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8120, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Create the resource
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8120"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id    = "test-1"
+    name  = "Test Object"
+    value = 42
+  })
+}
+`,
+			},
+			{
+				// Run plan only with same config - should succeed without errors
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8120"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id    = "test-1"
+    name  = "Test Object"
+    value = 42
+  })
+}
+`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_PlanAfterApply_IgnoreAllServerChanges tests issue #344
+// with ignore_all_server_changes enabled. This feature copies state.Data to plan.Data,
+// which could cause issues if state.Data is null or empty.
+func TestAccRestApiObject_PlanAfterApply_IgnoreAllServerChanges(t *testing.T) {
+	debug := false
+
+	// Pre-populate the server with an object that has extra fields
+	apiServerObjects := map[string]map[string]interface{}{
+		"test-ign-1": {
+			"id":          "test-ign-1",
+			"name":        "Test Object",
+			"value":       42,
+			"extra_field": "server-added",
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8121, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Create the resource with ignore_all_server_changes
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8121"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id    = "test-ign-1"
+    name  = "Test Object"
+    value = 42
+  })
+  ignore_all_server_changes = true
+}
+`,
+			},
+			{
+				// Run plan only - should succeed without "Invalid JSON String Value" error
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8121"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id    = "test-ign-1"
+    name  = "Test Object"
+    value = 42
+  })
+  ignore_all_server_changes = true
+}
+`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_PlanAfterApply_ComplexJSON tests issue #344 with complex
+// nested JSON that includes conditionals and variables (similar to SCC WP module).
+// This tests the scenario where JSON might have different structure during plan.
+func TestAccRestApiObject_PlanAfterApply_ComplexJSON(t *testing.T) {
+	debug := false
+
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8122, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Create resource with complex nested JSON structure
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8122"
+}
+
+locals {
+  enabled = true
+  account_id = "acc-12345"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "complex-1"
+    parameters = {
+      enable_feature = local.enabled
+      target_accounts = local.enabled ? [
+        {
+          account_id = local.account_id
+          account_type = "standard"
+        }
+      ] : []
+    }
+  })
+}
+`,
+			},
+			{
+				// Run plan only with same config - should succeed without errors
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8122"
+}
+
+locals {
+  enabled = true
+  account_id = "acc-12345"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "complex-1"
+    parameters = {
+      enable_feature = local.enabled
+      target_accounts = local.enabled ? [
+        {
+          account_id = local.account_id
+          account_type = "standard"
+        }
+      ] : []
+    }
+  })
+}
+`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_PatchMethod tests issue #344 with PATCH method configuration
+// similar to the SCC workload protection module scenario.
+func TestAccRestApiObject_PatchMethod(t *testing.T) {
+	debug := false
+
+	// Pre-populate with an existing resource
+	apiServerObjects := map[string]map[string]interface{}{
+		"patch-1": {
+			"id":         "patch-1",
+			"parameters": map[string]interface{}{"enabled": true},
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8123, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Create using PATCH method (like SCC WP module)
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8123"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "patch-1"
+    parameters = {
+      enabled = true
+    }
+  })
+  create_method  = "PATCH"
+  update_method  = "PATCH"
+  destroy_method = "PATCH"
+}
+`,
+			},
+			{
+				// Run plan only - should succeed without "Invalid JSON String Value" error
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8123"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id = "patch-1"
+    parameters = {
+      enabled = true
+    }
+  })
+  create_method  = "PATCH"
+  update_method  = "PATCH"
+  destroy_method = "PATCH"
+}
+`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_PlanAfterApply_IgnoreServerAdditions tests issue #344 with
+// ignore_server_additions enabled. This feature was being tested when the bug was discovered.
+// The issue is that data attribute is read as empty during plan phase.
+func TestAccRestApiObject_PlanAfterApply_IgnoreServerAdditions(t *testing.T) {
+	// Pre-populate the server with an object that has many extra fields
+	// (similar to what IBM Cloud SCC WP API returns)
+	apiServerObjects := map[string]map[string]interface{}{
+		"ign-add-1": {
+			"id":   "ign-add-1",
+			"name": "Test Object",
+			"parameters": map[string]interface{}{
+				"enable_cspm": true,
+				"target_accounts": []interface{}{
+					map[string]interface{}{
+						"account_id":   "acc-12345",
+						"account_type": "standard",
+					},
+				},
+			},
+			// Extra fields added by server that should be ignored
+			"created_at":       "2024-01-01T00:00:00Z",
+			"updated_at":       "2024-01-02T00:00:00Z",
+			"created_by":       "system",
+			"resource_version": "v1.0.0",
+			"metadata": map[string]interface{}{
+				"region":     "us-south",
+				"crn":        "crn:v1:...",
+				"account_id": "acc-12345",
+			},
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8124, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Create the resource with ignore_server_additions
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8124"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "ign-add-1"
+    name = "Test Object"
+    parameters = {
+      enable_cspm = true
+      target_accounts = [
+        {
+          account_id   = "acc-12345"
+          account_type = "standard"
+        }
+      ]
+    }
+  })
+  ignore_server_additions = true
+}
+`,
+			},
+			{
+				// Run plan only - this is where the "Invalid JSON String Value" error occurred
+				// The bug was that state.Data was empty during plan phase
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8124"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "ign-add-1"
+    name = "Test Object"
+    parameters = {
+      enable_cspm = true
+      target_accounts = [
+        {
+          account_id   = "acc-12345"
+          account_type = "standard"
+        }
+      ]
+    }
+  })
+  ignore_server_additions = true
+}
+`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_IgnoreServerAdditions_WithChangesTo tests the combination
+// of ignore_server_additions with ignore_changes_to, as this is how the feature
+// is designed to work (ignore_server_additions modifies the behavior of delta detection).
+func TestAccRestApiObject_IgnoreServerAdditions_WithChangesTo(t *testing.T) {
+	apiServerObjects := map[string]map[string]interface{}{
+		"ign-combo-1": {
+			"id":   "ign-combo-1",
+			"name": "Test Object",
+			"parameters": map[string]interface{}{
+				"enabled": true,
+			},
+			// Server-added fields
+			"last_modified": "2024-01-01T00:00:00Z",
+			"version":       "2",
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8125, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8125"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "ign-combo-1"
+    name = "Test Object"
+    parameters = {
+      enabled = true
+    }
+  })
+  ignore_server_additions = true
+  ignore_changes_to       = ["last_modified", "version"]
+}
+`,
+			},
+			{
+				// Run plan only after apply
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8125"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "ign-combo-1"
+    name = "Test Object"
+    parameters = {
+      enabled = true
+    }
+  })
+  ignore_server_additions = true
+  ignore_changes_to       = ["last_modified", "version"]
+}
+`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_UnknownDataInPlan tests issue #344 specifically - when plan.Data
+// contains unknown values (from computed fields or data sources), the ModifyPlan function
+// should not error with "Error Parsing Plan Data: unexpected end of JSON input".
+// This test uses timestamp() to create a dependency that makes the data unknown during plan.
+func TestAccRestApiObject_UnknownDataInPlan(t *testing.T) {
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8126, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// First create a basic resource
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8126"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "unknown-test-1"
+    name = "Initial"
+  })
+}
+`,
+			},
+			{
+				// Now change the config to depend on a computed value.
+				// The timestamp() function returns a value that's unknown during plan.
+				// This should NOT cause "Error Parsing Plan Data" error after our fix.
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8126"
+}
+
+locals {
+  # Use a value that changes each time to force plan to have unknown data
+  dynamic_name = "Updated-${timestamp()}"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "unknown-test-1"
+    name = local.dynamic_name
+  })
+}
+`,
+				// We expect this to plan successfully (not error) even though data contains unknown
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
+// TestAccRestApiObject_UnknownDataWithIgnoreServerAdditions tests issue #344 with
+// ignore_server_additions enabled when plan.Data contains unknown values.
+// This is the exact scenario that was failing in the SCC WP module.
+func TestAccRestApiObject_UnknownDataWithIgnoreServerAdditions(t *testing.T) {
+	// Pre-populate with server data that has extra fields
+	apiServerObjects := map[string]map[string]interface{}{
+		"unknown-ign-1": {
+			"id":   "unknown-ign-1",
+			"name": "Test",
+			"parameters": map[string]interface{}{
+				"enabled": true,
+			},
+			// Server-added fields
+			"created_at": "2024-01-01T00:00:00Z",
+			"metadata":   map[string]interface{}{"version": "1"},
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8127, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Create with ignore_server_additions
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8127"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "unknown-ign-1"
+    name = "Test"
+    parameters = {
+      enabled = true
+    }
+  })
+  ignore_server_additions = true
+}
+`,
+			},
+			{
+				// Change to use a computed value - this should NOT error
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8127"
+}
+
+locals {
+  computed_name = "Updated-${timestamp()}"
+}
+
+resource "restapi_object" "test" {
+  path = "/api/objects"
+  data = jsonencode({
+    id   = "unknown-ign-1"
+    name = local.computed_name
+    parameters = {
+      enabled = true
+    }
+  })
+  ignore_server_additions = true
+}
+`,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
