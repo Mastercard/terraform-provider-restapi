@@ -478,6 +478,31 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 			plan.APIResponse = state.APIResponse
 		}
 
+		// Handle force_new even with ignore_server_additions
+		if !plan.ForceNew.IsNull() && !plan.ForceNew.IsUnknown() {
+			var newFields []string
+			resp.Diagnostics.Append(plan.ForceNew.ElementsAs(ctx, &newFields, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			if len(newFields) > 0 {
+				planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
+				if resp.Diagnostics.HasError() {
+					return
+				}
+
+				for _, field := range newFields {
+					if stateValue, err := getNestedValue(stateData, field); err == nil {
+						planValue, _ := getNestedValue(planData, field)
+						if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
+							resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
+						}
+					}
+				}
+			}
+		}
+
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
 	}
