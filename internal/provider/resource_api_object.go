@@ -457,23 +457,26 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		return
 	}
 
-	// ignore_server_additions
-	// When enabled, use state.Data to prevent drift detection from server-added fields
+	// ignore_server_additions: Read preserves user config in state.Data, so we only
+	// need to handle computed fields here and let Terraform detect user config changes
 	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
-		tflog.Debug(ctx, "ModifyPlan: ignore_server_additions enabled, using state data to prevent drift",
+		dataChanged := !plan.Data.Equal(state.Data)
+
+		tflog.Debug(ctx, "ModifyPlan: ignore_server_additions enabled",
 			map[string]interface{}{
-				"plan_data":  plan.Data.ValueString(),
-				"state_data": state.Data.ValueString(),
+				"plan_data":    plan.Data.ValueString(),
+				"state_data":   state.Data.ValueString(),
+				"data_changed": dataChanged,
 			})
 
-		// Set plan.Data to state.Data to tell Terraform there's no drift
-		// The state.Data was set during Create/Update and contains what we sent to the API
-		// (not the full API response with server additions)
-		plan.Data = state.Data
 		plan.ID = state.ID
-		plan.APIData = state.APIData
-		plan.APIResponse = state.APIResponse
 		plan.CreateResponse = state.CreateResponse
+
+		if !dataChanged {
+			// No user changes - preserve computed fields to prevent drift
+			plan.APIData = state.APIData
+			plan.APIResponse = state.APIResponse
+		}
 
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
