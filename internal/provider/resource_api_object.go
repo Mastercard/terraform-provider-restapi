@@ -426,10 +426,8 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		return
 	}
 
-	// ignore_all_server_changes
+	// ignore_all_server_changes: copy everything from state, skip all other processing
 	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
-		// Reset data back to state value to ignore all server-side changes
-		// Only copy state data if it's not null/unknown, otherwise keep plan data
 		if !state.Data.IsNull() && !state.Data.IsUnknown() {
 			plan.Data = state.Data
 		}
@@ -437,100 +435,52 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		plan.APIData = state.APIData
 		plan.APIResponse = state.APIResponse
 		plan.CreateResponse = state.CreateResponse
-
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
 	}
 
-	// Skip plan modification if plan.Data or state.Data is unknown or null
-	// This happens when the data attribute contains unknown interpolations
-	// (e.g., depends on data sources or computed values not yet known)
+	// Skip plan modification if data is unknown/null (e.g., contains computed values)
 	if plan.Data.IsUnknown() || plan.Data.IsNull() || state.Data.IsUnknown() || state.Data.IsNull() {
-		tflog.Debug(ctx, "ModifyPlan: skipping plan modification due to unknown/null data",
-			map[string]interface{}{
-				"plan_data_unknown":  plan.Data.IsUnknown(),
-				"plan_data_null":     plan.Data.IsNull(),
-				"state_data_unknown": state.Data.IsUnknown(),
-				"state_data_null":    state.Data.IsNull(),
-			})
+		tflog.Debug(ctx, "ModifyPlan: skipping due to unknown/null data")
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
 	}
 
-	// ignore_server_additions: Read preserves user config in state.Data, so we only
-	// need to handle computed fields here and let Terraform detect user config changes
-	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
-		dataChanged := !plan.Data.Equal(state.Data)
-
-		tflog.Debug(ctx, "ModifyPlan: ignore_server_additions enabled",
-			map[string]interface{}{
-				"plan_data":    plan.Data.ValueString(),
-				"state_data":   state.Data.ValueString(),
-				"data_changed": dataChanged,
-			})
-
-		plan.ID = state.ID
-		plan.CreateResponse = state.CreateResponse
-
-		if !dataChanged {
-			// No user changes - preserve computed fields to prevent drift
-			plan.APIData = state.APIData
-			plan.APIResponse = state.APIResponse
-		}
-
-		// Handle force_new even with ignore_server_additions
-		if !plan.ForceNew.IsNull() && !plan.ForceNew.IsUnknown() {
-			var newFields []string
-			resp.Diagnostics.Append(plan.ForceNew.ElementsAs(ctx, &newFields, false)...)
-			if resp.Diagnostics.HasError() {
-				return
-			}
-
-			if len(newFields) > 0 {
-				planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
-				if resp.Diagnostics.HasError() {
-					return
-				}
-
-				for _, field := range newFields {
-					if stateValue, err := getNestedValue(stateData, field); err == nil {
-						planValue, _ := getNestedValue(planData, field)
-						if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
-							resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
-						}
-					}
-				}
-			}
-		}
-
-		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
-		return
-	}
-
-	// If plan has a null field that's missing from state, remove it from plan
-	// This prevents drift detection when the server omits null fields (common REST API behavior)
+	// Parse JSON data once for use below
 	planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	if normalizeNullFields(planData, stateData) {
-		normalizedJSON, err := json.Marshal(planData)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Error Normalizing Null Fields",
-				fmt.Sprintf("Could not marshal normalized data: %s", err.Error()),
-			)
-			return
+	// Preserve computed fields from state
+	plan.ID = state.ID
+	plan.CreateResponse = state.CreateResponse
+
+	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
+		// ignore_server_additions: Read preserves user config in state.Data,
+		// so we just preserve api_data/api_response if user didn't change anything
+		if plan.Data.Equal(state.Data) {
+			plan.APIData = state.APIData
+			plan.APIResponse = state.APIResponse
 		}
-		plan.ID = state.ID
-		plan.Data = jsontypes.NewNormalizedValue(string(normalizedJSON))
-		plan.APIData = state.APIData
-		plan.APIResponse = state.APIResponse
-		plan.CreateResponse = state.CreateResponse
+	} else {
+		// Normal flow: normalize null fields that server omits
+		if normalizeNullFields(planData, stateData) {
+			normalizedJSON, err := json.Marshal(planData)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Normalizing Null Fields",
+					fmt.Sprintf("Could not marshal normalized data: %s", err.Error()),
+				)
+				return
+			}
+			plan.Data = jsontypes.NewNormalizedValue(string(normalizedJSON))
+			plan.APIData = state.APIData
+			plan.APIResponse = state.APIResponse
+		}
 	}
 
-	// force_new
+	// force_new: check if any fields require resource replacement
 	if !plan.ForceNew.IsNull() && !plan.ForceNew.IsUnknown() {
 		var newFields []string
 		resp.Diagnostics.Append(plan.ForceNew.ElementsAs(ctx, &newFields, false)...)
@@ -538,23 +488,11 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 			return
 		}
 
-		if len(newFields) > 0 {
-			// Re-check if data is still known (it might have been modified above)
-			if plan.Data.IsUnknown() || plan.Data.IsNull() || state.Data.IsUnknown() || state.Data.IsNull() {
-				tflog.Debug(ctx, "ModifyPlan: skipping force_new check due to unknown/null data")
-			} else {
-				planData, stateData := getPlanAndStateData(plan.Data.ValueString(), state.Data.ValueString(), &resp.Diagnostics)
-				if resp.Diagnostics.HasError() {
-					return
-				}
-
-				for _, field := range newFields {
-					if stateValue, err := getNestedValue(stateData, field); err == nil {
-						planValue, _ := getNestedValue(planData, field)
-						if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
-							resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
-						}
-					}
+		for _, field := range newFields {
+			if stateValue, err := getNestedValue(stateData, field); err == nil {
+				planValue, _ := getNestedValue(planData, field)
+				if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
+					resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
 				}
 			}
 		}
