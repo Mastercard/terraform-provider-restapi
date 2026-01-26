@@ -426,22 +426,20 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		return
 	}
 
-	// ignore_all_server_changes: copy everything from state, skip all other processing
-	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
-		if !state.Data.IsNull() && !state.Data.IsUnknown() {
-			plan.Data = state.Data
-		}
-		plan.ID = state.ID
-		plan.APIData = state.APIData
-		plan.APIResponse = state.APIResponse
-		plan.CreateResponse = state.CreateResponse
+	// Skip plan modification if data is unknown/null (e.g., contains computed values)
+	if plan.Data.IsUnknown() || plan.Data.IsNull() || state.Data.IsUnknown() || state.Data.IsNull() {
+		tflog.Debug(ctx, "ModifyPlan: skipping due to unknown/null data")
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
 	}
 
-	// Skip plan modification if data is unknown/null (e.g., contains computed values)
-	if plan.Data.IsUnknown() || plan.Data.IsNull() || state.Data.IsUnknown() || state.Data.IsNull() {
-		tflog.Debug(ctx, "ModifyPlan: skipping due to unknown/null data")
+	// ignore_all_server_changes: copy everything from state, skip all other processing
+	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
+		plan.Data = state.Data
+		plan.ID = state.ID
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
+		plan.CreateResponse = state.CreateResponse
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 		return
 	}
