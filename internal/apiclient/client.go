@@ -36,6 +36,7 @@ type APIClientOpt struct {
 	CreateMethod        string
 	ReadMethod          string
 	ReadData            string
+	ReadResultsKey      string
 	UpdateMethod        string
 	UpdateData          string
 	DestroyMethod       string
@@ -75,6 +76,7 @@ type APIClient struct {
 	createMethod        string
 	readMethod          string
 	readData            string
+	readResultsKey      string
 	updateMethod        string
 	updateData          string
 	destroyMethod       string
@@ -225,6 +227,7 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		createMethod:        opt.CreateMethod,
 		readMethod:          opt.ReadMethod,
 		readData:            opt.ReadData,
+		readResultsKey:      opt.ReadResultsKey,
 		updateMethod:        opt.UpdateMethod,
 		updateData:          opt.UpdateData,
 		destroyMethod:       opt.DestroyMethod,
@@ -262,6 +265,7 @@ func (client *APIClient) String() string {
 	buffer.WriteString(fmt.Sprintf("id_attribute: %s\n", client.idAttribute))
 	buffer.WriteString(fmt.Sprintf("write_returns_object: %t\n", client.writeReturnsObject))
 	buffer.WriteString(fmt.Sprintf("create_returns_object: %t\n", client.createReturnsObject))
+	buffer.WriteString(fmt.Sprintf("read_results_key: %t\n", client.readResultsKey))
 	buffer.WriteString("headers:\n")
 	for k, v := range client.headers {
 		buffer.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
