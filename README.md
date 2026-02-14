@@ -51,6 +51,7 @@ This provider has only a few moving components, but LOTS of configurable paramet
 * By default, data isn't considered sensitive. If you want to hide the data this provider submits as well as the data returned by the API, you would need to set environment variable `API_DATA_IS_SENSITIVE=true`.
 * The `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`.
   * NOTICE: read operations performed on existing objects are done against the `read_path` **stored in state** rather than the new configuration!
+* If your API wraps GET responses in an envelope (e.g., `{"result": {...}}`), use `read_object_key` to extract the actual object before state comparison. This prevents false drift when the wrapper structure differs from POST/PUT requests. Supports nested paths like `"data/items"` or `"response/resource"`. Can be set at provider level or per-resource.
 
 &nbsp;
 
