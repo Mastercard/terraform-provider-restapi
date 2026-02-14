@@ -36,6 +36,7 @@ type APIClientOpt struct {
 	CreateMethod        string
 	ReadMethod          string
 	ReadData            string
+	ReadObjectKey       string
 	UpdateMethod        string
 	UpdateData          string
 	DestroyMethod       string
@@ -75,6 +76,7 @@ type APIClient struct {
 	createMethod        string
 	readMethod          string
 	readData            string
+	readObjectKey       string
 	updateMethod        string
 	updateData          string
 	destroyMethod       string
@@ -225,6 +227,7 @@ func NewAPIClient(opt *APIClientOpt) (*APIClient, error) {
 		createMethod:        opt.CreateMethod,
 		readMethod:          opt.ReadMethod,
 		readData:            opt.ReadData,
+		readObjectKey:       opt.ReadObjectKey,
 		updateMethod:        opt.UpdateMethod,
 		updateData:          opt.UpdateData,
 		destroyMethod:       opt.DestroyMethod,

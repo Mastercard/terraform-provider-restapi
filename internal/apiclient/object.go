@@ -22,6 +22,7 @@ type APIObjectOpts struct {
 	ReadMethod    string
 	ReadPath      string
 	ReadData      string
+	ReadObjectKey string
 	UpdateMethod  string
 	UpdatePath    string
 	UpdateData    string
@@ -44,6 +45,7 @@ type APIObject struct {
 	createPath    string
 	readMethod    string
 	readPath      string
+	readObjectKey string
 	updateMethod  string
 	updatePath    string
 	destroyMethod string
@@ -88,6 +90,10 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	if opts.ReadData == "" {
 		opts.ReadData = iClient.readData
 	}
+	// read_object_key can be set either on the client or per-object basis
+	if opts.ReadObjectKey == "" {
+		opts.ReadObjectKey = iClient.readObjectKey
+	}
 	if opts.UpdateMethod == "" {
 		opts.UpdateMethod = iClient.updateMethod
 	}
@@ -130,6 +136,7 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		queryString:   opts.QueryString,
 		debug:         opts.Debug,
 		readSearch:    opts.ReadSearch,
+		readObjectKey: opts.ReadObjectKey,
 		ID:            opts.ID,
 		IDAttribute:   opts.IDAttribute,
 		data:          make(map[string]interface{}),
@@ -419,6 +426,35 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		return err
 	}
 
+	// Extract wrapped response if read_object_key is configured (backward compatible: empty string = no extraction)
+	if obj.readObjectKey != "" {
+		tflog.Debug(ctx, "Extracting object from response",
+			map[string]interface{}{"read_object_key": obj.readObjectKey})
+
+		var result interface{}
+		err = json.Unmarshal([]byte(resultString), &result)
+		if err != nil {
+			return fmt.Errorf("failed to parse response for read_object_key extraction: %w", err)
+		}
+
+		resultMap, ok := result.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("response is not a JSON object, cannot extract read_object_key '%s'", obj.readObjectKey)
+		}
+
+		extracted, err := GetObjectAtKey(ctx, resultMap, obj.readObjectKey)
+		if err != nil {
+			return fmt.Errorf("failed to extract read_object_key '%s': %w", obj.readObjectKey, err)
+		}
+
+		extractedJSON, err := json.Marshal(extracted)
+		if err != nil {
+			return fmt.Errorf("failed to marshal extracted object: %w", err)
+		}
+		resultString = string(extractedJSON)
+		tflog.Debug(ctx, "Successfully extracted object", map[string]interface{}{"read_object_key": obj.readObjectKey})
+	}
+
 	return obj.updateInternalState(resultString)
 }
 
@@ -601,6 +637,11 @@ func (obj *APIObject) GetApiData() map[string]string {
 // GetApiResponse returns a copy of the raw API response from the APIObject
 func (obj *APIObject) GetApiResponse() string {
 	return obj.apiResponse
+}
+
+// GetReadObjectKey returns the read_object_key configuration value
+func (obj *APIObject) GetReadObjectKey() string {
+	return obj.readObjectKey
 }
 
 // GetReadSearch returns a copy of the read_search configuration
