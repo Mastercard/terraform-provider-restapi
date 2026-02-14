@@ -214,7 +214,7 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				},
 			},
 			"read_object_key": schema.StringAttribute{
-				Description: "Defaults to `read_object_key` set on the provider. Allows per-resource override. When set, this key is used to extract an object from GET responses. For example, if the API wraps responses like {\"REALTIME\": {...}}, set this to 'REALTIME'. Supports nested paths like 'data/items/0'.",
+				Description: "Defaults to `read_object_key` set on the provider. Allows per-resource override. When set, this key is used to extract an object from GET responses. Useful when the API wraps the response in an envelope. Supports nested paths with '/' delimiter (e.g., 'data/item', 'response/0').",
 				Optional:    true,
 				Computed:    true, // CRITICAL: Store in state to persist through Read cycles
 			},

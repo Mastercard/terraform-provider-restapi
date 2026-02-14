@@ -184,7 +184,7 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			},
 			"read_object_key": schema.StringAttribute{
 				Optional:    true,
-				Description: "When set, this key will be used to extract an object from GET responses. For example, if the API wraps responses like {\"REALTIME\": {...actual object...}}, set this to 'REALTIME' to extract the inner object for state storage. Supports nested paths: 'data/items/0', 'result/resource'. This value may also be set via the REST_API_READ_OBJECT_KEY environment variable.",
+				Description: "When set, this key will be used to extract an object from GET responses. Useful for APIs that wrap responses in an envelope (e.g., {\"result\": {...}}, {\"data\": {...}}). Set to the wrapper key to extract the inner object before state comparison. Supports nested paths with '/' delimiter (e.g., 'data/items', 'response/result'). This value may also be set via the REST_API_READ_OBJECT_KEY environment variable.",
 			},
 			"rate_limit": schema.Float64Attribute{
 				Optional:    true,
