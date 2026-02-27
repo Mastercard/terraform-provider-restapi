@@ -322,9 +322,9 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.debug || forceDebug {
-		fmt.Println("----- HTTP Request -----")
+		fmt.Fprintln(os.Stderr, "----- HTTP Request -----")
 		if dump, err := httputil.DumpRequest(req.Request, true); err == nil {
-			fmt.Println(string(dump))
+			fmt.Fprintln(os.Stderr, string(dump))
 		}
 	}
 
@@ -339,9 +339,9 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	}
 
 	if client.debug || forceDebug {
-		fmt.Println("----- HTTP Response -----")
+		fmt.Fprintln(os.Stderr, "----- HTTP Response -----")
 		if dump, err := httputil.DumpResponse(resp, true); err == nil {
-			fmt.Println(string(dump))
+			fmt.Fprintln(os.Stderr, string(dump))
 		}
 	}
 
