@@ -134,7 +134,7 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				CustomType:  jsontypes.NormalizedType{},
 			},
 			"debug": schema.BoolAttribute{
-				Description: "Whether to emit the HTTP request and response to STDOUT while working with the API object on the server.",
+				Description: "Whether to emit the HTTP request and response to STDERR while working with the API object on the server.",
 				Optional:    true,
 			},
 

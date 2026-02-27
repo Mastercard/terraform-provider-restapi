@@ -85,7 +85,7 @@ resource "restapi_object" "clean_response" {
 
 - `create_method` (String) Defaults to `create_method` set on the provider. Allows per-resource override of `create_method` (see `create_method` provider config documentation)
 - `create_path` (String) Defaults to `path`. The API path that represents where to CREATE (POST) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object if the data contains the `id_attribute`.
-- `debug` (Boolean) Whether to emit the HTTP request and response to STDOUT while working with the API object on the server.
+- `debug` (Boolean) Whether to emit the HTTP request and response to STDERR while working with the API object on the server.
 - `destroy_data` (String) Valid JSON object to pass during to destroy requests.
 - `destroy_method` (String) Defaults to `destroy_method` set on the provider. Allows per-resource override of `destroy_method` (see `destroy_method` provider config documentation)
 - `destroy_path` (String) Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.

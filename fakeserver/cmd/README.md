@@ -4,7 +4,7 @@ Fakeserver is used by the testing suite and is wrapped by a simple CLI tool that
 
 There are only a few options for `fakeservercli`:
 `-port` (int) - the port on 127.0.0.1 the fakeserver will bind to. Defaults to 8080
-`-debug` - Will produce verbose information to STDOUT on requests and responses
+`-debug` - Will produce verbose information to STDERR on requests and responses
 `-static_dir` - When set, will serve files in this directory under the path /static/[name_of_file]
 
 Once running, fakeserver is expecting you to populate it with data that means whatever you like it to mean.

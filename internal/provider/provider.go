@@ -191,7 +191,7 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			},
 			"debug": schema.BoolAttribute{
 				Optional:    true,
-				Description: "Enabling this will cause the HTTP request and response to be printed to STDOUT by the API client regardless of the Terraform TFLOG settings.",
+				Description: "Enabling this will cause the HTTP request and response to be printed to STDERR by the API client regardless of the Terraform TFLOG settings.",
 			},
 			"cert_string": schema.StringAttribute{
 				Optional:    true,
