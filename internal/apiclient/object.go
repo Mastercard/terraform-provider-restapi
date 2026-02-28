@@ -16,44 +16,46 @@ import (
 )
 
 type APIObjectOpts struct {
-	Path          string
-	CreatePath    string
-	CreateMethod  string
-	ReadMethod    string
-	ReadPath      string
-	ReadData      string
-	UpdateMethod  string
-	UpdatePath    string
-	UpdateData    string
-	DestroyMethod string
-	DestroyData   string
-	DestroyPath   string
-	SearchPath    string
-	QueryString   string
-	Debug         bool
-	ReadSearch    map[string]string
-	ID            string
-	IDAttribute   string
-	Data          string
+	Path           string
+	CreatePath     string
+	CreateMethod   string
+	ReadMethod     string
+	ReadPath       string
+	ReadData       string
+	UpdateMethod   string
+	UpdatePath     string
+	UpdateData     string
+	DestroyMethod  string
+	DestroyData    string
+	DestroyPath    string
+	SearchPath     string
+	QueryString    string
+	Debug          bool
+	ReadSearch     map[string]string
+	ID             string
+	IDAttribute    string
+	Data           string
+	ReadResultsKey string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
-	apiClient     *APIClient
-	createMethod  string
-	createPath    string
-	readMethod    string
-	readPath      string
-	updateMethod  string
-	updatePath    string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	ID            string
-	IDAttribute   string
+	apiClient      *APIClient
+	createMethod   string
+	createPath     string
+	readMethod     string
+	readPath       string
+	updateMethod   string
+	updatePath     string
+	destroyMethod  string
+	deletePath     string
+	searchPath     string
+	queryString    string
+	debug          bool
+	readSearch     map[string]string
+	readResultsKey string
+	ID             string
+	IDAttribute    string
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -117,26 +119,27 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		readPath:      opts.ReadPath,
-		createPath:    opts.CreatePath,
-		updatePath:    opts.UpdatePath,
-		createMethod:  opts.CreateMethod,
-		readMethod:    opts.ReadMethod,
-		updateMethod:  opts.UpdateMethod,
-		destroyMethod: opts.DestroyMethod,
-		deletePath:    opts.DestroyPath,
-		searchPath:    opts.SearchPath,
-		queryString:   opts.QueryString,
-		debug:         opts.Debug,
-		readSearch:    opts.ReadSearch,
-		ID:            opts.ID,
-		IDAttribute:   opts.IDAttribute,
-		data:          make(map[string]interface{}),
-		readData:      nil,
-		updateData:    nil,
-		destroyData:   nil,
-		apiData:       make(map[string]interface{}),
+		apiClient:      iClient,
+		readPath:       opts.ReadPath,
+		createPath:     opts.CreatePath,
+		updatePath:     opts.UpdatePath,
+		createMethod:   opts.CreateMethod,
+		readMethod:     opts.ReadMethod,
+		updateMethod:   opts.UpdateMethod,
+		destroyMethod:  opts.DestroyMethod,
+		deletePath:     opts.DestroyPath,
+		searchPath:     opts.SearchPath,
+		queryString:    opts.QueryString,
+		debug:          opts.Debug,
+		readSearch:     opts.ReadSearch,
+		ID:             opts.ID,
+		IDAttribute:    opts.IDAttribute,
+		data:           make(map[string]interface{}),
+		readData:       nil,
+		updateData:     nil,
+		destroyData:    nil,
+		apiData:        make(map[string]interface{}),
+		readResultsKey: opts.ReadResultsKey,
 	}
 
 	if opts.Data != "" {
@@ -417,6 +420,34 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 			return nil
 		}
 		return err
+	}
+
+	if obj.readResultsKey != "" {
+		// Parse it seeking JSON data
+		tflog.Debug(ctx, "Response received... parsing", nil)
+		var result interface{}
+		err = json.Unmarshal([]byte(resultString), &result)
+		if err != nil {
+			return err
+		}
+
+		// results_key points to a nested location in the response where the array of objects lives.
+		// For example, if the API returns {"data": {...}}, read_results_key would be "data".
+		if _, ok := result.(map[string]interface{}); !ok {
+			return fmt.Errorf("the results of a GET did not return a map. Cannot search within for read_results_key '%s'", obj.readResultsKey)
+		}
+
+		subResult, err := GetObjectAtKey(ctx, result.(map[string]interface{}), obj.readResultsKey)
+		if err != nil {
+			return fmt.Errorf("error finding read_results_key: %s", err)
+		}
+
+		subResultBytes, err := json.Marshal(subResult)
+		if err != nil {
+			return fmt.Errorf("error marshalling data at read_results_key '%s': %s", obj.readResultsKey, err)
+		}
+
+		resultString = string(subResultBytes)
 	}
 
 	return obj.updateInternalState(resultString)
