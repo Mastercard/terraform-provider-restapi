@@ -447,6 +447,96 @@ resource "restapi_object" "Test" {
 	})
 }
 
+// TestAccRestApiObject_IgnoreServerAdditions_Update tests that updating a resource with
+// ignore_server_additions = true does not produce an "inconsistent result after apply" error
+// when update_data changes but data stays the same.
+//
+// This is the real-world failure mode: data is unchanged (so ModifyPlan locks plan.APIData to
+// the prior state value), but the update still runs (because update_data changed), and the
+// server returns different api_data — causing "Provider produced inconsistent result after apply".
+func TestAccRestApiObject_IgnoreServerAdditions_Update(t *testing.T) {
+	debug := false
+
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8130, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Step 1: Create
+				Config: `
+provider "restapi" {
+  uri                   = "http://127.0.0.1:8130"
+  write_returns_object  = true
+  create_returns_object = true
+}
+
+resource "restapi_object" "Test" {
+  path                    = "/api/objects"
+  data                    = "{ \"id\": \"isa1\", \"name\": \"Original\" }"
+  update_data             = "{ \"id\": \"isa1\", \"name\": \"Original\" }"
+  ignore_server_additions = true
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "isa1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Original"),
+				),
+			},
+			{
+				// Step 2: No-op — nothing changes, plan must be empty.
+				// Regression guard: api_data must be preserved (not shown as unknown)
+				// when no update is triggered.
+				Config: `
+provider "restapi" {
+  uri                   = "http://127.0.0.1:8130"
+  write_returns_object  = true
+  create_returns_object = true
+}
+
+resource "restapi_object" "Test" {
+  path                    = "/api/objects"
+  data                    = "{ \"id\": \"isa1\", \"name\": \"Original\" }"
+  update_data             = "{ \"id\": \"isa1\", \"name\": \"Original\" }"
+  ignore_server_additions = true
+}
+`,
+				PlanOnly: true,
+			},
+			{
+				// Step 3: update_data changes but data stays the same.
+				// Without the fix: ModifyPlan locks plan.APIData to the prior state value,
+				// the update runs (triggered by update_data change), server returns new
+				// api_data, and Terraform throws "Provider produced inconsistent result after apply".
+				Config: `
+provider "restapi" {
+  uri                   = "http://127.0.0.1:8130"
+  write_returns_object  = true
+  create_returns_object = true
+}
+
+resource "restapi_object" "Test" {
+  path                    = "/api/objects"
+  data                    = "{ \"id\": \"isa1\", \"name\": \"Original\" }"
+  update_data             = "{ \"id\": \"isa1\", \"name\": \"Original\", \"extra\": \"added\" }"
+  ignore_server_additions = true
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "isa1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.extra", "added"),
+					resource.TestCheckResourceAttrSet("restapi_object.Test", "api_response"),
+				),
+			},
+		},
+	})
+}
+
 // TestAccRestApiObject_ReadPatchRemove tests using search_patch to remove unwanted fields
 func TestAccRestApiObject_ReadPatchRemove(t *testing.T) {
 	debug := false
