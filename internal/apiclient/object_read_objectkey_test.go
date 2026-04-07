@@ -11,12 +11,12 @@ import (
 // TestReadObject_ReadObjectKey tests the read_object_key extraction feature
 func TestReadObject_ReadObjectKey(t *testing.T) {
 	tests := []struct {
-		name           string
-		readObjectKey  string
-		apiResponse    map[string]interface{}
-		expectedData   map[string]interface{}
-		expectError    bool
-		errorContains  string
+		name          string
+		readObjectKey string
+		apiResponse   map[string]interface{}
+		expectedData  map[string]interface{}
+		expectError   bool
+		errorContains string
 	}{
 		{
 			name:          "simple_wrapper_extraction",

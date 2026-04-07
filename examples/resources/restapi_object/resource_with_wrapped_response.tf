@@ -60,3 +60,34 @@ resource "restapi_object" "overrides_provider" {
     name = "resource-two"
   })
 }
+
+# Example: API that requires wrapped POST/PUT request bodies
+# API expects: POST {"entry": {"name": "foo", "config": {...}}}
+# API returns: GET {"name": "foo", "config": {...}} (flat, no wrapper)
+resource "restapi_object" "example_wrapped_write" {
+  path = "/api/entries"
+
+  # Wrap POST/PUT body under "entry" key before sending
+  write_object_key = "entry"
+
+  data = jsonencode({
+    name   = "my-resource"
+    config = {
+      setting = "value"
+    }
+  })
+}
+
+# Example: Both directions - wrapped reads AND wrapped writes
+# POST must send: {"request": {"name": "foo"}}
+# GET returns: {"response": {"name": "foo"}, "status": "ok"}
+resource "restapi_object" "example_both_wrapped" {
+  path = "/api/bidirectional"
+
+  write_object_key = "request"
+  read_object_key  = "response"
+
+  data = jsonencode({
+    name = "bidirectional-resource"
+  })
+}
