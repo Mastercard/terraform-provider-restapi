@@ -51,6 +51,8 @@ type RestAPIObjectResourceModel struct {
 	IgnoreChangesTo        types.List           `tfsdk:"ignore_changes_to"`
 	IgnoreAllServerChanges types.Bool           `tfsdk:"ignore_all_server_changes"`
 	IgnoreServerAdditions  types.Bool           `tfsdk:"ignore_server_additions"`
+	ReadObjectKey          types.String         `tfsdk:"read_object_key"`
+	WriteObjectKey         types.String         `tfsdk:"write_object_key"`
 
 	ID             types.String `tfsdk:"id"`
 	APIData        types.Map    `tfsdk:"api_data"`
@@ -211,6 +213,16 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 						CustomType:  jsontypes.NormalizedType{},
 					},
 				},
+			},
+			"read_object_key": schema.StringAttribute{
+				Description: "Defaults to `read_object_key` set on the provider. Allows per-resource override. When set, this key is used to extract an object from GET responses. Useful when the API wraps the response in an envelope. Supports nested paths with '/' delimiter (e.g., 'data/item', 'response/0').",
+				Optional:    true,
+				Computed:    true, // CRITICAL: Store in state to persist through Read cycles
+			},
+			"write_object_key": schema.StringAttribute{
+				Description: "Defaults to `write_object_key` set on the provider. Allows per-resource override. When set, POST and PUT request bodies are wrapped under this key before sending. Useful when the API requires data nested in an envelope (e.g., 'entry', 'request/data').",
+				Optional:    true,
+				Computed:    true, // Store in state to persist through Read cycles
 			},
 
 			"create_response": schema.StringAttribute{
@@ -698,7 +710,9 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		DestroyMethod: existingOrProviderOrDefaultString(model.DestroyMethod, client.Opts.DestroyMethod, "DELETE"),
 		DestroyData:   model.DestroyData.ValueString(),
 
-		QueryString: existingOrDefaultString(model.QueryString, ""),
+		QueryString:    existingOrDefaultString(model.QueryString, ""),
+		ReadObjectKey:  existingOrProviderOrDefaultString(model.ReadObjectKey, client.Opts.ReadObjectKey, ""),
+		WriteObjectKey: existingOrProviderOrDefaultString(model.WriteObjectKey, client.Opts.WriteObjectKey, ""),
 	}
 
 	// Wire up read_search if configured
@@ -739,6 +753,8 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 func setResourceModelData(ctx context.Context, obj *apiclient.APIObject, data *RestAPIObjectResourceModel, diag *diag.Diagnostics) {
 	data.ID = types.StringValue(obj.ID)
 	data.APIResponse = types.StringValue(obj.GetApiResponse())
+	data.ReadObjectKey = types.StringValue(obj.GetReadObjectKey())   // Store resolved value in state
+	data.WriteObjectKey = types.StringValue(obj.GetWriteObjectKey()) // Store resolved value in state
 	v, d := types.MapValueFrom(ctx, types.StringType, obj.GetApiData())
 	data.APIData = v
 	diag.Append(d...)

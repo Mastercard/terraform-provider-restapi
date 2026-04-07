@@ -43,6 +43,8 @@ type RestAPIProviderModel struct {
 	WriteReturnsObject  types.Bool            `tfsdk:"write_returns_object"`
 	CreateReturnsObject types.Bool            `tfsdk:"create_returns_object"`
 	XSSIPrefix          types.String          `tfsdk:"xssi_prefix"`
+	ReadObjectKey       types.String          `tfsdk:"read_object_key"`
+	WriteObjectKey      types.String          `tfsdk:"write_object_key"`
 	RateLimit           types.Float64         `tfsdk:"rate_limit"`
 	TestPath            types.String          `tfsdk:"test_path"`
 	Debug               types.Bool            `tfsdk:"debug"`
@@ -180,6 +182,14 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			"xssi_prefix": schema.StringAttribute{
 				Optional:    true,
 				Description: "Trim the xssi prefix from response string, if present, before parsing.",
+			},
+			"read_object_key": schema.StringAttribute{
+				Optional:    true,
+				Description: "When set, this key will be used to extract an object from GET responses. Useful for APIs that wrap responses in an envelope (e.g., {\"result\": {...}}, {\"data\": {...}}). Set to the wrapper key to extract the inner object before state comparison. Supports nested paths with '/' delimiter (e.g., 'data/items', 'response/result'). This value may also be set via the REST_API_READ_OBJECT_KEY environment variable.",
+			},
+			"write_object_key": schema.StringAttribute{
+				Optional:    true,
+				Description: "When set, POST and PUT request bodies will be wrapped under this key before sending to the API. Useful for APIs that require request data to be nested in an envelope (e.g., {\"entry\": {...}}, {\"request\": {...}}). Supports nested paths with '/' delimiter (e.g., 'request/data'). This value may also be set via the REST_API_WRITE_OBJECT_KEY environment variable.",
 			},
 			"rate_limit": schema.Float64Attribute{
 				Optional:    true,
@@ -329,6 +339,8 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 		WriteReturnsObject:  existingOrEnvOrDefaultBool(&resp.Diagnostics, "write_returns_object", data.WriteReturnsObject, "REST_API_WRO", false, false),
 		CreateReturnsObject: existingOrEnvOrDefaultBool(&resp.Diagnostics, "create_returns_object", data.CreateReturnsObject, "REST_API_CRO", false, false),
 		XSSIPrefix:          existingOrEnvOrDefaultString(&resp.Diagnostics, "xssi_prefix", data.XSSIPrefix, "REST_API_XSSI_PREFIX", "", false),
+		ReadObjectKey:       existingOrEnvOrDefaultString(&resp.Diagnostics, "read_object_key", data.ReadObjectKey, "REST_API_READ_OBJECT_KEY", "", false),
+		WriteObjectKey:      existingOrEnvOrDefaultString(&resp.Diagnostics, "write_object_key", data.WriteObjectKey, "REST_API_WRITE_OBJECT_KEY", "", false),
 		RateLimit:           existingOrEnvOrDefaultFloat(&resp.Diagnostics, "rate_limit", data.RateLimit, "REST_API_RATE_LIMIT", math.MaxFloat64, false),
 		Debug:               existingOrEnvOrDefaultBool(&resp.Diagnostics, "debug", data.Debug, "REST_API_DEBUG", false, false),
 		CreateMethod:        existingOrEnvOrDefaultString(&resp.Diagnostics, "create_method", data.CreateMethod, "REST_API_CREATE_METHOD", "POST", false),

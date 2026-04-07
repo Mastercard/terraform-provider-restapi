@@ -16,44 +16,48 @@ import (
 )
 
 type APIObjectOpts struct {
-	Path          string
-	CreatePath    string
-	CreateMethod  string
-	ReadMethod    string
-	ReadPath      string
-	ReadData      string
-	UpdateMethod  string
-	UpdatePath    string
-	UpdateData    string
-	DestroyMethod string
-	DestroyData   string
-	DestroyPath   string
-	SearchPath    string
-	QueryString   string
-	Debug         bool
-	ReadSearch    map[string]string
-	ID            string
-	IDAttribute   string
-	Data          string
+	Path           string
+	CreatePath     string
+	CreateMethod   string
+	ReadMethod     string
+	ReadPath       string
+	ReadData       string
+	ReadObjectKey  string
+	WriteObjectKey string
+	UpdateMethod   string
+	UpdatePath     string
+	UpdateData     string
+	DestroyMethod  string
+	DestroyData    string
+	DestroyPath    string
+	SearchPath     string
+	QueryString    string
+	Debug          bool
+	ReadSearch     map[string]string
+	ID             string
+	IDAttribute    string
+	Data           string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
-	apiClient     *APIClient
-	createMethod  string
-	createPath    string
-	readMethod    string
-	readPath      string
-	updateMethod  string
-	updatePath    string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	ID            string
-	IDAttribute   string
+	apiClient      *APIClient
+	createMethod   string
+	createPath     string
+	readMethod     string
+	readPath       string
+	readObjectKey  string
+	writeObjectKey string
+	updateMethod   string
+	updatePath     string
+	destroyMethod  string
+	deletePath     string
+	searchPath     string
+	queryString    string
+	debug          bool
+	readSearch     map[string]string
+	ID             string
+	IDAttribute    string
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -88,6 +92,14 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	if opts.ReadData == "" {
 		opts.ReadData = iClient.readData
 	}
+	// read_object_key can be set either on the client or per-object basis
+	if opts.ReadObjectKey == "" {
+		opts.ReadObjectKey = iClient.readObjectKey
+	}
+	// write_object_key can be set either on the client or per-object basis
+	if opts.WriteObjectKey == "" {
+		opts.WriteObjectKey = iClient.writeObjectKey
+	}
 	if opts.UpdateMethod == "" {
 		opts.UpdateMethod = iClient.updateMethod
 	}
@@ -117,26 +129,28 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		readPath:      opts.ReadPath,
-		createPath:    opts.CreatePath,
-		updatePath:    opts.UpdatePath,
-		createMethod:  opts.CreateMethod,
-		readMethod:    opts.ReadMethod,
-		updateMethod:  opts.UpdateMethod,
-		destroyMethod: opts.DestroyMethod,
-		deletePath:    opts.DestroyPath,
-		searchPath:    opts.SearchPath,
-		queryString:   opts.QueryString,
-		debug:         opts.Debug,
-		readSearch:    opts.ReadSearch,
-		ID:            opts.ID,
-		IDAttribute:   opts.IDAttribute,
-		data:          make(map[string]interface{}),
-		readData:      nil,
-		updateData:    nil,
-		destroyData:   nil,
-		apiData:       make(map[string]interface{}),
+		apiClient:      iClient,
+		readPath:       opts.ReadPath,
+		createPath:     opts.CreatePath,
+		updatePath:     opts.UpdatePath,
+		createMethod:   opts.CreateMethod,
+		readMethod:     opts.ReadMethod,
+		updateMethod:   opts.UpdateMethod,
+		destroyMethod:  opts.DestroyMethod,
+		deletePath:     opts.DestroyPath,
+		searchPath:     opts.SearchPath,
+		queryString:    opts.QueryString,
+		debug:          opts.Debug,
+		readSearch:     opts.ReadSearch,
+		readObjectKey:  opts.ReadObjectKey,
+		writeObjectKey: opts.WriteObjectKey,
+		ID:             opts.ID,
+		IDAttribute:    opts.IDAttribute,
+		data:           make(map[string]interface{}),
+		readData:       nil,
+		updateData:     nil,
+		destroyData:    nil,
+		apiData:        make(map[string]interface{}),
 	}
 
 	if opts.Data != "" {
@@ -298,13 +312,20 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 	b, _ := json.Marshal(obj.data)
 	obj.mux.RUnlock()
 
+	send := string(b)
+	// Wrap request body if write_object_key is configured
+	send, err := obj.wrapRequestBody(ctx, send)
+	if err != nil {
+		return err
+	}
+
 	postPath := obj.createPath
 	if obj.queryString != "" {
 		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
 		postPath = fmt.Sprintf("%s?%s", obj.createPath, obj.queryString)
 	}
 
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), send, obj.debug)
 	if err != nil {
 		return err
 	}
@@ -419,6 +440,35 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		return err
 	}
 
+	// Extract wrapped response if read_object_key is configured (backward compatible: empty string = no extraction)
+	if obj.readObjectKey != "" {
+		tflog.Debug(ctx, "Extracting object from response",
+			map[string]interface{}{"read_object_key": obj.readObjectKey})
+
+		var result interface{}
+		err = json.Unmarshal([]byte(resultString), &result)
+		if err != nil {
+			return fmt.Errorf("failed to parse response for read_object_key extraction: %w", err)
+		}
+
+		resultMap, ok := result.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("response is not a JSON object, cannot extract read_object_key '%s'", obj.readObjectKey)
+		}
+
+		extracted, err := GetObjectAtKey(ctx, resultMap, obj.readObjectKey)
+		if err != nil {
+			return fmt.Errorf("failed to extract read_object_key '%s': %w", obj.readObjectKey, err)
+		}
+
+		extractedJSON, err := json.Marshal(extracted)
+		if err != nil {
+			return fmt.Errorf("failed to marshal extracted object: %w", err)
+		}
+		resultString = string(extractedJSON)
+		tflog.Debug(ctx, "Successfully extracted object", map[string]interface{}{"read_object_key": obj.readObjectKey})
+	}
+
 	return obj.updateInternalState(resultString)
 }
 
@@ -440,6 +490,12 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		send = string(b)
 	}
 	obj.mux.RUnlock()
+
+	// Wrap request body if write_object_key is configured
+	send, err := obj.wrapRequestBody(ctx, send)
+	if err != nil {
+		return err
+	}
 
 	putPath := obj.updatePath
 	if obj.queryString != "" {
@@ -601,6 +657,52 @@ func (obj *APIObject) GetApiData() map[string]string {
 // GetApiResponse returns a copy of the raw API response from the APIObject
 func (obj *APIObject) GetApiResponse() string {
 	return obj.apiResponse
+}
+
+// GetReadObjectKey returns the read_object_key configuration value
+func (obj *APIObject) GetReadObjectKey() string {
+	return obj.readObjectKey
+}
+
+// GetWriteObjectKey returns the write_object_key configuration value
+func (obj *APIObject) GetWriteObjectKey() string {
+	return obj.writeObjectKey
+}
+
+// wrapRequestBody wraps a JSON string under write_object_key if configured.
+// For example, with write_object_key="entry" and data=`{"id":"1","name":"foo"}`,
+// returns `{"entry":{"id":"1","name":"foo"}}`.
+// Supports nested paths with '/' delimiter (e.g., "request/data").
+func (obj *APIObject) wrapRequestBody(ctx context.Context, data string) (string, error) {
+	if obj.writeObjectKey == "" {
+		return data, nil
+	}
+
+	tflog.Debug(ctx, "Wrapping request body", map[string]interface{}{"write_object_key": obj.writeObjectKey})
+
+	// Parse the original data
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(data), &parsed); err != nil {
+		return "", fmt.Errorf("failed to parse data for write_object_key wrapping: %w", err)
+	}
+
+	// Build nested wrapper from path segments (e.g., "request/data" → {"request": {"data": ...}})
+	parts := strings.Split(obj.writeObjectKey, "/")
+	wrapped := parsed
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == "" {
+			continue
+		}
+		wrapped = map[string]interface{}{parts[i]: wrapped}
+	}
+
+	result, err := json.Marshal(wrapped)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal wrapped data: %w", err)
+	}
+
+	tflog.Debug(ctx, "Successfully wrapped request body", map[string]interface{}{"write_object_key": obj.writeObjectKey})
+	return string(result), nil
 }
 
 // GetReadSearch returns a copy of the read_search configuration
