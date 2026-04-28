@@ -507,7 +507,7 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 					"Please ensure the provider URI is statically configured or depends on resources that have already been created.",
 			)
 		} else {
-			_, _, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug)
+			_, _, err := client.SendRequest(ctx, opt.ReadMethod, tmp, "", opt.Debug, map[string]string{})
 			if err != nil {
 				resp.Diagnostics.AddError(
 					"Test Request Failed",
