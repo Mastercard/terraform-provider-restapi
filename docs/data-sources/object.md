@@ -32,9 +32,11 @@ data "restapi_object" "John" {
 ### Optional
 
 - `debug` (Boolean) Whether to emit verbose debug output while working with the API object on the server.
+- `headers` (Map of String) A map of header names and values to set on all outbound requests. This is useful if you want to modify header values which are set by the provider configuration
 - `id_attribute` (String) Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)
 - `query_string` (String) An optional query string to send when performing the search.
 - `read_query_string` (String) Defaults to `query_string` set on data source. This key allows setting a different or empty query string for reading the object.
+- `results_contains_object` (Boolean) When set to true, the provider will use the object from the search results directly instead of performing a second GET request to fetch the full object. This is useful when the search endpoint already returns all the data you need, or when the individual object endpoint doesn't exist.
 - `results_key` (String) When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.
 - `search_data` (String) Valid JSON object to pass to search request as body
 - `search_path` (String) The API path on top of the base URL set in the provider that represents the location to search for objects of this type on the API server. If not set, defaults to the value of path.
