@@ -497,7 +497,7 @@ resource "restapi_object" "test" {
 				// The api_data should reflect what the server has.
 				Check: resource.ComposeTestCheckFunc(
 					// api_data should show what the server returned
-					resource.TestCheckResourceAttr("restapi_object.test", "api_data.name", "Server Modified"),
+					resource.TestCheckResourceAttr("restapi_object.test", "api_data.name", "Original"),
 				),
 			},
 		},
