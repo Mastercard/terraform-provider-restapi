@@ -1,0 +1,16 @@
+{
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	"features": {
+		"ghcr.io/devcontainers/features/go": {},
+		"ghcr.io/devcontainers/features/github-cli": {},
+		"ghcr.io/devcontainers/features/terraform": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+			]
+		}
+	},
+
+	"postCreateCommand": "cp .devcontainer/.terraformrc $HOME"
+}
