@@ -6,21 +6,11 @@ jobs:
     steps:
       -
         name: Import GPG key
-        id: import_gpg
-        uses: hashicorp/ghaction-import-gpg@v2.1.0
-        env:
-          # These secrets will need to be configured for the repository:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          PASSPHRASE: ${{ secrets.PASSPHRASE }}
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
       -
         name: Get default key info
         run: |
-          echo "GPG fingerprint: $GPG_FINGERPRINT"
-          echo ""
-          echo "ASCII armor export:"
-          gpg --armor --export $GPG_FINGERPRINT
-          echo ""
-          echo "ASCII armor export + base64:"
-          gpg --armor --export $GPG_FINGERPRINT | openssl enc -a
-        env:
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          gpg -K
