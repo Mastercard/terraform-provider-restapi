@@ -37,6 +37,8 @@ type APIObjectOpts struct {
 	ID             string
 	IDAttribute    string
 	Data           string
+	ValidatePath   string
+	ValidateMethod string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
@@ -56,6 +58,8 @@ type APIObject struct {
 	queryString    string
 	debug          bool
 	readSearch     map[string]string
+	validatePath   string
+	validateMethod string
 	ID             string
 	IDAttribute    string
 
@@ -144,6 +148,8 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		readSearch:     opts.ReadSearch,
 		readObjectKey:  opts.ReadObjectKey,
 		writeObjectKey: opts.WriteObjectKey,
+		validatePath:   opts.ValidatePath,
+		validateMethod: opts.ValidateMethod,
 		ID:             opts.ID,
 		IDAttribute:    opts.IDAttribute,
 		data:           make(map[string]interface{}),
@@ -667,6 +673,58 @@ func (obj *APIObject) GetReadObjectKey() string {
 // GetWriteObjectKey returns the write_object_key configuration value
 func (obj *APIObject) GetWriteObjectKey() string {
 	return obj.writeObjectKey
+}
+
+// GetValidatePath returns the validate_path configuration value
+func (obj *APIObject) GetValidatePath() string {
+	return obj.validatePath
+}
+
+// GetValidateMethod returns the validate_method configuration value
+func (obj *APIObject) GetValidateMethod() string {
+	return obj.validateMethod
+}
+
+// ValidateObject calls the configured validate_path endpoint with the object's data.
+// It is intended to be called during plan to catch invalid configurations before apply.
+// A non-2xx response is treated as a validation failure and the error is returned.
+// If validate_path is not set, ValidateObject is a no-op and returns nil.
+func (obj *APIObject) ValidateObject(ctx context.Context) error {
+	if obj.validatePath == "" {
+		return nil
+	}
+
+	method := obj.validateMethod
+	if method == "" {
+		method = "POST"
+	}
+
+	obj.mux.RLock()
+	b, _ := json.Marshal(obj.data)
+	obj.mux.RUnlock()
+
+	send := string(b)
+	// Wrap request body if write_object_key is configured — same behaviour as CreateObject.
+	var err error
+	send, err = obj.wrapRequestBody(ctx, send)
+	if err != nil {
+		return fmt.Errorf("validate: failed to wrap request body: %w", err)
+	}
+
+	tflog.Debug(ctx, "Calling validate endpoint", map[string]interface{}{
+		"method":        method,
+		"validate_path": obj.validatePath,
+	})
+
+	_, _, err = obj.apiClient.SendRequest(ctx, method, obj.validatePath, send, obj.debug)
+	if err != nil {
+		return fmt.Errorf("validate: API rejected configuration at %s: %w", obj.validatePath, err)
+	}
+
+	tflog.Debug(ctx, "Validate endpoint accepted configuration", map[string]interface{}{
+		"validate_path": obj.validatePath,
+	})
+	return nil
 }
 
 // wrapRequestBody wraps a JSON string under write_object_key if configured.

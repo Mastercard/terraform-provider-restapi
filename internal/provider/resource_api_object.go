@@ -22,6 +22,7 @@ import (
 var _ resource.Resource = &RestAPIObjectResource{}
 var _ resource.ResourceWithImportState = &RestAPIObjectResource{}
 var _ resource.ResourceWithModifyPlan = &RestAPIObjectResource{}
+var _ resource.ResourceWithConfigValidators = &RestAPIObjectResource{}
 
 type RestAPIObjectResource struct {
 	object       *restapi.APIObject
@@ -53,6 +54,8 @@ type RestAPIObjectResourceModel struct {
 	IgnoreServerAdditions  types.Bool           `tfsdk:"ignore_server_additions"`
 	ReadObjectKey          types.String         `tfsdk:"read_object_key"`
 	WriteObjectKey         types.String         `tfsdk:"write_object_key"`
+	ValidatePath           types.String         `tfsdk:"validate_path"`
+	ValidateMethod         types.String         `tfsdk:"validate_method"`
 
 	ID             types.String `tfsdk:"id"`
 	APIData        types.Map    `tfsdk:"api_data"`
@@ -223,6 +226,14 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				Description: "Defaults to `write_object_key` set on the provider. Allows per-resource override. When set, POST and PUT request bodies are wrapped under this key before sending. Useful when the API requires data nested in an envelope (e.g., 'entry', 'request/data').",
 				Optional:    true,
 				Computed:    true, // Store in state to persist through Read cycles
+			},
+			"validate_path": schema.StringAttribute{
+				Description: "An optional endpoint path to call during `terraform plan` to pre-flight validate the resource configuration. The provider will send the object's `data` to this path using `validate_method` (default `POST`). A non-2xx response causes the plan to fail with the API's error message, surfacing configuration problems before apply.",
+				Optional:    true,
+			},
+			"validate_method": schema.StringAttribute{
+				Description: "The HTTP method used when calling `validate_path`. Defaults to `POST`.",
+				Optional:    true,
 			},
 
 			"create_response": schema.StringAttribute{
@@ -419,6 +430,70 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 	}
 	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+// ConfigValidators returns validators that run during terraform plan.
+// When validate_path is set, it calls the configured endpoint with the object's data
+// and fails the plan if the API returns a non-2xx response.
+func (r *RestAPIObjectResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+	return []resource.ConfigValidator{
+		&validatePathValidator{providerData: r.providerData},
+	}
+}
+
+// validatePathValidator is a resource.ConfigValidator that calls validate_path during plan.
+type validatePathValidator struct {
+	providerData *ProviderData
+}
+
+func (v *validatePathValidator) Description(_ context.Context) string {
+	return "Calls validate_path endpoint with the object data to pre-flight validate before apply."
+}
+
+func (v *validatePathValidator) MarkdownDescription(_ context.Context) string {
+	return "Calls `validate_path` endpoint with the object data to pre-flight validate before apply."
+}
+
+func (v *validatePathValidator) ValidateResource(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	// Provider not yet configured (e.g. during terraform validate without creds) — skip silently.
+	if v.providerData == nil {
+		return
+	}
+
+	var model RestAPIObjectResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &model)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// No validate_path set — nothing to do.
+	if model.ValidatePath.IsNull() || model.ValidatePath.IsUnknown() || model.ValidatePath.ValueString() == "" {
+		return
+	}
+
+	// data may be unknown during plan (e.g. depends on another resource) — skip.
+	if model.Data.IsNull() || model.Data.IsUnknown() {
+		return
+	}
+
+	client, err := v.providerData.GetClient()
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get API client for validation", err.Error())
+		return
+	}
+
+	obj, err := makeAPIObject(ctx, client, "", &model)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to build API object for validation", err.Error())
+		return
+	}
+
+	if err := obj.ValidateObject(ctx); err != nil {
+		resp.Diagnostics.AddError(
+			"API pre-flight validation failed",
+			fmt.Sprintf("The API rejected the configuration at validate_path %q: %s", model.ValidatePath.ValueString(), err.Error()),
+		)
+	}
 }
 
 func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
@@ -713,6 +788,8 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		QueryString:    existingOrDefaultString(model.QueryString, ""),
 		ReadObjectKey:  existingOrProviderOrDefaultString(model.ReadObjectKey, client.Opts.ReadObjectKey, ""),
 		WriteObjectKey: existingOrProviderOrDefaultString(model.WriteObjectKey, client.Opts.WriteObjectKey, ""),
+		ValidatePath:   existingOrDefaultString(model.ValidatePath, ""),
+		ValidateMethod: existingOrDefaultString(model.ValidateMethod, ""),
 	}
 
 	// Wire up read_search if configured
