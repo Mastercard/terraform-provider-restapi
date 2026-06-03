@@ -534,6 +534,7 @@ func (p *RestAPIProvider) DataSources(_ context.Context) []func() datasource.Dat
 func (p *RestAPIProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewRestAPIObjectResource,
+		NewRestAPISettingResource,
 	}
 }
 
