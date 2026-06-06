@@ -65,6 +65,7 @@ type ReadSearchModel struct {
 	ResultsKey  types.String         `tfsdk:"results_key"`
 	QueryString types.String         `tfsdk:"query_string"`
 	SearchPatch jsontypes.Normalized `tfsdk:"search_patch"`
+	IdAttribute types.String         `tfsdk:"id_attribute"`
 }
 
 func NewRestAPIObjectResource() resource.Resource {
@@ -209,6 +210,10 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 						Description: "A JSON Patch (RFC 6902) to apply to the search result before storing in state. This allows transformation of the API response to match the expected data structure. Example: [{\"op\":\"move\",\"from\":\"/old\",\"path\":\"/new\"}]",
 						Optional:    true,
 						CustomType:  jsontypes.NormalizedType{},
+					},
+					"id_attribute": schema.StringAttribute{
+						Description: "When set, the id of a matched record is read from this key within each search result item, instead of the object-wide id_attribute. Use when the create response and the list/search endpoint wrap the id differently (e.g. create returns {\"data\":{\"id\":N}} requiring id_attribute='data/id', but the list returns flat items {\"id\":N} requiring 'id').",
+						Optional:    true,
 					},
 				},
 			},
@@ -721,6 +726,9 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		}
 		if !model.ReadSearch.SearchPatch.IsNull() && !model.ReadSearch.SearchPatch.IsUnknown() {
 			readSearch["search_patch"] = model.ReadSearch.SearchPatch.ValueString()
+		}
+		if !model.ReadSearch.IdAttribute.IsNull() && !model.ReadSearch.IdAttribute.IsUnknown() {
+			readSearch["id_attribute"] = model.ReadSearch.IdAttribute.ValueString()
 		}
 		opts.ReadSearch = readSearch
 	}
