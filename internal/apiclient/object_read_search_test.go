@@ -493,3 +493,81 @@ func TestReadObject_ReadSearchWithSearchData(t *testing.T) {
 		t.Logf("Note: Search used method %s (may vary based on API client config)", receivedMethod)
 	}
 }
+
+// TestReadObject_ReadSearchIDAttribute verifies that read_search.id_attribute overrides the
+// object-wide id_attribute when extracting the id from a flat search-result item. This supports
+// APIs whose create response wraps the id (e.g. {"data":{"id":N}}, requiring id_attribute
+// "data/id") while the list/collection endpoint returns flat items ({"id":N}, requiring "id").
+// Without the override, FindObject can't locate the id in the flat item and the read silently
+// drops the object from state.
+func TestReadObject_ReadSearchIDAttribute(t *testing.T) {
+	tests := []struct {
+		name        string
+		idAttribute string // value for read_search["id_attribute"] ("" = not set)
+		expectedID  string // obj.ID after ReadObject ("" = treated as not found)
+	}{
+		{
+			name:        "read_search.id_attribute reads the flat item's id",
+			idAttribute: "id",
+			expectedID:  "42",
+		},
+		{
+			name:        "without override the object-wide data/id misses the flat item",
+			idAttribute: "",
+			expectedID:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The list endpoint returns FLAT items (id at "id"), unlike a wrapped create response.
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				response := map[string]interface{}{
+					"data": []interface{}{
+						map[string]interface{}{"id": "42", "name": "foo"},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(response)
+			}))
+			defer server.Close()
+
+			client, err := NewAPIClient(&APIClientOpt{URI: server.URL, Timeout: 2})
+			if err != nil {
+				t.Fatalf("Failed to create API client: %v", err)
+			}
+
+			readSearch := map[string]string{
+				"search_key":   "name",
+				"search_value": "foo",
+				"results_key":  "data",
+			}
+			if tt.idAttribute != "" {
+				readSearch["id_attribute"] = tt.idAttribute
+			}
+
+			opts := &APIObjectOpts{
+				Path: "/api/objects",
+				Data: `{"name": "foo"}`,
+				// object-wide attribute matches a WRAPPED create response, not the flat list item
+				IDAttribute: "data/id",
+				ID:          "42", // known id, as it would be after a create
+				ReadSearch:  readSearch,
+			}
+
+			obj, err := NewAPIObject(client, opts)
+			if err != nil {
+				t.Fatalf("NewAPIObject() error = %v", err)
+			}
+
+			// ReadObject swallows a not-found (clears the ID); it must not return an error here.
+			if err := obj.ReadObject(context.Background()); err != nil {
+				t.Fatalf("ReadObject() error = %v", err)
+			}
+
+			if obj.ID != tt.expectedID {
+				t.Errorf("expected obj.ID %q, got %q", tt.expectedID, obj.ID)
+			}
+		})
+	}
+}
