@@ -135,6 +135,90 @@ func TestUpdateObject_BodyIDAttribute(t *testing.T) {
 	assert.Equal(t, "updated", m["name"], "managed fields must be preserved")
 }
 
+// TestDeleteObject_ResolveBeforeWrite proves the id is re-resolved from the live
+// collection right before delete (positional-id APIs): state says id=5 but the live
+// list has id=4, so the DELETE must target 4.
+func TestDeleteObject_ResolveBeforeWrite(t *testing.T) {
+	ctx := context.Background()
+
+	var delPath string
+	var sawDelete bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"data":[{"id":4,"host":"matrix"}]}`))
+		case http.MethodDelete:
+			sawDelete = true
+			delPath = r.URL.Path
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := NewAPIClient(&APIClientOpt{URI: srv.URL, Timeout: 2})
+	require.NoError(t, err)
+
+	obj, err := NewAPIObject(client, &APIObjectOpts{
+		Path:        "/api/objects",
+		ID:          "5", // stale id from state
+		IDAttribute: "id",
+		Data:        `{"host":"matrix"}`,
+		ReadSearch: map[string]string{
+			"search_key":           "host",
+			"search_value":         "matrix",
+			"results_key":          "data",
+			"id_attribute":         "id",
+			"resolve_before_write": "true",
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, obj.DeleteObject(ctx))
+	assert.True(t, sawDelete, "a DELETE should have been issued")
+	assert.Equal(t, "/api/objects/4", delPath, "delete must target the re-resolved live id (4), not the stale id (5)")
+}
+
+// TestDeleteObject_ResolveBeforeWrite_NotFound: if the object is gone from the live
+// collection, delete is a no-op (no DELETE issued).
+func TestDeleteObject_ResolveBeforeWrite_NotFound(t *testing.T) {
+	ctx := context.Background()
+
+	var sawDelete bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			sawDelete = true
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer srv.Close()
+
+	client, err := NewAPIClient(&APIClientOpt{URI: srv.URL, Timeout: 2})
+	require.NoError(t, err)
+
+	obj, err := NewAPIObject(client, &APIObjectOpts{
+		Path:        "/api/objects",
+		ID:          "5",
+		IDAttribute: "id",
+		Data:        `{"host":"matrix"}`,
+		ReadSearch: map[string]string{
+			"search_key":           "host",
+			"search_value":         "matrix",
+			"results_key":          "data",
+			"id_attribute":         "id",
+			"resolve_before_write": "true",
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, obj.DeleteObject(ctx))
+	assert.False(t, sawDelete, "no DELETE should be issued when the object is already gone")
+}
+
 // TestDeleteObject_NoBodyIDAttribute confirms the default behavior is unchanged:
 // without body_id_attribute, no body is sent on a plain delete.
 func TestDeleteObject_NoBodyIDAttribute(t *testing.T) {

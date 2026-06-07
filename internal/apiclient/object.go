@@ -452,7 +452,67 @@ func injectIDIntoBody(body string, key string, id string) (string, error) {
 	return string(b), nil
 }
 
+// resolveIDViaSearch re-resolves obj.ID from the live collection using read_search,
+// immediately before a write. Some APIs use positional/array-index ids that shift
+// when sibling objects are deleted or created earlier in the same apply (e.g. pfSense
+// pfrest renumbers host overrides on delete), so the id captured at refresh time can
+// be stale by the time this object is mutated. Re-resolving by the unique search key
+// yields the object's current id. Pair with -parallelism=1 so writes serialize and no
+// concurrent delete shifts the index between this lookup and the request.
+//
+// Returns found=false (and clears obj.ID) when the object is no longer present - the
+// caller treats that as "already gone" for delete. No-op (found=true) when read_search
+// is not configured.
+func (obj *APIObject) resolveIDViaSearch(ctx context.Context) (bool, error) {
+	searchKey := obj.readSearch["search_key"]
+	searchValue := obj.readSearch["search_value"]
+	if searchKey == "" || searchValue == "" {
+		return true, nil
+	}
+	searchValue = strings.ReplaceAll(searchValue, "{id}", obj.ID)
+
+	if obj.searchPath == "" {
+		obj.searchPath = strings.TrimSuffix(obj.readPath, "/{id}")
+	}
+
+	queryString := obj.readSearch["query_string"]
+	if obj.queryString != "" {
+		if queryString != "" {
+			queryString = fmt.Sprintf("%s&%s", queryString, obj.queryString)
+		} else {
+			queryString = obj.queryString
+		}
+	}
+
+	searchData := ""
+	if len(obj.readSearch["search_data"]) > 0 {
+		tmpData, _ := json.Marshal(obj.readSearch["search_data"])
+		searchData = string(tmpData)
+	}
+
+	resultsKey := obj.readSearch["results_key"]
+	objFound, err := obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, searchData)
+	if err != nil || objFound == nil {
+		tflog.Warn(ctx, "resolve_before_write: object not found in live collection", map[string]interface{}{"search_key": searchKey, "search_value": searchValue})
+		obj.ID = ""
+		return false, nil
+	}
+	// FindObject set obj.ID to the current id of the matched record.
+	return true, nil
+}
+
 func (obj *APIObject) UpdateObject(ctx context.Context) error {
+	// Re-resolve the id right before updating for positional-id APIs (see helper).
+	if obj.readSearch["resolve_before_write"] == "true" {
+		found, err := obj.resolveIDViaSearch(ctx)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fmt.Errorf("cannot update: object not found in live collection during resolve_before_write")
+		}
+	}
+
 	if obj.ID == "" {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
 	}
@@ -503,6 +563,19 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 }
 
 func (obj *APIObject) DeleteObject(ctx context.Context) error {
+	// Re-resolve the id right before deleting for positional-id APIs (see helper):
+	// a sibling deleted earlier in this apply may have shifted this object's index.
+	if obj.readSearch["resolve_before_write"] == "true" {
+		found, err := obj.resolveIDViaSearch(ctx)
+		if err != nil {
+			return err
+		}
+		if !found {
+			tflog.Warn(ctx, "Object not found during delete (resolve_before_write). Assuming already deleted.", map[string]interface{}{})
+			return nil
+		}
+	}
+
 	if obj.ID == "" {
 		tflog.Warn(ctx, "Attempting to delete an object that has no id set. Assuming this is OK.", map[string]interface{}{})
 		return nil
