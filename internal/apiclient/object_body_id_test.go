@@ -163,16 +163,16 @@ func TestDeleteObject_ResolveBeforeWrite(t *testing.T) {
 	require.NoError(t, err)
 
 	obj, err := NewAPIObject(client, &APIObjectOpts{
-		Path:        "/api/objects",
-		ID:          "5", // stale id from state
-		IDAttribute: "id",
-		Data:        `{"host":"matrix"}`,
+		Path:               "/api/objects",
+		ID:                 "5", // stale id from state
+		IDAttribute:        "id",
+		Data:               `{"host":"matrix"}`,
+		ResolveBeforeWrite: true,
 		ReadSearch: map[string]string{
-			"search_key":           "host",
-			"search_value":         "matrix",
-			"results_key":          "data",
-			"id_attribute":         "id",
-			"resolve_before_write": "true",
+			"search_key":   "host",
+			"search_value": "matrix",
+			"results_key":  "data",
+			"id_attribute": "id",
 		},
 	})
 	require.NoError(t, err)
@@ -201,16 +201,16 @@ func TestDeleteObject_ResolveBeforeWrite_NotFound(t *testing.T) {
 	require.NoError(t, err)
 
 	obj, err := NewAPIObject(client, &APIObjectOpts{
-		Path:        "/api/objects",
-		ID:          "5",
-		IDAttribute: "id",
-		Data:        `{"host":"matrix"}`,
+		Path:               "/api/objects",
+		ID:                 "5",
+		IDAttribute:        "id",
+		Data:               `{"host":"matrix"}`,
+		ResolveBeforeWrite: true,
 		ReadSearch: map[string]string{
-			"search_key":           "host",
-			"search_value":         "matrix",
-			"results_key":          "data",
-			"id_attribute":         "id",
-			"resolve_before_write": "true",
+			"search_key":   "host",
+			"search_value": "matrix",
+			"results_key":  "data",
+			"id_attribute": "id",
 		},
 	})
 	require.NoError(t, err)

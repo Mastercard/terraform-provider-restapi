@@ -34,6 +34,7 @@ type APIClientOpt struct {
 	Timeout             int64 // Timeout in seconds for HTTP requests
 	IDAttribute         string
 	BodyIDAttribute     string
+	ResolveBeforeWrite  bool
 	CreateMethod        string
 	ReadMethod          string
 	ReadData            string

@@ -17,46 +17,48 @@ import (
 )
 
 type APIObjectOpts struct {
-	Path            string
-	CreatePath      string
-	CreateMethod    string
-	ReadMethod      string
-	ReadPath        string
-	ReadData        string
-	UpdateMethod    string
-	UpdatePath      string
-	UpdateData      string
-	DestroyMethod   string
-	DestroyData     string
-	DestroyPath     string
-	SearchPath      string
-	QueryString     string
-	Debug           bool
-	ReadSearch      map[string]string
-	ID              string
-	IDAttribute     string
-	BodyIDAttribute string
-	Data            string
+	Path               string
+	CreatePath         string
+	CreateMethod       string
+	ReadMethod         string
+	ReadPath           string
+	ReadData           string
+	UpdateMethod       string
+	UpdatePath         string
+	UpdateData         string
+	DestroyMethod      string
+	DestroyData        string
+	DestroyPath        string
+	SearchPath         string
+	QueryString        string
+	Debug              bool
+	ReadSearch         map[string]string
+	ID                 string
+	IDAttribute        string
+	BodyIDAttribute    string
+	ResolveBeforeWrite bool
+	Data               string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
-	apiClient       *APIClient
-	createMethod    string
-	createPath      string
-	readMethod      string
-	readPath        string
-	updateMethod    string
-	updatePath      string
-	destroyMethod   string
-	deletePath      string
-	searchPath      string
-	queryString     string
-	debug           bool
-	readSearch      map[string]string
-	ID              string
-	IDAttribute     string
-	bodyIDAttribute string
+	apiClient          *APIClient
+	createMethod       string
+	createPath         string
+	readMethod         string
+	readPath           string
+	updateMethod       string
+	updatePath         string
+	destroyMethod      string
+	deletePath         string
+	searchPath         string
+	queryString        string
+	debug              bool
+	readSearch         map[string]string
+	ID                 string
+	IDAttribute        string
+	bodyIDAttribute    string
+	resolveBeforeWrite bool
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -120,27 +122,28 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:       iClient,
-		readPath:        opts.ReadPath,
-		createPath:      opts.CreatePath,
-		updatePath:      opts.UpdatePath,
-		createMethod:    opts.CreateMethod,
-		readMethod:      opts.ReadMethod,
-		updateMethod:    opts.UpdateMethod,
-		destroyMethod:   opts.DestroyMethod,
-		deletePath:      opts.DestroyPath,
-		searchPath:      opts.SearchPath,
-		queryString:     opts.QueryString,
-		debug:           opts.Debug,
-		readSearch:      opts.ReadSearch,
-		ID:              opts.ID,
-		IDAttribute:     opts.IDAttribute,
-		bodyIDAttribute: opts.BodyIDAttribute,
-		data:            make(map[string]interface{}),
-		readData:        nil,
-		updateData:      nil,
-		destroyData:     nil,
-		apiData:         make(map[string]interface{}),
+		apiClient:          iClient,
+		readPath:           opts.ReadPath,
+		createPath:         opts.CreatePath,
+		updatePath:         opts.UpdatePath,
+		createMethod:       opts.CreateMethod,
+		readMethod:         opts.ReadMethod,
+		updateMethod:       opts.UpdateMethod,
+		destroyMethod:      opts.DestroyMethod,
+		deletePath:         opts.DestroyPath,
+		searchPath:         opts.SearchPath,
+		queryString:        opts.QueryString,
+		debug:              opts.Debug,
+		readSearch:         opts.ReadSearch,
+		ID:                 opts.ID,
+		IDAttribute:        opts.IDAttribute,
+		bodyIDAttribute:    opts.BodyIDAttribute,
+		resolveBeforeWrite: opts.ResolveBeforeWrite,
+		data:               make(map[string]interface{}),
+		readData:           nil,
+		updateData:         nil,
+		destroyData:        nil,
+		apiData:            make(map[string]interface{}),
 	}
 
 	if opts.Data != "" {
@@ -503,7 +506,7 @@ func (obj *APIObject) resolveIDViaSearch(ctx context.Context) (bool, error) {
 
 func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	// Re-resolve the id right before updating for positional-id APIs (see helper).
-	if obj.readSearch["resolve_before_write"] == "true" {
+	if obj.resolveBeforeWrite {
 		found, err := obj.resolveIDViaSearch(ctx)
 		if err != nil {
 			return err
@@ -565,7 +568,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 func (obj *APIObject) DeleteObject(ctx context.Context) error {
 	// Re-resolve the id right before deleting for positional-id APIs (see helper):
 	// a sibling deleted earlier in this apply may have shifted this object's index.
-	if obj.readSearch["resolve_before_write"] == "true" {
+	if obj.resolveBeforeWrite {
 		found, err := obj.resolveIDViaSearch(ctx)
 		if err != nil {
 			return err

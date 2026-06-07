@@ -60,14 +60,13 @@ type RestAPIObjectResourceModel struct {
 }
 
 type ReadSearchModel struct {
-	SearchData         jsontypes.Normalized `tfsdk:"search_data"`
-	SearchKey          types.String         `tfsdk:"search_key"`
-	SearchValue        types.String         `tfsdk:"search_value"`
-	ResultsKey         types.String         `tfsdk:"results_key"`
-	QueryString        types.String         `tfsdk:"query_string"`
-	SearchPatch        jsontypes.Normalized `tfsdk:"search_patch"`
-	IdAttribute        types.String         `tfsdk:"id_attribute"`
-	ResolveBeforeWrite types.Bool           `tfsdk:"resolve_before_write"`
+	SearchData  jsontypes.Normalized `tfsdk:"search_data"`
+	SearchKey   types.String         `tfsdk:"search_key"`
+	SearchValue types.String         `tfsdk:"search_value"`
+	ResultsKey  types.String         `tfsdk:"results_key"`
+	QueryString types.String         `tfsdk:"query_string"`
+	SearchPatch jsontypes.Normalized `tfsdk:"search_patch"`
+	IdAttribute types.String         `tfsdk:"id_attribute"`
 }
 
 func NewRestAPIObjectResource() resource.Resource {
@@ -219,10 +218,6 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 					},
 					"id_attribute": schema.StringAttribute{
 						Description: "When set, the id of a matched record is read from this key within each search result item, instead of the object-wide id_attribute. Use when the create response and the list/search endpoint wrap the id differently (e.g. create returns {\"data\":{\"id\":N}} requiring id_attribute='data/id', but the list returns flat items {\"id\":N} requiring 'id').",
-						Optional:    true,
-					},
-					"resolve_before_write": schema.BoolAttribute{
-						Description: "When true, the object's id is re-resolved from the live collection (via this read_search) immediately before each UPDATE and DELETE, instead of using the id captured at refresh. Required for APIs whose ids are positional/array indices that shift when sibling objects are deleted or created earlier in the same apply (e.g. pfSense pfrest renumbers host overrides on delete). Pair with -parallelism=1 so writes serialize and no concurrent delete shifts the index between the lookup and the request. Default: false.",
 						Optional:    true,
 					},
 				},
@@ -696,8 +691,9 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		Debug: model.Debug.ValueBool(),
 
 		// Allow override of provider-level attributes
-		IDAttribute:     existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
-		BodyIDAttribute: existingOrProviderOrDefaultString(model.BodyIDAttribute, client.Opts.BodyIDAttribute, ""),
+		IDAttribute:        existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
+		BodyIDAttribute:    existingOrProviderOrDefaultString(model.BodyIDAttribute, client.Opts.BodyIDAttribute, ""),
+		ResolveBeforeWrite: client.Opts.ResolveBeforeWrite,
 
 		CreatePath:   existingOrDefaultString(model.CreatePath, ""),
 		CreateMethod: existingOrProviderOrDefaultString(model.CreateMethod, client.Opts.CreateMethod, "POST"),
@@ -740,9 +736,6 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		}
 		if !model.ReadSearch.IdAttribute.IsNull() && !model.ReadSearch.IdAttribute.IsUnknown() {
 			readSearch["id_attribute"] = model.ReadSearch.IdAttribute.ValueString()
-		}
-		if !model.ReadSearch.ResolveBeforeWrite.IsNull() && !model.ReadSearch.ResolveBeforeWrite.IsUnknown() && model.ReadSearch.ResolveBeforeWrite.ValueBool() {
-			readSearch["resolve_before_write"] = "true"
 		}
 		opts.ReadSearch = readSearch
 	}
