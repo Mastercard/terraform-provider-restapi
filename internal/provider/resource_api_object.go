@@ -497,11 +497,17 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		}
 
 		for _, field := range newFields {
-			if stateValue, err := getNestedValue(stateData, field); err == nil {
-				planValue, _ := getNestedValue(planData, field)
-				if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
-					resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
-				}
+			stateValue, stateErr := getNestedValue(stateData, field)
+			planValue, planErr := getNestedValue(planData, field)
+			// A force_new field requires replacement when it is ADDED (absent in state, present in
+			// plan), REMOVED (present in state, absent in plan), or CHANGED in value. The prior logic
+			// gated the whole check on the field already existing in state (err == nil), so a newly
+			// ADDED force_new attribute was silently planned as an in-place update instead of a
+			// destroy+recreate.
+			changed := (stateErr == nil) != (planErr == nil) ||
+				(stateErr == nil && planErr == nil && fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue))
+			if changed {
+				resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
 			}
 		}
 	}
