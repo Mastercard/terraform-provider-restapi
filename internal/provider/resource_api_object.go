@@ -39,6 +39,7 @@ type RestAPIObjectResourceModel struct {
 	UpdateMethod           types.String         `tfsdk:"update_method"`
 	DestroyMethod          types.String         `tfsdk:"destroy_method"`
 	IDAttribute            types.String         `tfsdk:"id_attribute"`
+	BodyIDAttribute        types.String         `tfsdk:"body_id_attribute"`
 	ObjectID               types.String         `tfsdk:"object_id"`
 	Data                   jsontypes.Normalized `tfsdk:"data"`
 	Debug                  types.Bool           `tfsdk:"debug"`
@@ -122,6 +123,10 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"id_attribute": schema.StringAttribute{
 				Description: "Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)",
+				Optional:    true,
+			},
+			"body_id_attribute": schema.StringAttribute{
+				Description: "When set, the object's id is injected into the JSON body of UPDATE and DELETE requests under this key. Required by APIs that read the id from the request body rather than the URL/path - e.g. pfSense pfrest reads `id` from the body whenever the request carries an application/json content type and otherwise returns MODEL_REQUIRES_ID. The id is sent as a JSON number when it is an integer, otherwise as a string.",
 				Optional:    true,
 			},
 			"object_id": schema.StringAttribute{
@@ -686,7 +691,8 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		Debug: model.Debug.ValueBool(),
 
 		// Allow override of provider-level attributes
-		IDAttribute: existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
+		IDAttribute:     existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
+		BodyIDAttribute: existingOrProviderOrDefaultString(model.BodyIDAttribute, client.Opts.BodyIDAttribute, ""),
 
 		CreatePath:   existingOrDefaultString(model.CreatePath, ""),
 		CreateMethod: existingOrProviderOrDefaultString(model.CreateMethod, client.Opts.CreateMethod, "POST"),

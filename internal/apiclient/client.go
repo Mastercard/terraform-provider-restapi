@@ -33,6 +33,7 @@ type APIClientOpt struct {
 	Headers             map[string]string
 	Timeout             int64 // Timeout in seconds for HTTP requests
 	IDAttribute         string
+	BodyIDAttribute     string
 	CreateMethod        string
 	ReadMethod          string
 	ReadData            string

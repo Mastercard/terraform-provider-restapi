@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,44 +17,46 @@ import (
 )
 
 type APIObjectOpts struct {
-	Path          string
-	CreatePath    string
-	CreateMethod  string
-	ReadMethod    string
-	ReadPath      string
-	ReadData      string
-	UpdateMethod  string
-	UpdatePath    string
-	UpdateData    string
-	DestroyMethod string
-	DestroyData   string
-	DestroyPath   string
-	SearchPath    string
-	QueryString   string
-	Debug         bool
-	ReadSearch    map[string]string
-	ID            string
-	IDAttribute   string
-	Data          string
+	Path            string
+	CreatePath      string
+	CreateMethod    string
+	ReadMethod      string
+	ReadPath        string
+	ReadData        string
+	UpdateMethod    string
+	UpdatePath      string
+	UpdateData      string
+	DestroyMethod   string
+	DestroyData     string
+	DestroyPath     string
+	SearchPath      string
+	QueryString     string
+	Debug           bool
+	ReadSearch      map[string]string
+	ID              string
+	IDAttribute     string
+	BodyIDAttribute string
+	Data            string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
-	apiClient     *APIClient
-	createMethod  string
-	createPath    string
-	readMethod    string
-	readPath      string
-	updateMethod  string
-	updatePath    string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	ID            string
-	IDAttribute   string
+	apiClient       *APIClient
+	createMethod    string
+	createPath      string
+	readMethod      string
+	readPath        string
+	updateMethod    string
+	updatePath      string
+	destroyMethod   string
+	deletePath      string
+	searchPath      string
+	queryString     string
+	debug           bool
+	readSearch      map[string]string
+	ID              string
+	IDAttribute     string
+	bodyIDAttribute string
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -117,26 +120,27 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		readPath:      opts.ReadPath,
-		createPath:    opts.CreatePath,
-		updatePath:    opts.UpdatePath,
-		createMethod:  opts.CreateMethod,
-		readMethod:    opts.ReadMethod,
-		updateMethod:  opts.UpdateMethod,
-		destroyMethod: opts.DestroyMethod,
-		deletePath:    opts.DestroyPath,
-		searchPath:    opts.SearchPath,
-		queryString:   opts.QueryString,
-		debug:         opts.Debug,
-		readSearch:    opts.ReadSearch,
-		ID:            opts.ID,
-		IDAttribute:   opts.IDAttribute,
-		data:          make(map[string]interface{}),
-		readData:      nil,
-		updateData:    nil,
-		destroyData:   nil,
-		apiData:       make(map[string]interface{}),
+		apiClient:       iClient,
+		readPath:        opts.ReadPath,
+		createPath:      opts.CreatePath,
+		updatePath:      opts.UpdatePath,
+		createMethod:    opts.CreateMethod,
+		readMethod:      opts.ReadMethod,
+		updateMethod:    opts.UpdateMethod,
+		destroyMethod:   opts.DestroyMethod,
+		deletePath:      opts.DestroyPath,
+		searchPath:      opts.SearchPath,
+		queryString:     opts.QueryString,
+		debug:           opts.Debug,
+		readSearch:      opts.ReadSearch,
+		ID:              opts.ID,
+		IDAttribute:     opts.IDAttribute,
+		bodyIDAttribute: opts.BodyIDAttribute,
+		data:            make(map[string]interface{}),
+		readData:        nil,
+		updateData:      nil,
+		destroyData:     nil,
+		apiData:         make(map[string]interface{}),
 	}
 
 	if opts.Data != "" {
@@ -422,6 +426,32 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	return obj.updateInternalState(resultString)
 }
 
+// injectIDIntoBody merges the object's id into a JSON request body under the
+// given key. Some APIs read the object id from the request body rather than the
+// URL/path when the request carries a JSON content type - e.g. pfSense pfrest
+// returns MODEL_REQUIRES_ID for a bodyless PATCH/DELETE even when ?id= is set,
+// because it only looks for `id` in the body. The id is written as a JSON number
+// when it parses as an integer (pfrest's model validators require an integer id),
+// otherwise as a string. An empty body is treated as an empty object.
+func injectIDIntoBody(body string, key string, id string) (string, error) {
+	m := map[string]interface{}{}
+	if strings.TrimSpace(body) != "" {
+		if err := json.Unmarshal([]byte(body), &m); err != nil {
+			return "", fmt.Errorf("failed to parse request body for id injection: %w", err)
+		}
+	}
+	if n, err := strconv.Atoi(id); err == nil {
+		m[key] = n
+	} else {
+		m[key] = id
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body after id injection: %w", err)
+	}
+	return string(b), nil
+}
+
 func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	if obj.ID == "" {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
@@ -440,6 +470,16 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		send = string(b)
 	}
 	obj.mux.RUnlock()
+
+	// Some APIs (e.g. pfrest) read the id from the request body on PATCH/PUT
+	// rather than the URL. Inject it when body_id_attribute is configured.
+	if obj.bodyIDAttribute != "" {
+		var ierr error
+		send, ierr = injectIDIntoBody(send, obj.bodyIDAttribute, obj.ID)
+		if ierr != nil {
+			return ierr
+		}
+	}
 
 	putPath := obj.updatePath
 	if obj.queryString != "" {
@@ -479,6 +519,16 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		destroyData, _ := json.Marshal(obj.destroyData)
 		send = string(destroyData)
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
+	}
+
+	// Some APIs (e.g. pfrest) read the id from the request body on DELETE rather
+	// than the URL/query. Inject it when body_id_attribute is configured.
+	if obj.bodyIDAttribute != "" {
+		var ierr error
+		send, ierr = injectIDIntoBody(send, obj.bodyIDAttribute, obj.ID)
+		if ierr != nil {
+			return ierr
+		}
 	}
 
 	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)

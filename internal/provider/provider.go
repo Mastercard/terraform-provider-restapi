@@ -35,6 +35,7 @@ type RestAPIProviderModel struct {
 	UseCookies          types.Bool            `tfsdk:"use_cookies"`
 	Timeout             types.Int64           `tfsdk:"timeout"`
 	IDAttribute         types.String          `tfsdk:"id_attribute"`
+	BodyIDAttribute     types.String          `tfsdk:"body_id_attribute"`
 	CreateMethod        types.String          `tfsdk:"create_method"`
 	ReadMethod          types.String          `tfsdk:"read_method"`
 	UpdateMethod        types.String          `tfsdk:"update_method"`
@@ -147,6 +148,10 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			"id_attribute": schema.StringAttribute{
 				Optional:    true,
 				Description: "When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`",
+			},
+			"body_id_attribute": schema.StringAttribute{
+				Optional:    true,
+				Description: "When set, the object's id is injected into the JSON body of UPDATE and DELETE requests under this key, for every resource. Required by APIs that read the id from the request body rather than the URL/path (e.g. pfSense pfrest, which reads `id` from the body whenever the request carries an application/json content type). Set at the provider level so it also applies when destroying objects whose state predates a per-resource setting. Can be overridden per-resource.",
 			},
 			"create_method": schema.StringAttribute{
 				Description: "Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server.",
@@ -325,6 +330,7 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 		UseCookies:          existingOrEnvOrDefaultBool(&resp.Diagnostics, "use_cookies", data.UseCookies, "REST_API_USE_COOKIES", false, false),
 		Timeout:             existingOrEnvOrDefaultInt(&resp.Diagnostics, "timeout", data.Timeout, "REST_API_TIMEOUT", 60, false),
 		IDAttribute:         existingOrEnvOrDefaultString(&resp.Diagnostics, "id_attribute", data.IDAttribute, "REST_API_ID_ATTRIBUTE", "id", false),
+		BodyIDAttribute:     existingOrEnvOrDefaultString(&resp.Diagnostics, "body_id_attribute", data.BodyIDAttribute, "REST_API_BODY_ID_ATTRIBUTE", "", false),
 		CopyKeys:            copyKeys,
 		WriteReturnsObject:  existingOrEnvOrDefaultBool(&resp.Diagnostics, "write_returns_object", data.WriteReturnsObject, "REST_API_WRO", false, false),
 		CreateReturnsObject: existingOrEnvOrDefaultBool(&resp.Diagnostics, "create_returns_object", data.CreateReturnsObject, "REST_API_CRO", false, false),
