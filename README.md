@@ -27,8 +27,12 @@ There are a few requirements about how the API must work for this provider to be
 * Objects live under a distinct path such that for the path `/api/v1/things`...
     * POST on `/api/v1/things` creates a new object
     * GET, PUT and DELETE on `/api/v1/things/{id}` manages an existing object
+* **Request and response bodies are JSON.** The `data` field on `restapi_object` is parsed as JSON internally and the body sent to the API is always JSON-encoded — even if you change `Content-Type` to something else via the provider's `headers` map. APIs that require a different request body format (e.g. `application/x-www-form-urlencoded`, multipart) are not supported by this provider; see [Alternatives](#alternatives) below.
+* **The API must accept the same DELETE semantics on every applied resource.** This provider issues `DELETE` on destroy by default (overridable per-resource via `destroy_method`). If the API rejects DELETE for any reason — e.g. server-side disabled — Terraform's destroy step will fail and block applies on any state change that triggers a recreate. You can work around this with `destroy_method = "POST"` (or any method the API does accept) plus a `destroy_data` body that the API treats as a no-op, but the cleanest approach for DELETE-disabled APIs is to model the resource with `null_resource` + `local-exec` instead.
 
 Have a look at the [examples directory](examples) for some use cases.
+
+### Alternatives
 
 While this provider can be a good approach if the above semantics are met, it isn't the best option for all cases. There are a few other providers that have been recommended by the community in discussion of issues:
 * [hashicorp/http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) - a data source provider that can make a request and provide raw access to the response headers and payload
@@ -67,6 +71,7 @@ Here are some tips for troubleshooting that may be helpful...
 
 If an unexpected error occurs, enable debug log and review the output:
 * Does the API return an odd HTTP response code? This is common for bad requests to the API. Look closely at the HTTP request details.
+* `HTTP 415 unsupported media type` on create/update? The API likely doesn't accept JSON request bodies. This provider always sends JSON regardless of the `Content-Type` header set via `headers` — see the JSON-body requirement under [About This Provider](#about-this-provider). For APIs that require `application/x-www-form-urlencoded` or other non-JSON bodies, model the resource with `null_resource` + `local-exec` (or one of the alternative providers listed below) instead.
 * Does an unexpected golang 'unmarshaling' error occur? Take a look at the debug log and see if anything other than a hash (for resources) or an array (for the datasource) is being returned. For example, the provider cannot cope with cases where a JSON object is requested, but an array of JSON objects is returned.
 
 &nbsp;
