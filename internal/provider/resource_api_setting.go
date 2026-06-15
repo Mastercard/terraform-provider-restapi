@@ -306,13 +306,33 @@ func (r *RestAPISettingResource) Read(ctx context.Context, req resource.ReadRequ
 		}
 	}
 
-	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
-	// However, when ignore_server_additions is true, we should NOT overwrite state.Data with the full API response
-	// because the config only contains the fields the user configured, not the server-added fields
-	if state.IgnoreServerAdditions.IsNull() || !state.IgnoreServerAdditions.ValueBool() {
-		state.Data = jsontypes.NewNormalizedValue(objString)
+	// For Read we want to write to state only what was observed from the server.
+	// When ignore_server_additions is true, filter out server-added fields while still
+	// detecting drift in fields the user explicitly configured.
+	if !state.IgnoreServerAdditions.IsNull() && state.IgnoreServerAdditions.ValueBool() && !state.Data.IsNull() && !state.Data.IsUnknown() {
+		var ignoreFields []string
+		if !state.IgnoreChangesTo.IsNull() && !state.IgnoreChangesTo.IsUnknown() {
+			resp.Diagnostics.Append(state.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		serverData, configData := getPlanAndStateData(obj.GetApiResponse(), state.Data.ValueString(), &resp.Diagnostics)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		mergedData, _ := getDelta(configData, serverData, ignoreFields, true)
+		jsonData, err := json.Marshal(mergedData)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Marshaling Merged Data",
+				fmt.Sprintf("Could not marshal merged data: %s", err.Error()),
+			)
+			return
+		}
+		state.Data = jsontypes.NewNormalizedValue(string(jsonData))
 	} else {
-		tflog.Debug(ctx, "Read: keeping state.Data unchanged due to ignore_server_additions")
+		state.Data = jsontypes.NewNormalizedValue(objString)
 	}
 	setResourceModelDataSetting(ctx, obj, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

@@ -176,6 +176,61 @@ resource "restapi_setting" "test" {
 	})
 }
 
+func TestAccRestApiSetting_IgnoreServerAdditions_DriftDetection(t *testing.T) {
+	apiServerObjects := map[string]map[string]interface{}{
+		"setting-drift": {
+			"name":            "Test Setting",
+			"enabled":         true,
+			"server_metadata": "auto-generated",
+		},
+	}
+
+	svr := fakeserver.NewFakeServer(8126, apiServerObjects, map[string]string{}, true, false, "")
+	defer svr.Shutdown()
+
+	config := `
+provider "restapi" {
+  uri = "http://127.0.0.1:8126"
+}
+
+resource "restapi_setting" "drift_test" {
+  read_path   = "/api/objects/setting-drift"
+  update_path = "/api/objects/setting-drift"
+  data = jsonencode({
+    name    = "Test Setting"
+    enabled = true
+  })
+  ignore_server_additions = true
+}
+`
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_setting.drift_test", "api_data.name", "Test Setting"),
+					resource.TestCheckResourceAttr("restapi_setting.drift_test", "api_data.enabled", "true"),
+				),
+			},
+			{
+				// Simulate the server changing a configured field (enabled: true -> false)
+				// ignore_server_additions should only ignore *new* server fields,
+				// not suppress drift in fields the user explicitly configured.
+				PreConfig: func() {
+					svr.GetObjects()["setting-drift"]["enabled"] = false
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccRestApiSetting_DeleteRestoresInitialManagedKeys(t *testing.T) {
 	apiServerObjects := map[string]map[string]interface{}{
 		"resource": {
