@@ -1,14 +1,11 @@
 package apiclient
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -28,26 +25,11 @@ type APISettingOpts struct {
 	Headers      map[string]string
 }
 
-// APISetting is the state holding struct for a restapi_object resource
+// APISetting is the state holding struct for a restapi_setting resource
 type APISetting struct {
-	apiClient    *APIClient
-	readMethod   string
-	readPath     string
-	updateMethod string
-	updatePath   string
-	queryString  string
-	debug        bool
-	ID           string
-	IDAttribute  string
-	headers      map[string]string
+	APIBase
 
 	// Set internally
-	mux          sync.RWMutex           // Protects data and apiData fields
-	data         map[string]interface{} // Data as managed by the user
-	readData     map[string]interface{} // Data to send during Read operation
-	updateData   map[string]interface{} // Data to send during Update operation
-	apiData      map[string]interface{} // Data from the most recent read operation of the API object, as massaged to a map
-	apiResponse  string                 // Raw API response from most recent read operation
 	initialState map[string]interface{} // The initial state of the object as read from the API, used for diffing during updates
 }
 
@@ -70,20 +52,22 @@ func NewAPISetting(iClient *APIClient, opts *APISettingOpts) (*APISetting, error
 	}
 
 	obj := APISetting{
-		apiClient:    iClient,
-		readPath:     opts.ReadPath,
-		updatePath:   opts.UpdatePath,
-		readMethod:   opts.ReadMethod,
-		updateMethod: opts.UpdateMethod,
-		queryString:  opts.QueryString,
-		debug:        opts.Debug,
-		ID:           opts.ID,
-		IDAttribute:  opts.IDAttribute,
-		headers:      opts.Headers,
-		data:         make(map[string]interface{}),
-		readData:     nil,
-		updateData:   nil,
-		apiData:      make(map[string]interface{}),
+		APIBase: APIBase{
+			apiClient:    iClient,
+			readPath:     opts.ReadPath,
+			updatePath:   opts.UpdatePath,
+			readMethod:   opts.ReadMethod,
+			updateMethod: opts.UpdateMethod,
+			queryString:  opts.QueryString,
+			debug:        opts.Debug,
+			ID:           opts.ID,
+			IDAttribute:  opts.IDAttribute,
+			headers:      opts.Headers,
+			data:         make(map[string]interface{}),
+			readData:     nil,
+			updateData:   nil,
+			apiData:      make(map[string]interface{}),
+		},
 		initialState: nil,
 	}
 
@@ -131,22 +115,7 @@ func NewAPISetting(iClient *APIClient, opts *APISettingOpts) (*APISetting, error
 // Convert the important bits about this object to string representation
 // This is useful for debugging.
 func (obj *APISetting) String() string {
-	obj.mux.RLock()
-	defer obj.mux.RUnlock()
-
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("id: %s\n", obj.ID))
-	buffer.WriteString(fmt.Sprintf("get_path: %s\n", obj.readPath))
-	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.updatePath))
-	buffer.WriteString(fmt.Sprintf("query_string: %s\n", obj.queryString))
-	buffer.WriteString(fmt.Sprintf("read_method: %s\n", obj.readMethod))
-	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
-	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
-	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
-	buffer.WriteString(fmt.Sprintf("read_data: %s\n", spew.Sdump(obj.readData)))
-	buffer.WriteString(fmt.Sprintf("update_data: %s\n", spew.Sdump(obj.updateData)))
-	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.apiData)))
-	return buffer.String()
+	return obj.baseString()
 }
 
 // SetDataFromMap sets the object's internal state from a map
@@ -156,56 +125,13 @@ func (obj *APISetting) SetDataFromMap(d map[string]interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal found data: %w", err)
 	}
-	return obj.updateInternalState(string(foundDataJSON))
-}
-
-// updateInternalState is a centralized function to ensure that our data as managed by
-// the api_object is updated with data that has come back from the API
-func (obj *APISetting) updateInternalState(state string) error {
-	ctx := context.Background()
-	tflog.Debug(ctx, "Updating API object state to '%s'\n", map[string]interface{}{"state": state})
-
-	obj.mux.Lock()
-	defer obj.mux.Unlock()
-
-	err := json.Unmarshal([]byte(state), &obj.apiData)
-	if err != nil {
-		return err
-	}
-
-	obj.apiResponse = state
-
-	// Copy specific keys from API response back to our managed data.
-	// This is useful when the API generates values (e.g., timestamps, computed fields, revision number)
-	// that need to be included in subsequent requests.
-	if len(obj.apiClient.copyKeys) > 0 {
-		for _, key := range obj.apiClient.copyKeys {
-			tflog.Debug(ctx, "Copying key from api_data to data\n", map[string]interface{}{"key": key, "new": obj.apiData[key], "old": obj.data[key]})
-			obj.data[key] = obj.apiData[key]
-		}
-	} else {
-		tflog.Debug(ctx, "copy_keys is empty - not attempting to copy data", nil)
-	}
-
-	return err
+	return obj.baseUpdateInternalState(string(foundDataJSON))
 }
 
 func (obj *APISetting) CreateSetting(ctx context.Context) error {
 	// Read the object for initial validation
-	getPath := obj.readPath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		getPath = fmt.Sprintf("%s?%s", obj.readPath, obj.queryString)
-	}
-
-	send := ""
-	if obj.readData != nil {
-		readData, _ := json.Marshal(obj.readData)
-		send = string(readData)
-		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
-	}
-
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, getPath, send, obj.debug, obj.headers)
+	getPath := obj.buildPath(obj.readPath)
+	resultString, err := obj.sendRead(ctx, getPath)
 	if err != nil {
 		return err
 	}
@@ -220,55 +146,24 @@ func (obj *APISetting) CreateSetting(ctx context.Context) error {
 }
 
 func (obj *APISetting) ReadSetting(ctx context.Context) error {
-	getPath := obj.readPath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		getPath = fmt.Sprintf("%s?%s", obj.readPath, obj.queryString)
-	}
-
-	send := ""
-	if obj.readData != nil {
-		readData, _ := json.Marshal(obj.readData)
-		send = string(readData)
-		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
-	}
-
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, getPath, send, obj.debug, obj.headers)
+	getPath := obj.buildPath(obj.readPath)
+	resultString, err := obj.sendRead(ctx, getPath)
 	if err != nil {
 		return err
 	}
-
-	return obj.updateInternalState(resultString)
+	return obj.baseUpdateInternalState(resultString)
 }
 
 func (obj *APISetting) UpdateSetting(ctx context.Context) error {
-	send := ""
-
-	obj.mux.RLock()
-	if obj.updateData != nil {
-		updateData, _ := json.Marshal(obj.updateData)
-		send = string(updateData)
-		tflog.Debug(ctx, "Using update data", map[string]interface{}{"update_data": send})
-	} else {
-		b, _ := json.Marshal(obj.data)
-		send = string(b)
-	}
-	obj.mux.RUnlock()
-
-	putPath := obj.updatePath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		putPath = fmt.Sprintf("%s?%s", obj.updatePath, obj.queryString)
-	}
-
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, putPath, send, obj.debug, obj.headers)
+	putPath := obj.buildPath(obj.updatePath)
+	resultString, err := obj.sendUpdate(ctx, putPath)
 	if err != nil {
 		return err
 	}
 
 	if obj.apiClient.writeReturnsObject {
 		tflog.Debug(ctx, "Parsing response from PUT to update internal structures", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
-		err = obj.updateInternalState(resultString)
+		err = obj.baseUpdateInternalState(resultString)
 	} else {
 		tflog.Debug(ctx, "Requesting updated object from API", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
 		err = obj.ReadSetting(ctx)
@@ -277,11 +172,7 @@ func (obj *APISetting) UpdateSetting(ctx context.Context) error {
 }
 
 func (obj *APISetting) DeleteSetting(ctx context.Context) error {
-	deletePath := obj.updatePath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		deletePath = fmt.Sprintf("%s?%s", obj.updatePath, obj.queryString)
-	}
+	deletePath := obj.buildPath(obj.updatePath)
 
 	send, _ := json.Marshal(obj.getRestorePayload())
 
@@ -333,23 +224,6 @@ func filterInitialStateByData(initial map[string]interface{}, data map[string]in
 	}
 
 	return result
-}
-
-// GetApiData returns a copy of the api_data map from the APISetting
-func (obj *APISetting) GetApiData() map[string]string {
-	obj.mux.RLock()
-	defer obj.mux.RUnlock()
-
-	apiData := make(map[string]string)
-	for k, v := range obj.apiData {
-		apiData[k] = fmt.Sprintf("%v", v)
-	}
-	return apiData
-}
-
-// GetApiResponse returns a copy of the raw API response from the APISetting
-func (obj *APISetting) GetApiResponse() string {
-	return obj.apiResponse
 }
 
 // GetInitialStateResponse returns a JSON string of the captured initial state.

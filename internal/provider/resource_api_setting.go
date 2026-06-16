@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	restapi "github.com/Mastercard/terraform-provider-restapi/internal/apiclient"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -29,22 +27,12 @@ type RestAPISettingResource struct {
 }
 
 type RestAPISettingResourceModel struct {
-	ReadPath              types.String         `tfsdk:"read_path"`
-	UpdatePath            types.String         `tfsdk:"update_path"`
-	ReadMethod            types.String         `tfsdk:"read_method"`
-	UpdateMethod          types.String         `tfsdk:"update_method"`
-	Data                  jsontypes.Normalized `tfsdk:"data"`
-	Debug                 types.Bool           `tfsdk:"debug"`
-	QueryString           types.String         `tfsdk:"query_string"`
-	ForceNew              types.List           `tfsdk:"force_new"`
-	ReadData              jsontypes.Normalized `tfsdk:"read_data"`
-	UpdateData            jsontypes.Normalized `tfsdk:"update_data"`
-	IgnoreChangesTo       types.List           `tfsdk:"ignore_changes_to"`
-	IgnoreServerAdditions types.Bool           `tfsdk:"ignore_server_additions"`
-	Headers               types.Map            `tfsdk:"headers"`
+	CommonResourceModel
+	ReadPath     types.String `tfsdk:"read_path"`
+	UpdatePath   types.String `tfsdk:"update_path"`
+	ReadMethod   types.String `tfsdk:"read_method"`
+	UpdateMethod types.String `tfsdk:"update_method"`
 
-	APIData         types.Map    `tfsdk:"api_data"`
-	APIResponse     types.String `tfsdk:"api_response"`
 	InitialResponse types.String `tfsdk:"initial_response"`
 }
 
@@ -57,112 +45,42 @@ func (r *RestAPISettingResource) Metadata(ctx context.Context, req resource.Meta
 }
 
 func (r *RestAPISettingResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
-	// Consider data sensitive if env variables is set to true.
-	isDataSensitive := strings.ToLower(os.Getenv("API_DATA_IS_SENSITIVE")) == "true"
+	isDataSensitive := isDataSensitiveFromEnv()
+
+	attrs := commonSchemaAttributes(isDataSensitive)
+
+	// Setting-specific attributes (required paths override the optional ones in commonSchemaAttributes)
+	attrs["read_path"] = schema.StringAttribute{
+		Description: "Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
+		Required:    true,
+	}
+	attrs["update_path"] = schema.StringAttribute{
+		Description: "Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
+		Required:    true,
+	}
+	attrs["read_method"] = schema.StringAttribute{
+		Description: "Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation)",
+		Optional:    true,
+	}
+	attrs["update_method"] = schema.StringAttribute{
+		Description: "Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)",
+		Optional:    true,
+	}
+	attrs["initial_response"] = schema.StringAttribute{
+		Description: "The raw body of the HTTP response returned when creating the object.",
+		Computed:    true,
+		Sensitive:   isDataSensitive,
+	}
 
 	resp.Schema = schema.Schema{
 		Description:         "Acting as a restful API client, this setting supports POST, GET, PUT and DELETE on the specified url",
 		MarkdownDescription: "Acting as a restful API client, this setting supports POST, GET, PUT and DELETE on the specified url",
-		Attributes: map[string]schema.Attribute{
-			"read_path": schema.StringAttribute{
-				Description: "Defaults to `path/{id}`. The API path that represents where to READ (GET) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
-				Required:    true,
-			},
-			"update_path": schema.StringAttribute{
-				Description: "Defaults to `path/{id}`. The API path that represents where to UPDATE (PUT) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.",
-				Required:    true,
-			},
-			"read_method": schema.StringAttribute{
-				Description: "Defaults to `read_method` set on the provider. Allows per-resource override of `read_method` (see `read_method` provider config documentation)",
-				Optional:    true,
-			},
-			"update_method": schema.StringAttribute{
-				Description: "Defaults to `update_method` set on the provider. Allows per-resource override of `update_method` (see `update_method` provider config documentation)",
-				Optional:    true,
-			},
-			"data": schema.StringAttribute{
-				Description: "Valid JSON object that this provider will manage with the API server.",
-				Required:    true,
-				Sensitive:   isDataSensitive,
-				CustomType:  jsontypes.NormalizedType{},
-			},
-			"debug": schema.BoolAttribute{
-				Description: "Whether to emit the HTTP request and response to STDERR while working with the API object on the server.",
-				Optional:    true,
-			},
-			"headers": schema.MapAttribute{
-				ElementType: types.StringType,
-				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to modify header values which are set by the provider configuration",
-				Optional:    true,
-			},
-			"query_string": schema.StringAttribute{
-				Description: "Query string to be included in the path",
-				Optional:    true,
-			},
-			"force_new": schema.ListAttribute{
-				ElementType: types.StringType,
-				Optional:    true,
-				Description: "Any changes to these values will result in recreating the resource instead of updating.",
-			},
-			"read_data": schema.StringAttribute{
-				Optional:    true,
-				Description: "Valid JSON object to pass during read requests.",
-				Sensitive:   isDataSensitive,
-				CustomType:  jsontypes.NormalizedType{},
-			},
-			"update_data": schema.StringAttribute{
-				Optional:    true,
-				Description: "Valid JSON object to pass during to update requests.",
-				Sensitive:   isDataSensitive,
-				CustomType:  jsontypes.NormalizedType{},
-			},
-			"ignore_changes_to": schema.ListAttribute{
-				ElementType: types.StringType,
-				Optional:    true,
-				Description: "A list of fields to which remote changes will be ignored. For example, an API might add or remove metadata, such as a 'last_modified' field, which Terraform should not attempt to correct. To ignore changes to nested fields, use the dot syntax: 'metadata.timestamp'",
-				Sensitive:   isDataSensitive,
-				// TODO ValidateFunc not supported for lists, but should probably validate that the ignore paths are valid
-			},
-			"ignore_server_additions": schema.BoolAttribute{
-				Description: "When set to 'true', fields added by the server (but not present in your configuration) will be ignored for drift detection. This prevents resource recreation when the API returns additional fields like defaults, timestamps, or metadata. Unlike 'ignore_all_server_changes', this still detects when the server modifies fields you explicitly configured. Default: false",
-				Optional:    true,
-			},
-			"initial_response": schema.StringAttribute{
-				Description: "The raw body of the HTTP response returned when creating the object.",
-				Computed:    true,
-				Sensitive:   isDataSensitive,
-			},
-			"api_data": schema.MapAttribute{
-				ElementType: types.StringType,
-				Description: "After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).",
-				Computed:    true,
-				Sensitive:   isDataSensitive,
-			},
-			"api_response": schema.StringAttribute{
-				Description: "The raw body of the HTTP response from the last read of the object.",
-				Computed:    true,
-				Sensitive:   isDataSensitive,
-			},
-		},
+		Attributes:          attrs,
 	}
 }
 
 func (r *RestAPISettingResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-
-	providerData, ok := req.ProviderData.(*ProviderData)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *ProviderData, got: %T. This should be impossible!", req.ProviderData),
-		)
-		return
-	}
-
-	r.providerData = providerData
+	r.providerData = configureProviderData(req, resp)
 }
 
 func (r *RestAPISettingResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -368,47 +286,21 @@ func (r *RestAPISettingResource) ModifyPlan(ctx context.Context, req resource.Mo
 		return
 	}
 
-	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
-		// ignore_server_additions: Read preserves user config in state.Data,
-		// so we just preserve api_data/api_response if user didn't change anything
-		if plan.Data.Equal(state.Data) {
-			plan.APIData = state.APIData
-			plan.APIResponse = state.APIResponse
-		}
-	} else {
-		// Normal flow: normalize null fields that server omits
-		if normalizeNullFields(planData, stateData) {
-			normalizedJSON, err := json.Marshal(planData)
-			if err != nil {
-				resp.Diagnostics.AddError(
-					"Error Normalizing Null Fields",
-					fmt.Sprintf("Could not marshal normalized data: %s", err.Error()),
-				)
-				return
-			}
-			plan.Data = jsontypes.NewNormalizedValue(string(normalizedJSON))
-			plan.APIData = state.APIData
-			plan.APIResponse = state.APIResponse
-		}
+	result := applyModifyPlanDataLogic(ctx, planData, stateData, plan.Data, state.Data,
+		!plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool(),
+		plan.ForceNew, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	// force_new: check if any fields require resource replacement
-	if !plan.ForceNew.IsNull() && !plan.ForceNew.IsUnknown() {
-		var newFields []string
-		resp.Diagnostics.Append(plan.ForceNew.ElementsAs(ctx, &newFields, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		for _, field := range newFields {
-			if stateValue, err := getNestedValue(stateData, field); err == nil {
-				planValue, _ := getNestedValue(planData, field)
-				if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
-					resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
-				}
-			}
-		}
+	if result.DataWasModified {
+		plan.Data = result.NewData
 	}
+	if result.PreserveAPIComputed {
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
+	}
+	resp.RequiresReplace = append(resp.RequiresReplace, result.ForceNewPaths...)
 
 	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
 }
@@ -551,12 +443,14 @@ func makeAPISetting(ctx context.Context, client *apiclient.APIClient, model *Res
 	return apiclient.NewAPISetting(client, opts)
 }
 
-func setResourceModelDataSetting(ctx context.Context, obj *apiclient.APISetting, data *RestAPISettingResourceModel, diag *diag.Diagnostics) {
-	data.APIResponse = types.StringValue(obj.GetApiResponse())
+func setResourceModelDataSetting(ctx context.Context, obj *apiclient.APISetting, data *RestAPISettingResourceModel, diags *diag.Diagnostics) {
+	ignoreServerAdditions := !data.IgnoreServerAdditions.IsNull() && data.IgnoreServerAdditions.ValueBool()
+	setCommonModelData(ctx, obj.GetApiResponse(), obj.GetApiData(), data.Data.ValueString(), ignoreServerAdditions, &data.CommonResourceModel, diags)
 	if initialResponse := obj.GetInitialStateResponse(); initialResponse != "" {
-		data.InitialResponse = types.StringValue(initialResponse)
+		if ignoreServerAdditions {
+			data.InitialResponse = types.StringValue(filterAPIOutputToConfiguredKeys(initialResponse, data.Data.ValueString()))
+		} else {
+			data.InitialResponse = types.StringValue(initialResponse)
+		}
 	}
-	v, d := types.MapValueFrom(ctx, types.StringType, obj.GetApiData())
-	data.APIData = v
-	diag.Append(d...)
 }

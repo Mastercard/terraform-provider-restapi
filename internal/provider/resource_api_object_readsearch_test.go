@@ -28,8 +28,10 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 		{
 			name: "nil_read_search",
 			model: &RestAPIObjectResourceModel{
+				CommonResourceModel: CommonResourceModel{
+					Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				},
 				Path:       types.StringValue("/api/objects"),
-				Data:       jsontypes.NewNormalizedValue(`{"id":"123"}`),
 				ReadSearch: nil,
 			},
 			expectedSearch: nil,
@@ -37,8 +39,10 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 		{
 			name: "read_search_with_required_fields_only",
 			model: &RestAPIObjectResourceModel{
+				CommonResourceModel: CommonResourceModel{
+					Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				},
 				Path: types.StringValue("/api/objects"),
-				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
 				ReadSearch: &ReadSearchModel{
 					SearchKey:   types.StringValue("email"),
 					SearchValue: types.StringValue("test@example.com"),
@@ -52,8 +56,10 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 		{
 			name: "read_search_with_all_fields",
 			model: &RestAPIObjectResourceModel{
+				CommonResourceModel: CommonResourceModel{
+					Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				},
 				Path: types.StringValue("/api/objects"),
-				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
 				ReadSearch: &ReadSearchModel{
 					SearchKey:   types.StringValue("email"),
 					SearchValue: types.StringValue("test@example.com"),
@@ -73,8 +79,10 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 		{
 			name: "read_search_with_partial_optional_fields",
 			model: &RestAPIObjectResourceModel{
+				CommonResourceModel: CommonResourceModel{
+					Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				},
 				Path: types.StringValue("/api/objects"),
-				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
 				ReadSearch: &ReadSearchModel{
 					SearchKey:   types.StringValue("name"),
 					SearchValue: types.StringValue("John Doe"),
@@ -90,8 +98,10 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 		{
 			name: "read_search_with_id_placeholder",
 			model: &RestAPIObjectResourceModel{
+				CommonResourceModel: CommonResourceModel{
+					Data: jsontypes.NewNormalizedValue(`{"id":"test-123"}`),
+				},
 				Path: types.StringValue("/api/objects"),
-				Data: jsontypes.NewNormalizedValue(`{"id":"test-123"}`),
 				ReadSearch: &ReadSearchModel{
 					SearchKey:   types.StringValue("objectId"),
 					SearchValue: types.StringValue("{id}"),
@@ -105,8 +115,10 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 		{
 			name: "read_search_with_search_patch",
 			model: &RestAPIObjectResourceModel{
+				CommonResourceModel: CommonResourceModel{
+					Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				},
 				Path: types.StringValue("/api/objects"),
-				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
 				ReadSearch: &ReadSearchModel{
 					SearchKey:   types.StringValue("email"),
 					SearchValue: types.StringValue("test@example.com"),

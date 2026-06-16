@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/davecgh/go-spew/spew"
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -40,31 +39,16 @@ type APIObjectOpts struct {
 
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
-	apiClient     *APIClient
+	APIBase
 	createMethod  string
 	createPath    string
-	readMethod    string
-	readPath      string
-	updateMethod  string
-	updatePath    string
 	destroyMethod string
 	deletePath    string
 	searchPath    string
-	queryString   string
-	debug         bool
 	readSearch    map[string]string
-	ID            string
-	IDAttribute   string
-	headers       map[string]string
 
 	// Set internally
-	mux         sync.RWMutex           // Protects data and apiData fields
-	data        map[string]interface{} // Data as managed by the user
-	readData    map[string]interface{} // Data to send during Read operation
-	updateData  map[string]interface{} // Data to send during Update operation
 	destroyData map[string]interface{} // Data to send during Destroy operation
-	apiData     map[string]interface{} // Data from the most recent read operation of the API object, as massaged to a map
-	apiResponse string                 // Raw API response from most recent read operation
 	searchPatch jsonpatch.Patch        // Pre-compiled JSON Patch for search_patch transformation
 }
 
@@ -119,27 +103,29 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		readPath:      opts.ReadPath,
-		createPath:    opts.CreatePath,
-		updatePath:    opts.UpdatePath,
+		APIBase: APIBase{
+			apiClient:    iClient,
+			readPath:     opts.ReadPath,
+			updatePath:   opts.UpdatePath,
+			readMethod:   opts.ReadMethod,
+			updateMethod: opts.UpdateMethod,
+			queryString:  opts.QueryString,
+			debug:        opts.Debug,
+			ID:           opts.ID,
+			IDAttribute:  opts.IDAttribute,
+			headers:      opts.Headers,
+			data:         make(map[string]interface{}),
+			readData:     nil,
+			updateData:   nil,
+			apiData:      make(map[string]interface{}),
+		},
 		createMethod:  opts.CreateMethod,
-		readMethod:    opts.ReadMethod,
-		updateMethod:  opts.UpdateMethod,
+		createPath:    opts.CreatePath,
 		destroyMethod: opts.DestroyMethod,
 		deletePath:    opts.DestroyPath,
 		searchPath:    opts.SearchPath,
-		queryString:   opts.QueryString,
-		debug:         opts.Debug,
 		readSearch:    opts.ReadSearch,
-		ID:            opts.ID,
-		IDAttribute:   opts.IDAttribute,
-		headers:       opts.Headers,
-		data:          make(map[string]interface{}),
-		readData:      nil,
-		updateData:    nil,
 		destroyData:   nil,
-		apiData:       make(map[string]interface{}),
 	}
 
 	if opts.Data != "" {
@@ -211,28 +197,15 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 // Convert the important bits about this object to string representation
 // This is useful for debugging.
 func (obj *APIObject) String() string {
-	obj.mux.RLock()
-	defer obj.mux.RUnlock()
-
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("id: %s\n", obj.ID))
-	buffer.WriteString(fmt.Sprintf("get_path: %s\n", obj.readPath))
-	buffer.WriteString(fmt.Sprintf("post_path: %s\n", obj.createPath))
-	buffer.WriteString(fmt.Sprintf("put_path: %s\n", obj.updatePath))
-	buffer.WriteString(fmt.Sprintf("delete_path: %s\n", obj.deletePath))
-	buffer.WriteString(fmt.Sprintf("query_string: %s\n", obj.queryString))
-	buffer.WriteString(fmt.Sprintf("create_method: %s\n", obj.createMethod))
-	buffer.WriteString(fmt.Sprintf("read_method: %s\n", obj.readMethod))
-	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
-	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
-	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
-	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
-	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
-	buffer.WriteString(fmt.Sprintf("read_data: %s\n", spew.Sdump(obj.readData)))
-	buffer.WriteString(fmt.Sprintf("update_data: %s\n", spew.Sdump(obj.updateData)))
-	buffer.WriteString(fmt.Sprintf("destroy_data: %s\n", spew.Sdump(obj.destroyData)))
-	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.apiData)))
-	return buffer.String()
+	var buf bytes.Buffer
+	buf.WriteString(obj.baseString())
+	buf.WriteString(fmt.Sprintf("post_path: %s\n", obj.createPath))
+	buf.WriteString(fmt.Sprintf("delete_path: %s\n", obj.deletePath))
+	buf.WriteString(fmt.Sprintf("create_method: %s\n", obj.createMethod))
+	buf.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
+	buf.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
+	buf.WriteString(fmt.Sprintf("destroy_data: %s\n", spew.Sdump(obj.destroyData)))
+	return buf.String()
 }
 
 // SetDataFromMap sets the object's internal state from a map
@@ -245,26 +218,22 @@ func (obj *APIObject) SetDataFromMap(d map[string]interface{}) error {
 	return obj.updateInternalState(string(foundDataJSON))
 }
 
-// updateInternalState is a centralized function to ensure that our data as managed by
-// the api_object is updated with data that has come back from the API
+// updateInternalState updates shared state via baseUpdateInternalState, then extracts
+// the object ID from the response if it has not been set.
 func (obj *APIObject) updateInternalState(state string) error {
 	ctx := context.Background()
 	tflog.Debug(ctx, "Updating API object state to '%s'\n", map[string]interface{}{"state": state})
 
-	obj.mux.Lock()
-	defer obj.mux.Unlock()
-
-	err := json.Unmarshal([]byte(state), &obj.apiData)
-	if err != nil {
+	if err := obj.baseUpdateInternalState(state); err != nil {
 		return err
 	}
-
-	obj.apiResponse = state
 
 	// A usable ID was not passed (in constructor or here),
 	// so we have to guess what it is from the data structure
 	if obj.ID == "" {
+		obj.mux.RLock()
 		val, err := GetStringAtKey(ctx, obj.apiData, obj.IDAttribute)
+		obj.mux.RUnlock()
 		if err != nil {
 			return fmt.Errorf("error extracting ID from data element: %s", err)
 		}
@@ -273,19 +242,7 @@ func (obj *APIObject) updateInternalState(state string) error {
 		tflog.Debug(ctx, "Not updating id. It is already set to '%s'\n", map[string]interface{}{"id": obj.ID})
 	}
 
-	// Copy specific keys from API response back to our managed data.
-	// This is useful when the API generates values (e.g., timestamps, computed fields, revision number)
-	// that need to be included in subsequent requests.
-	if len(obj.apiClient.copyKeys) > 0 {
-		for _, key := range obj.apiClient.copyKeys {
-			tflog.Debug(ctx, "Copying key from api_data to data\n", map[string]interface{}{"key": key, "new": obj.apiData[key], "old": obj.data[key]})
-			obj.data[key] = obj.apiData[key]
-		}
-	} else {
-		tflog.Debug(ctx, "copy_keys is empty - not attempting to copy data", nil)
-	}
-
-	return err
+	return nil
 }
 
 func (obj *APIObject) CreateObject(ctx context.Context) error {
@@ -301,13 +258,9 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 	b, _ := json.Marshal(obj.data)
 	obj.mux.RUnlock()
 
-	postPath := obj.createPath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		postPath = fmt.Sprintf("%s?%s", obj.createPath, obj.queryString)
-	}
+	postPath := strings.Replace(obj.buildPath(obj.createPath), "{id}", obj.ID, -1)
 
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug, obj.headers)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, postPath, string(b), obj.debug, obj.headers)
 	if err != nil {
 		return err
 	}
@@ -397,20 +350,8 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	}
 
 	// Normal read path (no search configured)
-	getPath := obj.readPath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		getPath = fmt.Sprintf("%s?%s", obj.readPath, obj.queryString)
-	}
-
-	send := ""
-	if obj.readData != nil {
-		readData, _ := json.Marshal(obj.readData)
-		send = string(readData)
-		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
-	}
-
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug, obj.headers)
+	getPath := strings.Replace(obj.buildPath(obj.readPath), "{id}", obj.ID, -1)
+	resultString, err := obj.sendRead(ctx, getPath)
 	if err != nil {
 		// 404 during refresh means the object was deleted outside Terraform.
 		// Clear the ID to remove it from state gracefully.
@@ -430,27 +371,8 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
 	}
 
-	send := ""
-	// If update_data is configured, use it for the update payload.
-	// Otherwise, use the full managed data. This allows for partial updates.
-	obj.mux.RLock()
-	if obj.updateData != nil {
-		updateData, _ := json.Marshal(obj.updateData)
-		send = string(updateData)
-		tflog.Debug(ctx, "Using update data", map[string]interface{}{"update_data": send})
-	} else {
-		b, _ := json.Marshal(obj.data)
-		send = string(b)
-	}
-	obj.mux.RUnlock()
-
-	putPath := obj.updatePath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		putPath = fmt.Sprintf("%s?%s", obj.updatePath, obj.queryString)
-	}
-
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug, obj.headers)
+	putPath := strings.Replace(obj.buildPath(obj.updatePath), "{id}", obj.ID, -1)
+	resultString, err := obj.sendUpdate(ctx, putPath)
 	if err != nil {
 		return err
 	}
@@ -471,11 +393,7 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		return nil
 	}
 
-	deletePath := obj.deletePath
-	if obj.queryString != "" {
-		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
-		deletePath = fmt.Sprintf("%s?%s", obj.deletePath, obj.queryString)
-	}
+	deletePath := strings.Replace(obj.buildPath(obj.deletePath), "{id}", obj.ID, -1)
 
 	send := ""
 	if obj.destroyData != nil {
@@ -484,7 +402,7 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
 	}
 
-	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug, obj.headers)
+	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, deletePath, send, obj.debug, obj.headers)
 	if err != nil {
 		// 404 (Not Found) or 410 (Gone) during delete is acceptable -
 		// the object is already gone, which is the desired end state.
@@ -587,23 +505,6 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	}
 
 	return objFound, nil
-}
-
-// GetApiData returns a copy of the api_data map from the APIObject
-func (obj *APIObject) GetApiData() map[string]string {
-	obj.mux.RLock()
-	defer obj.mux.RUnlock()
-
-	apiData := make(map[string]string)
-	for k, v := range obj.apiData {
-		apiData[k] = fmt.Sprintf("%v", v)
-	}
-	return apiData
-}
-
-// GetApiResponse returns a copy of the raw API response from the APIObject
-func (obj *APIObject) GetApiResponse() string {
-	return obj.apiResponse
 }
 
 // GetReadSearch returns a copy of the read_search configuration
