@@ -1,11 +1,13 @@
 package provider
 
 import (
+	"context"
 	"os"
 	"regexp"
 	"testing"
 
 	"github.com/Mastercard/terraform-provider-restapi/fakeserver"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -457,4 +459,24 @@ resource "restapi_object" "env_test" {
 			},
 		},
 	})
+}
+
+func TestProvider_KeyStringIsSensitive(t *testing.T) {
+	ctx := context.Background()
+
+	resp := &provider.SchemaResponse{}
+	New("test")().Schema(ctx, provider.SchemaRequest{}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics building provider schema: %v", resp.Diagnostics)
+	}
+
+	attr, ok := resp.Schema.Attributes["key_string"]
+	if !ok {
+		t.Fatal("expected provider schema to define a key_string attribute")
+	}
+
+	if !attr.IsSensitive() {
+		t.Error("key_string must be marked Sensitive: true to protect inline mTLS private key material")
+	}
 }
