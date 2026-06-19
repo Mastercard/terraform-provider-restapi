@@ -555,11 +555,19 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		return err
 	}
 
-	if obj.apiClient.writeReturnsObject {
+	// BUG #4 FIX: some APIs (e.g. pfrest) return a {code,status,...,data:{...}} ENVELOPE from a
+	// PUT/PATCH, not the bare object. Parsing that envelope directly via updateInternalState poisons
+	// apiData with the envelope keys, which makes Terraform report "Provider produced inconsistent
+	// result after apply" - the reason every pfrest resource had to stay force_new (destroy+recreate)
+	// instead of an in-place update. When read_search is configured we RE-READ the object via
+	// read_search after the write, so apiData holds the unwrapped object and in-place updates work.
+	// Direct-parse is preserved for write_returns_object APIs that have no read_search (bare-object
+	// responses), so non-pfrest behavior is unchanged.
+	if obj.apiClient.writeReturnsObject && len(obj.readSearch) == 0 {
 		tflog.Debug(ctx, "Parsing response from PUT to update internal structures", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
 		err = obj.updateInternalState(resultString)
 	} else {
-		tflog.Debug(ctx, "Requesting updated object from API", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
+		tflog.Debug(ctx, "Re-reading updated object via read_search/GET (envelope-unwrap; bug #4 fix)", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject, "has_read_search": len(obj.readSearch) > 0})
 		err = obj.ReadObject(ctx)
 	}
 	return err

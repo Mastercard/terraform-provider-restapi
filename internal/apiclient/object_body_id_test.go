@@ -247,3 +247,57 @@ func TestDeleteObject_NoBodyIDAttribute(t *testing.T) {
 	require.NoError(t, obj.DeleteObject(ctx))
 	assert.Empty(t, gotBody, "no body should be sent when body_id_attribute is unset")
 }
+
+// TestUpdateObject_ReadSearchUnwrapsEnvelope is the bug #4 regression test: a pfrest-style
+// API returns a {code,status,...,data:{...}} ENVELOPE from the PUT, but the bare object from
+// the read_search GET. With write_returns_object=true AND read_search configured, UpdateObject
+// must RE-READ via read_search (storing the unwrapped object) instead of parsing the PUT
+// envelope into apiData (which poisoned it with envelope keys and forced force_new everywhere).
+func TestUpdateObject_ReadSearchUnwrapsEnvelope(t *testing.T) {
+	ctx := context.Background()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut, http.MethodPost, http.MethodPatch:
+			// pfrest-style envelope; "comment":"poison" proves a direct-parse path was wrongly taken
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"code":200,"status":"ok","return":0,"data":{"id":5,"host":"matrix","comment":"poison"}}`))
+		case http.MethodGet:
+			// read_search GET returns the clean collection; "comment":"updated" is the truth
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"data":[{"id":5,"host":"matrix","comment":"updated"}]}`))
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := NewAPIClient(&APIClientOpt{URI: srv.URL, Timeout: 2, WriteReturnsObject: true})
+	require.NoError(t, err)
+
+	obj, err := NewAPIObject(client, &APIObjectOpts{
+		Path:        "/api/objects",
+		ID:          "5",
+		IDAttribute: "id",
+		Data:        `{"host":"matrix","comment":"updated"}`,
+		ReadSearch: map[string]string{
+			"search_key":   "host",
+			"search_value": "matrix",
+			"results_key":  "data",
+			"id_attribute": "id",
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, obj.UpdateObject(ctx))
+
+	got := obj.GetApiData()
+	// the unwrapped object must be present...
+	assert.Equal(t, "updated", got["comment"], "apiData must hold the re-read object, not the PUT envelope")
+	assert.Equal(t, "matrix", got["host"])
+	// ...and the envelope keys must NOT have leaked into apiData
+	assert.NotContains(t, got, "code", "envelope key 'code' must not poison apiData")
+	assert.NotContains(t, got, "status", "envelope key 'status' must not poison apiData")
+	assert.NotContains(t, got, "return", "envelope key 'return' must not poison apiData")
+	assert.NotContains(t, got, "data", "envelope key 'data' must not poison apiData")
+}
