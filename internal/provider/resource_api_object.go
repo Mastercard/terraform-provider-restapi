@@ -652,6 +652,22 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 		IgnoreChangesTo: types.ListNull(types.StringType),
 	}
 
+	// pfrest (and similar collection APIs) cannot be GET by a direct id-path: the read returns empty,
+	// leaving `data` unset and import failing with "Invalid JSON String Value". The object's positional
+	// id IS present as a flat `id` field in the collection, so configure a TRANSIENT read_search-by-id
+	// here purely so ReadObject locates the object in its list and populates `data`. Cleared before the
+	// state is written (the managed resource supplies its own read_search) so it never persists or
+	// conflicts with the configured read_search on the next plan.
+	data.ReadSearch = &ReadSearchModel{
+		SearchKey:   types.StringValue("id"),
+		SearchValue: types.StringValue(data.ObjectID.ValueString()),
+		ResultsKey:  types.StringValue("data"),
+		IdAttribute: types.StringValue("id"),
+		QueryString: types.StringNull(),
+		SearchData:  jsontypes.NewNormalizedNull(),
+		SearchPatch: jsontypes.NewNormalizedNull(),
+	}
+
 	client, err := r.providerData.GetClient()
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -684,6 +700,9 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 	// For Import we want to write to state only what was observed from the server
 	data.Data = jsontypes.NewNormalizedValue(obj.GetApiResponse())
 	setResourceModelData(ctx, obj, &data, &resp.Diagnostics)
+	// Drop the transient import-only read_search so it is not persisted to state (the managed resource
+	// config supplies its own read_search; persisting this by-id one would diff on the next plan).
+	data.ReadSearch = nil
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
