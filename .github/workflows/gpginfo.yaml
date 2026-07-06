@@ -7,7 +7,7 @@ jobs:
       -
         name: Import GPG key
         id: import_gpg
-        uses: hashicorp/ghaction-import-gpg@v2.1.0
+        uses: hashicorp/ghaction-import-gpg@78437f97569a473e42b227be84d4084c2dfb49ba # v2.1.0
         env:
           # These secrets will need to be configured for the repository:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
