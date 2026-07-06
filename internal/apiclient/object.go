@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,44 +17,48 @@ import (
 )
 
 type APIObjectOpts struct {
-	Path          string
-	CreatePath    string
-	CreateMethod  string
-	ReadMethod    string
-	ReadPath      string
-	ReadData      string
-	UpdateMethod  string
-	UpdatePath    string
-	UpdateData    string
-	DestroyMethod string
-	DestroyData   string
-	DestroyPath   string
-	SearchPath    string
-	QueryString   string
-	Debug         bool
-	ReadSearch    map[string]string
-	ID            string
-	IDAttribute   string
-	Data          string
+	Path               string
+	CreatePath         string
+	CreateMethod       string
+	ReadMethod         string
+	ReadPath           string
+	ReadData           string
+	UpdateMethod       string
+	UpdatePath         string
+	UpdateData         string
+	DestroyMethod      string
+	DestroyData        string
+	DestroyPath        string
+	SearchPath         string
+	QueryString        string
+	Debug              bool
+	ReadSearch         map[string]string
+	ID                 string
+	IDAttribute        string
+	BodyIDAttribute    string
+	ResolveBeforeWrite bool
+	Data               string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
 type APIObject struct {
-	apiClient     *APIClient
-	createMethod  string
-	createPath    string
-	readMethod    string
-	readPath      string
-	updateMethod  string
-	updatePath    string
-	destroyMethod string
-	deletePath    string
-	searchPath    string
-	queryString   string
-	debug         bool
-	readSearch    map[string]string
-	ID            string
-	IDAttribute   string
+	apiClient          *APIClient
+	createMethod       string
+	createPath         string
+	readMethod         string
+	readPath           string
+	updateMethod       string
+	updatePath         string
+	destroyMethod      string
+	deletePath         string
+	searchPath         string
+	queryString        string
+	debug              bool
+	readSearch         map[string]string
+	ID                 string
+	IDAttribute        string
+	bodyIDAttribute    string
+	resolveBeforeWrite bool
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -117,26 +122,28 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 	}
 
 	obj := APIObject{
-		apiClient:     iClient,
-		readPath:      opts.ReadPath,
-		createPath:    opts.CreatePath,
-		updatePath:    opts.UpdatePath,
-		createMethod:  opts.CreateMethod,
-		readMethod:    opts.ReadMethod,
-		updateMethod:  opts.UpdateMethod,
-		destroyMethod: opts.DestroyMethod,
-		deletePath:    opts.DestroyPath,
-		searchPath:    opts.SearchPath,
-		queryString:   opts.QueryString,
-		debug:         opts.Debug,
-		readSearch:    opts.ReadSearch,
-		ID:            opts.ID,
-		IDAttribute:   opts.IDAttribute,
-		data:          make(map[string]interface{}),
-		readData:      nil,
-		updateData:    nil,
-		destroyData:   nil,
-		apiData:       make(map[string]interface{}),
+		apiClient:          iClient,
+		readPath:           opts.ReadPath,
+		createPath:         opts.CreatePath,
+		updatePath:         opts.UpdatePath,
+		createMethod:       opts.CreateMethod,
+		readMethod:         opts.ReadMethod,
+		updateMethod:       opts.UpdateMethod,
+		destroyMethod:      opts.DestroyMethod,
+		deletePath:         opts.DestroyPath,
+		searchPath:         opts.SearchPath,
+		queryString:        opts.QueryString,
+		debug:              opts.Debug,
+		readSearch:         opts.ReadSearch,
+		ID:                 opts.ID,
+		IDAttribute:        opts.IDAttribute,
+		bodyIDAttribute:    opts.BodyIDAttribute,
+		resolveBeforeWrite: opts.ResolveBeforeWrite,
+		data:               make(map[string]interface{}),
+		readData:           nil,
+		updateData:         nil,
+		destroyData:        nil,
+		apiData:            make(map[string]interface{}),
 	}
 
 	if opts.Data != "" {
@@ -422,7 +429,93 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 	return obj.updateInternalState(resultString)
 }
 
+// injectIDIntoBody merges the object's id into a JSON request body under the
+// given key. Some APIs read the object id from the request body rather than the
+// URL/path when the request carries a JSON content type - e.g. pfSense pfrest
+// returns MODEL_REQUIRES_ID for a bodyless PATCH/DELETE even when ?id= is set,
+// because it only looks for `id` in the body. The id is written as a JSON number
+// when it parses as an integer (pfrest's model validators require an integer id),
+// otherwise as a string. An empty body is treated as an empty object.
+func injectIDIntoBody(body string, key string, id string) (string, error) {
+	m := map[string]interface{}{}
+	if strings.TrimSpace(body) != "" {
+		if err := json.Unmarshal([]byte(body), &m); err != nil {
+			return "", fmt.Errorf("failed to parse request body for id injection: %w", err)
+		}
+	}
+	if n, err := strconv.Atoi(id); err == nil {
+		m[key] = n
+	} else {
+		m[key] = id
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body after id injection: %w", err)
+	}
+	return string(b), nil
+}
+
+// resolveIDViaSearch re-resolves obj.ID from the live collection using read_search,
+// immediately before a write. Some APIs use positional/array-index ids that shift
+// when sibling objects are deleted or created earlier in the same apply (e.g. pfSense
+// pfrest renumbers host overrides on delete), so the id captured at refresh time can
+// be stale by the time this object is mutated. Re-resolving by the unique search key
+// yields the object's current id. Pair with -parallelism=1 so writes serialize and no
+// concurrent delete shifts the index between this lookup and the request.
+//
+// Returns found=false (and clears obj.ID) when the object is no longer present - the
+// caller treats that as "already gone" for delete. No-op (found=true) when read_search
+// is not configured.
+func (obj *APIObject) resolveIDViaSearch(ctx context.Context) (bool, error) {
+	searchKey := obj.readSearch["search_key"]
+	searchValue := obj.readSearch["search_value"]
+	if searchKey == "" || searchValue == "" {
+		return true, nil
+	}
+	searchValue = strings.ReplaceAll(searchValue, "{id}", obj.ID)
+
+	if obj.searchPath == "" {
+		obj.searchPath = strings.TrimSuffix(obj.readPath, "/{id}")
+	}
+
+	queryString := obj.readSearch["query_string"]
+	if obj.queryString != "" {
+		if queryString != "" {
+			queryString = fmt.Sprintf("%s&%s", queryString, obj.queryString)
+		} else {
+			queryString = obj.queryString
+		}
+	}
+
+	searchData := ""
+	if len(obj.readSearch["search_data"]) > 0 {
+		tmpData, _ := json.Marshal(obj.readSearch["search_data"])
+		searchData = string(tmpData)
+	}
+
+	resultsKey := obj.readSearch["results_key"]
+	objFound, err := obj.FindObject(ctx, queryString, searchKey, searchValue, resultsKey, searchData)
+	if err != nil || objFound == nil {
+		tflog.Warn(ctx, "resolve_before_write: object not found in live collection", map[string]interface{}{"search_key": searchKey, "search_value": searchValue})
+		obj.ID = ""
+		return false, nil
+	}
+	// FindObject set obj.ID to the current id of the matched record.
+	return true, nil
+}
+
 func (obj *APIObject) UpdateObject(ctx context.Context) error {
+	// Re-resolve the id right before updating for positional-id APIs (see helper).
+	if obj.resolveBeforeWrite {
+		found, err := obj.resolveIDViaSearch(ctx)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fmt.Errorf("cannot update: object not found in live collection during resolve_before_write")
+		}
+	}
+
 	if obj.ID == "" {
 		return fmt.Errorf("cannot update an object unless the ID has been set")
 	}
@@ -441,6 +534,16 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 	}
 	obj.mux.RUnlock()
 
+	// Some APIs (e.g. pfrest) read the id from the request body on PATCH/PUT
+	// rather than the URL. Inject it when body_id_attribute is configured.
+	if obj.bodyIDAttribute != "" {
+		var ierr error
+		send, ierr = injectIDIntoBody(send, obj.bodyIDAttribute, obj.ID)
+		if ierr != nil {
+			return ierr
+		}
+	}
+
 	putPath := obj.updatePath
 	if obj.queryString != "" {
 		tflog.Debug(ctx, "Adding query string", map[string]interface{}{"query_string": obj.queryString})
@@ -452,17 +555,38 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		return err
 	}
 
-	if obj.apiClient.writeReturnsObject {
+	// BUG #4 FIX: some APIs (e.g. pfrest) return a {code,status,...,data:{...}} ENVELOPE from a
+	// PUT/PATCH, not the bare object. Parsing that envelope directly via updateInternalState poisons
+	// apiData with the envelope keys, which makes Terraform report "Provider produced inconsistent
+	// result after apply" - the reason every pfrest resource had to stay force_new (destroy+recreate)
+	// instead of an in-place update. When read_search is configured we RE-READ the object via
+	// read_search after the write, so apiData holds the unwrapped object and in-place updates work.
+	// Direct-parse is preserved for write_returns_object APIs that have no read_search (bare-object
+	// responses), so non-pfrest behavior is unchanged.
+	if obj.apiClient.writeReturnsObject && len(obj.readSearch) == 0 {
 		tflog.Debug(ctx, "Parsing response from PUT to update internal structures", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
 		err = obj.updateInternalState(resultString)
 	} else {
-		tflog.Debug(ctx, "Requesting updated object from API", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject})
+		tflog.Debug(ctx, "Re-reading updated object via read_search/GET (envelope-unwrap; bug #4 fix)", map[string]interface{}{"write_returns_object": obj.apiClient.writeReturnsObject, "has_read_search": len(obj.readSearch) > 0})
 		err = obj.ReadObject(ctx)
 	}
 	return err
 }
 
 func (obj *APIObject) DeleteObject(ctx context.Context) error {
+	// Re-resolve the id right before deleting for positional-id APIs (see helper):
+	// a sibling deleted earlier in this apply may have shifted this object's index.
+	if obj.resolveBeforeWrite {
+		found, err := obj.resolveIDViaSearch(ctx)
+		if err != nil {
+			return err
+		}
+		if !found {
+			tflog.Warn(ctx, "Object not found during delete (resolve_before_write). Assuming already deleted.", map[string]interface{}{})
+			return nil
+		}
+	}
+
 	if obj.ID == "" {
 		tflog.Warn(ctx, "Attempting to delete an object that has no id set. Assuming this is OK.", map[string]interface{}{})
 		return nil
@@ -479,6 +603,16 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		destroyData, _ := json.Marshal(obj.destroyData)
 		send = string(destroyData)
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
+	}
+
+	// Some APIs (e.g. pfrest) read the id from the request body on DELETE rather
+	// than the URL/query. Inject it when body_id_attribute is configured.
+	if obj.bodyIDAttribute != "" {
+		var ierr error
+		send, ierr = injectIDIntoBody(send, obj.bodyIDAttribute, obj.ID)
+		if ierr != nil {
+			return ierr
+		}
 	}
 
 	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)
@@ -564,16 +698,26 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		// We found our record
 		if tmp == searchValue {
 			objFound = hash
-			obj.ID, err = GetStringAtKey(ctx, hash, obj.IDAttribute)
+
+			// Some APIs wrap the object differently on create vs. in the list endpoint
+			// (e.g. create returns {"data":{"id":N}} while the list returns flat {"id":N}).
+			// read_search.id_attribute lets the id be read from a different key within the
+			// search result item than the object-wide id_attribute used elsewhere.
+			searchIDAttribute := obj.IDAttribute
+			if v, ok := obj.readSearch["id_attribute"]; ok && v != "" {
+				searchIDAttribute = v
+			}
+
+			obj.ID, err = GetStringAtKey(ctx, hash, searchIDAttribute)
 			if err != nil {
-				return nil, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.IDAttribute, err)
+				return nil, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", searchIDAttribute, err)
 			}
 
 			tflog.Debug(ctx, "Found ID '%s'", map[string]interface{}{"id": obj.ID})
 
 			// But there is no id attribute???
 			if obj.ID == "" {
-				return nil, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, obj.IDAttribute)
+				return nil, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, searchIDAttribute)
 			}
 			break
 		}

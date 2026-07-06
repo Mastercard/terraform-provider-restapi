@@ -191,6 +191,86 @@ resource "restapi_object" "Test" {
 	})
 }
 
+// TestAccRestApiObject_ForceNewAddedField verifies that a force_new attribute which is NEWLY ADDED
+// (absent in prior state, present in the new plan) forces a destroy+recreate. The prior ModifyPlan
+// logic only triggered replacement when a force_new field already existed in state and changed, so an
+// added force_new attribute was silently planned as an in-place update.
+func TestAccRestApiObject_ForceNewAddedField(t *testing.T) {
+	debug := false
+
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8131, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	opt := &apiclient.APIClientOpt{
+		URI:                 "http://127.0.0.1:8131/",
+		Insecure:            false,
+		Username:            "",
+		Password:            "",
+		Headers:             make(map[string]string),
+		Timeout:             2,
+		IDAttribute:         "id",
+		CopyKeys:            make([]string, 0),
+		WriteReturnsObject:  true,
+		CreateReturnsObject: true,
+		Debug:               debug,
+	}
+	client, err := apiclient.NewAPIClient(opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				// Baseline: no "region" field at all.
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8131"
+}
+
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = "{ \"id\": \"forcenewadd1\", \"type\": \"A\", \"name\": \"Test\" }"
+  force_new = ["type", "region"]
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("restapi_object.Test", "forcenewadd1", client),
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "forcenewadd1"),
+				),
+			},
+			{
+				// Add the "region" field (it is in force_new but was absent in state) -> must replace.
+				Config: `
+provider "restapi" {
+  uri = "http://127.0.0.1:8131"
+}
+
+resource "restapi_object" "Test" {
+  path = "/api/objects"
+  data = "{ \"id\": \"forcenewadd1\", \"type\": \"A\", \"name\": \"Test\", \"region\": \"us\" }"
+  force_new = ["type", "region"]
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("restapi_object.Test", "forcenewadd1", client),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.region", "us"),
+				),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("restapi_object.Test", plancheck.ResourceActionDestroyBeforeCreate),
+					},
+				},
+			},
+		},
+	})
+}
+
 // TestAccRestApiObject_DestroyData tests the destroy_data feature
 func TestAccRestApiObject_DestroyData(t *testing.T) {
 	debug := false
