@@ -199,6 +199,7 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			},
 			"key_string": schema.StringAttribute{
 				Optional:    true,
+				Sensitive:   true,
 				Description: "When set with the cert_string parameter, the provider will load a client certificate as a string for mTLS authentication. Note that this mechanism simply delegates to golang's tls.LoadX509KeyPair which does not support passphrase protected private keys. The most robust security protections available to the key_file are simple file system permissions.",
 			},
 			"root_ca_string": schema.StringAttribute{
