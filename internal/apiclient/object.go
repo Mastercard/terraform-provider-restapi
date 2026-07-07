@@ -35,6 +35,7 @@ type APIObjectOpts struct {
 	ID            string
 	IDAttribute   string
 	Data          string
+	Headers       map[string]string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
@@ -54,6 +55,7 @@ type APIObject struct {
 	readSearch    map[string]string
 	ID            string
 	IDAttribute   string
+	headers       map[string]string
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -132,6 +134,7 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		readSearch:    opts.ReadSearch,
 		ID:            opts.ID,
 		IDAttribute:   opts.IDAttribute,
+		headers:       opts.Headers,
 		data:          make(map[string]interface{}),
 		readData:      nil,
 		updateData:    nil,
@@ -304,7 +307,7 @@ func (obj *APIObject) CreateObject(ctx context.Context) error {
 		postPath = fmt.Sprintf("%s?%s", obj.createPath, obj.queryString)
 	}
 
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.createMethod, strings.Replace(postPath, "{id}", obj.ID, -1), string(b), obj.debug, obj.headers)
 	if err != nil {
 		return err
 	}
@@ -407,7 +410,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using read data", map[string]interface{}{"read_data": send})
 	}
 
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.readMethod, strings.Replace(getPath, "{id}", obj.ID, -1), send, obj.debug, obj.headers)
 	if err != nil {
 		// 404 during refresh means the object was deleted outside Terraform.
 		// Clear the ID to remove it from state gracefully.
@@ -447,7 +450,7 @@ func (obj *APIObject) UpdateObject(ctx context.Context) error {
 		putPath = fmt.Sprintf("%s?%s", obj.updatePath, obj.queryString)
 	}
 
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.updateMethod, strings.Replace(putPath, "{id}", obj.ID, -1), send, obj.debug, obj.headers)
 	if err != nil {
 		return err
 	}
@@ -481,7 +484,7 @@ func (obj *APIObject) DeleteObject(ctx context.Context) error {
 		tflog.Debug(ctx, "Using destroy data", map[string]interface{}{"destroy_data": string(destroyData)})
 	}
 
-	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug)
+	_, code, err := obj.apiClient.SendRequest(ctx, obj.destroyMethod, strings.Replace(deletePath, "{id}", obj.ID, -1), send, obj.debug, obj.headers)
 	if err != nil {
 		// 404 (Not Found) or 410 (Gone) during delete is acceptable -
 		// the object is already gone, which is the desired end state.
@@ -507,7 +510,7 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	}
 
 	tflog.Debug(ctx, "Calling API on path", map[string]interface{}{"path": searchPath})
-	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData, obj.debug)
+	resultString, _, err := obj.apiClient.SendRequest(ctx, obj.apiClient.readMethod, searchPath, searchData, obj.debug, obj.headers)
 	if err != nil {
 		return nil, err
 	}
