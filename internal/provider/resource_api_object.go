@@ -555,7 +555,13 @@ func (r *RestAPIObjectResource) Update(ctx context.Context, req resource.UpdateR
 		}
 	}
 
-	setResourceModelData(ctx, obj, &plan, &resp.Diagnostics)
+	if !plan.IgnoreAllServerChanges.IsNull() && plan.IgnoreAllServerChanges.ValueBool() {
+		plan.ID = state.ID
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
+	} else {
+		setResourceModelData(ctx, obj, &plan, &resp.Diagnostics)
+	}
 	plan.CreateResponse = state.CreateResponse
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
