@@ -32,9 +32,11 @@ type APIObjectOpts struct {
 	QueryString   string
 	Debug         bool
 	ReadSearch    map[string]string
-	ID            string
-	IDAttribute   string
-	Data          string
+	ID             string
+	IDAttribute    string
+	Data           string
+	ValidatePath   string
+	ValidateMethod string
 }
 
 // APIObject is the state holding struct for a restapi_object resource
@@ -51,9 +53,11 @@ type APIObject struct {
 	searchPath    string
 	queryString   string
 	debug         bool
-	readSearch    map[string]string
-	ID            string
-	IDAttribute   string
+	readSearch     map[string]string
+	validatePath   string
+	validateMethod string
+	ID             string
+	IDAttribute    string
 
 	// Set internally
 	mux         sync.RWMutex           // Protects data and apiData fields
@@ -129,9 +133,11 @@ func NewAPIObject(iClient *APIClient, opts *APIObjectOpts) (*APIObject, error) {
 		searchPath:    opts.SearchPath,
 		queryString:   opts.QueryString,
 		debug:         opts.Debug,
-		readSearch:    opts.ReadSearch,
-		ID:            opts.ID,
-		IDAttribute:   opts.IDAttribute,
+		readSearch:     opts.ReadSearch,
+		validatePath:   opts.ValidatePath,
+		validateMethod: opts.ValidateMethod,
+		ID:             opts.ID,
+		IDAttribute:    opts.IDAttribute,
 		data:          make(map[string]interface{}),
 		readData:      nil,
 		updateData:    nil,
@@ -601,6 +607,52 @@ func (obj *APIObject) GetApiData() map[string]string {
 // GetApiResponse returns a copy of the raw API response from the APIObject
 func (obj *APIObject) GetApiResponse() string {
 	return obj.apiResponse
+}
+
+// GetValidatePath returns the validate_path configuration value
+func (obj *APIObject) GetValidatePath() string {
+	return obj.validatePath
+}
+
+// GetValidateMethod returns the validate_method configuration value
+func (obj *APIObject) GetValidateMethod() string {
+	return obj.validateMethod
+}
+
+// ValidateObject calls the configured validate_path endpoint with the object's data.
+// It is intended to be called during plan to catch invalid configurations before apply.
+// A non-2xx response is treated as a validation failure and the error is returned.
+// If validate_path is not set, ValidateObject is a no-op and returns nil.
+func (obj *APIObject) ValidateObject(ctx context.Context) error {
+	if obj.validatePath == "" {
+		return nil
+	}
+
+	method := obj.validateMethod
+	if method == "" {
+		method = "POST"
+	}
+
+	obj.mux.RLock()
+	b, _ := json.Marshal(obj.data)
+	obj.mux.RUnlock()
+
+	send := string(b)
+
+	tflog.Debug(ctx, "Calling validate endpoint", map[string]interface{}{
+		"method":        method,
+		"validate_path": obj.validatePath,
+	})
+
+	_, _, err := obj.apiClient.SendRequest(ctx, method, obj.validatePath, send, obj.debug)
+	if err != nil {
+		return fmt.Errorf("validate: API rejected configuration at %s: %w", obj.validatePath, err)
+	}
+
+	tflog.Debug(ctx, "Validate endpoint accepted configuration", map[string]interface{}{
+		"validate_path": obj.validatePath,
+	})
+	return nil
 }
 
 // GetReadSearch returns a copy of the read_search configuration
