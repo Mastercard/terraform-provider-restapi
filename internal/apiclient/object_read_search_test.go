@@ -3,6 +3,7 @@ package apiclient
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -417,8 +418,8 @@ func TestReadObject_ReadSearchMultipleResults(t *testing.T) {
 	}
 }
 
-// TestReadObject_ReadSearchWithSearchData tests that search_data is properly sent
-// as the POST body when performing a search
+// TestReadObject_ReadSearchWithSearchData tests that search_data is sent unchanged
+// in the request body when performing a search.
 func TestReadObject_ReadSearchWithSearchData(t *testing.T) {
 	var receivedBody string
 	var receivedMethod string
@@ -428,12 +429,12 @@ func TestReadObject_ReadSearchWithSearchData(t *testing.T) {
 
 		// Capture the request body
 		if r.Body != nil {
-			bodyBytes, _ := json.Marshal(nil)
-			if r.ContentLength > 0 {
-				bodyBytes = make([]byte, r.ContentLength)
-				r.Body.Read(bodyBytes)
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("Failed to read request body: %v", err)
+			} else {
+				receivedBody = string(bodyBytes)
 			}
-			receivedBody = string(bodyBytes)
 		}
 
 		// Return search results
@@ -483,9 +484,9 @@ func TestReadObject_ReadSearchWithSearchData(t *testing.T) {
 		t.Fatalf("ReadObject() error = %v", err)
 	}
 
-	// Verify the search_data was sent
-	if receivedBody == "" {
-		t.Error("Expected search_data to be sent in request body, but body was empty")
+	// Verify the search_data was sent unchanged
+	if receivedBody != searchData {
+		t.Errorf("Expected search_data body %q, got %q", searchData, receivedBody)
 	}
 
 	// Verify the method used (should be GET by default, but with body)

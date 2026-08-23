@@ -364,8 +364,7 @@ func (obj *APIObject) ReadObject(ctx context.Context) error {
 
 		searchData := ""
 		if len(obj.readSearch["search_data"]) > 0 {
-			tmpData, _ := json.Marshal(obj.readSearch["search_data"])
-			searchData = string(tmpData)
+			searchData = obj.readSearch["search_data"]
 			tflog.Debug(ctx, "Using search data", map[string]interface{}{"search_data": searchData})
 		}
 
