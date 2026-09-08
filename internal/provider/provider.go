@@ -26,34 +26,36 @@ type RestAPIProvider struct {
 }
 
 type RestAPIProviderModel struct {
-	URI                 types.String          `tfsdk:"uri"`
-	Insecure            types.Bool            `tfsdk:"insecure"`
-	Username            types.String          `tfsdk:"username"`
-	Password            types.String          `tfsdk:"password"`
-	BearerToken         types.String          `tfsdk:"bearer_token"`
-	Headers             types.Map             `tfsdk:"headers"`
-	UseCookies          types.Bool            `tfsdk:"use_cookies"`
-	Timeout             types.Int64           `tfsdk:"timeout"`
-	IDAttribute         types.String          `tfsdk:"id_attribute"`
-	CreateMethod        types.String          `tfsdk:"create_method"`
-	ReadMethod          types.String          `tfsdk:"read_method"`
-	UpdateMethod        types.String          `tfsdk:"update_method"`
-	DestroyMethod       types.String          `tfsdk:"destroy_method"`
-	CopyKeys            types.List            `tfsdk:"copy_keys"`
-	WriteReturnsObject  types.Bool            `tfsdk:"write_returns_object"`
-	CreateReturnsObject types.Bool            `tfsdk:"create_returns_object"`
-	XSSIPrefix          types.String          `tfsdk:"xssi_prefix"`
-	RateLimit           types.Float64         `tfsdk:"rate_limit"`
-	TestPath            types.String          `tfsdk:"test_path"`
-	Debug               types.Bool            `tfsdk:"debug"`
-	CertString          types.String          `tfsdk:"cert_string"`
-	KeyString           types.String          `tfsdk:"key_string"`
-	CertFile            types.String          `tfsdk:"cert_file"`
-	KeyFile             types.String          `tfsdk:"key_file"`
-	RootCAFile          types.String          `tfsdk:"root_ca_file"`
-	RootCAString        types.String          `tfsdk:"root_ca_string"`
-	OAuthClientCreds    *OAuthClientDataModel `tfsdk:"oauth_client_credentials"`
-	RetriesConfig       *RetriesDataModel     `tfsdk:"retries"`
+	URI                  types.String          `tfsdk:"uri"`
+	Insecure             types.Bool            `tfsdk:"insecure"`
+	Username             types.String          `tfsdk:"username"`
+	Password             types.String          `tfsdk:"password"`
+	BearerToken          types.String          `tfsdk:"bearer_token"`
+	Headers              types.Map             `tfsdk:"headers"`
+	UseCookies           types.Bool            `tfsdk:"use_cookies"`
+	Timeout              types.Int64           `tfsdk:"timeout"`
+	IDAttribute          types.String          `tfsdk:"id_attribute"`
+	BodyIDAttribute      types.String          `tfsdk:"body_id_attribute"`
+	ResolveIDBeforeWrite types.Bool            `tfsdk:"resolve_id_before_write"`
+	CreateMethod         types.String          `tfsdk:"create_method"`
+	ReadMethod           types.String          `tfsdk:"read_method"`
+	UpdateMethod         types.String          `tfsdk:"update_method"`
+	DestroyMethod        types.String          `tfsdk:"destroy_method"`
+	CopyKeys             types.List            `tfsdk:"copy_keys"`
+	WriteReturnsObject   types.Bool            `tfsdk:"write_returns_object"`
+	CreateReturnsObject  types.Bool            `tfsdk:"create_returns_object"`
+	XSSIPrefix           types.String          `tfsdk:"xssi_prefix"`
+	RateLimit            types.Float64         `tfsdk:"rate_limit"`
+	TestPath             types.String          `tfsdk:"test_path"`
+	Debug                types.Bool            `tfsdk:"debug"`
+	CertString           types.String          `tfsdk:"cert_string"`
+	KeyString            types.String          `tfsdk:"key_string"`
+	CertFile             types.String          `tfsdk:"cert_file"`
+	KeyFile              types.String          `tfsdk:"key_file"`
+	RootCAFile           types.String          `tfsdk:"root_ca_file"`
+	RootCAString         types.String          `tfsdk:"root_ca_string"`
+	OAuthClientCreds     *OAuthClientDataModel `tfsdk:"oauth_client_credentials"`
+	RetriesConfig        *RetriesDataModel     `tfsdk:"retries"`
 }
 
 type OAuthClientDataModel struct {
@@ -147,6 +149,14 @@ func (p *RestAPIProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			"id_attribute": schema.StringAttribute{
 				Optional:    true,
 				Description: "When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME. This value may also be a '/'-delimeted path to the id attribute if it is multple levels deep in the data (such as `attributes/id` in the case of an object `{ \"attributes\": { \"id\": 1234 }, \"config\": { \"name\": \"foo\", \"something\": \"bar\"}}`",
+			},
+			"body_id_attribute": schema.StringAttribute{
+				Optional:    true,
+				Description: "When set, the object's id is injected into the JSON body of UPDATE and DELETE requests under this key, for every resource. Required by APIs that read the id from the request body rather than the URL/path (e.g. pfSense pfrest, which reads `id` from the body whenever the request carries an application/json content type). Set at the provider level so it also applies when destroying objects whose state predates a per-resource setting. Can be overridden per-resource.",
+			},
+			"resolve_id_before_write": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, for every resource that uses read_search, the object's id is re-resolved from the live collection (by the unique search key) immediately before each UPDATE and DELETE, instead of using the id captured at refresh. Required for APIs whose ids are positional/array indices that shift when sibling objects are deleted or created earlier in the same apply (e.g. pfSense pfrest renumbers host overrides on delete). Set at the provider level so enabling it does not trigger an in-place update of existing resources. Pair with -parallelism=1 so writes serialize. Default: false.",
 			},
 			"create_method": schema.StringAttribute{
 				Description: "Defaults to `POST`. The HTTP method used to CREATE objects of this type on the API server.",
@@ -326,6 +336,8 @@ func (p *RestAPIProvider) Configure(ctx context.Context, req provider.ConfigureR
 		UseCookies:          existingOrEnvOrDefaultBool(&resp.Diagnostics, "use_cookies", data.UseCookies, "REST_API_USE_COOKIES", false, false),
 		Timeout:             existingOrEnvOrDefaultInt(&resp.Diagnostics, "timeout", data.Timeout, "REST_API_TIMEOUT", 60, false),
 		IDAttribute:         existingOrEnvOrDefaultString(&resp.Diagnostics, "id_attribute", data.IDAttribute, "REST_API_ID_ATTRIBUTE", "id", false),
+		BodyIDAttribute:     existingOrEnvOrDefaultString(&resp.Diagnostics, "body_id_attribute", data.BodyIDAttribute, "REST_API_BODY_ID_ATTRIBUTE", "", false),
+		ResolveBeforeWrite:  existingOrEnvOrDefaultBool(&resp.Diagnostics, "resolve_id_before_write", data.ResolveIDBeforeWrite, "REST_API_RESOLVE_ID_BEFORE_WRITE", false, false),
 		CopyKeys:            copyKeys,
 		WriteReturnsObject:  existingOrEnvOrDefaultBool(&resp.Diagnostics, "write_returns_object", data.WriteReturnsObject, "REST_API_WRO", false, false),
 		CreateReturnsObject: existingOrEnvOrDefaultBool(&resp.Diagnostics, "create_returns_object", data.CreateReturnsObject, "REST_API_CRO", false, false),

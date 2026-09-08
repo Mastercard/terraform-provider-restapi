@@ -39,6 +39,7 @@ type RestAPIObjectResourceModel struct {
 	UpdateMethod           types.String         `tfsdk:"update_method"`
 	DestroyMethod          types.String         `tfsdk:"destroy_method"`
 	IDAttribute            types.String         `tfsdk:"id_attribute"`
+	BodyIDAttribute        types.String         `tfsdk:"body_id_attribute"`
 	ObjectID               types.String         `tfsdk:"object_id"`
 	Data                   jsontypes.Normalized `tfsdk:"data"`
 	Debug                  types.Bool           `tfsdk:"debug"`
@@ -65,6 +66,7 @@ type ReadSearchModel struct {
 	ResultsKey  types.String         `tfsdk:"results_key"`
 	QueryString types.String         `tfsdk:"query_string"`
 	SearchPatch jsontypes.Normalized `tfsdk:"search_patch"`
+	IdAttribute types.String         `tfsdk:"id_attribute"`
 }
 
 func NewRestAPIObjectResource() resource.Resource {
@@ -121,6 +123,10 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"id_attribute": schema.StringAttribute{
 				Description: "Defaults to `id_attribute` set on the provider. Allows per-resource override of `id_attribute` (see `id_attribute` provider config documentation)",
+				Optional:    true,
+			},
+			"body_id_attribute": schema.StringAttribute{
+				Description: "When set, the object's id is injected into the JSON body of UPDATE and DELETE requests under this key. Required by APIs that read the id from the request body rather than the URL/path - e.g. pfSense pfrest reads `id` from the body whenever the request carries an application/json content type and otherwise returns MODEL_REQUIRES_ID. The id is sent as a JSON number when it is an integer, otherwise as a string.",
 				Optional:    true,
 			},
 			"object_id": schema.StringAttribute{
@@ -209,6 +215,10 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 						Description: "A JSON Patch (RFC 6902) to apply to the search result before storing in state. This allows transformation of the API response to match the expected data structure. Example: [{\"op\":\"move\",\"from\":\"/old\",\"path\":\"/new\"}]",
 						Optional:    true,
 						CustomType:  jsontypes.NormalizedType{},
+					},
+					"id_attribute": schema.StringAttribute{
+						Description: "When set, the id of a matched record is read from this key within each search result item, instead of the object-wide id_attribute. Use when the create response and the list/search endpoint wrap the id differently (e.g. create returns {\"data\":{\"id\":N}} requiring id_attribute='data/id', but the list returns flat items {\"id\":N} requiring 'id').",
+						Optional:    true,
 					},
 				},
 			},
@@ -487,11 +497,17 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 		}
 
 		for _, field := range newFields {
-			if stateValue, err := getNestedValue(stateData, field); err == nil {
-				planValue, _ := getNestedValue(planData, field)
-				if fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue) {
-					resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
-				}
+			stateValue, stateErr := getNestedValue(stateData, field)
+			planValue, planErr := getNestedValue(planData, field)
+			// A force_new field requires replacement when it is ADDED (absent in state, present in
+			// plan), REMOVED (present in state, absent in plan), or CHANGED in value. The prior logic
+			// gated the whole check on the field already existing in state (err == nil), so a newly
+			// ADDED force_new attribute was silently planned as an in-place update instead of a
+			// destroy+recreate.
+			changed := (stateErr == nil) != (planErr == nil) ||
+				(stateErr == nil && planErr == nil && fmt.Sprintf("%v", planValue) != fmt.Sprintf("%v", stateValue))
+			if changed {
+				resp.RequiresReplace = append(resp.RequiresReplace, path.Root("api_data").AtMapKey(field))
 			}
 		}
 	}
@@ -617,13 +633,15 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 	if n == -1 {
 		resp.Diagnostics.AddError(
 			"Invalid Import ID",
-			fmt.Sprintf("Invalid path to import api_object '%s' - must be /<full path from server root>/<object id>", req.ID),
+			fmt.Sprintf("Invalid path to import api_object '%s' - must be /<full path from server root>/<object id> or /<full path>/<search_key>=<value>", req.ID),
 		)
 		return
 	}
 
+	idPart := input[n+1:]
+
 	data := RestAPIObjectResourceModel{
-		ObjectID: types.StringValue(input[n+1:]),
+		ObjectID: types.StringValue(idPart),
 
 		// Add leading slash back to path
 		Path: types.StringValue(fmt.Sprintf("/%s", input[0:n])),
@@ -634,6 +652,29 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 
 		ForceNew:        types.ListNull(types.StringType),
 		IgnoreChangesTo: types.ListNull(types.StringType),
+	}
+
+	// Two import-ID forms are supported for the final path segment:
+	//   <id>                 - an opaque/numeric id read directly (APIs that GET by id-path).
+	//   <search_key>=<value> - locate the object in its COLLECTION by a unique field. Required for pfrest
+	//                          and similar APIs that cannot GET by id-path (a direct read returns empty,
+	//                          leaving `data` unset -> "Invalid JSON String Value"). The read_search is
+	//                          PERSISTED so (a) the post-import refresh works and (b) it matches the managed
+	//                          resource's own read_search (results_key "data", id_attribute "id") -> with
+	//                          ignore_server_additions the first plan is a clean no-op.
+	if eq := strings.Index(idPart, "="); eq != -1 {
+		data.ReadSearch = &ReadSearchModel{
+			SearchKey:   types.StringValue(idPart[:eq]),
+			SearchValue: types.StringValue(idPart[eq+1:]),
+			ResultsKey:  types.StringValue("data"),
+			IdAttribute: types.StringValue("id"),
+			QueryString: types.StringNull(),
+			SearchData:  jsontypes.NewNormalizedNull(),
+			SearchPatch: jsontypes.NewNormalizedNull(),
+		}
+		// ReadObject guards on a non-empty id even when read_search is set (FindObject overwrites it with
+		// the real id); use a placeholder so the guard passes and the search resolves the true id.
+		data.ObjectID = types.StringValue("0")
 	}
 
 	client, err := r.providerData.GetClient()
@@ -681,7 +722,9 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		Debug: model.Debug.ValueBool(),
 
 		// Allow override of provider-level attributes
-		IDAttribute: existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
+		IDAttribute:        existingOrProviderOrDefaultString(model.IDAttribute, client.Opts.IDAttribute, ""),
+		BodyIDAttribute:    existingOrProviderOrDefaultString(model.BodyIDAttribute, client.Opts.BodyIDAttribute, ""),
+		ResolveBeforeWrite: client.Opts.ResolveBeforeWrite,
 
 		CreatePath:   existingOrDefaultString(model.CreatePath, ""),
 		CreateMethod: existingOrProviderOrDefaultString(model.CreateMethod, client.Opts.CreateMethod, "POST"),
@@ -721,6 +764,9 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 		}
 		if !model.ReadSearch.SearchPatch.IsNull() && !model.ReadSearch.SearchPatch.IsUnknown() {
 			readSearch["search_patch"] = model.ReadSearch.SearchPatch.ValueString()
+		}
+		if !model.ReadSearch.IdAttribute.IsNull() && !model.ReadSearch.IdAttribute.IsUnknown() {
+			readSearch["id_attribute"] = model.ReadSearch.IdAttribute.ValueString()
 		}
 		opts.ReadSearch = readSearch
 	}
