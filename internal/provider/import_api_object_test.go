@@ -34,7 +34,7 @@ func TestAccRestApiObject_importBasic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client.SendRequest(ctx, "POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`, debug)
+	client.SendRequest(ctx, "POST", "/api/objects", `{ "id": "1234", "first": "Foo", "last": "Bar" }`, debug, map[string]string{})
 
 	resource.UnitTest(t, resource.TestCase{
 		IsUnitTest:               true,

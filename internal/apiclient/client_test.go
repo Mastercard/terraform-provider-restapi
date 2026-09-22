@@ -62,14 +62,14 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		fmt.Printf("Testing standard OK request\n")
 	}
-	res, _, err = client.SendRequest(ctx, "GET", "/ok", "", debug)
+	res, _, err = client.SendRequest(ctx, "GET", "/ok", "", debug, map[string]string{})
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
 	if debug {
 		fmt.Printf("Testing redirect request\n")
 	}
-	res, _, err = client.SendRequest(ctx, "GET", "/redirect", "", debug)
+	res, _, err = client.SendRequest(ctx, "GET", "/redirect", "", debug, map[string]string{})
 	require.NoError(t, err, "client_test.go: SendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 
@@ -77,7 +77,7 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		fmt.Printf("Testing timeout aborts requests\n")
 	}
-	_, _, err = client.SendRequest(ctx, "GET", "/slow", "", debug)
+	_, _, err = client.SendRequest(ctx, "GET", "/slow", "", debug, map[string]string{})
 	assert.Error(t, err, "client_test.go: Timeout should trigger on slow request")
 
 	if debug {
@@ -86,18 +86,18 @@ func TestAPIClient(t *testing.T) {
 	startTime := time.Now().Unix()
 
 	for range 4 {
-		client.SendRequest(ctx, "GET", "/ok", "", debug)
+		client.SendRequest(ctx, "GET", "/ok", "", debug, map[string]string{})
 	}
 
 	duration := time.Now().Unix() - startTime
 	assert.GreaterOrEqual(t, duration, int64(3), "client_test.go: requests should be delayed")
 
 	if debug {
-		fmt.Println("client_test.go: Stopping HTTP server")
+		fmt.Println("client_test.go: Stopping HTTP server", map[string]string{})
 	}
 	shutdownAPIClientServer()
 	if debug {
-		fmt.Println("client_test.go: Done")
+		fmt.Println("client_test.go: Done", map[string]string{})
 	}
 
 	// Setup and test HTTPS client with root CA
@@ -126,7 +126,7 @@ func TestAPIClient(t *testing.T) {
 	if debug {
 		fmt.Printf("Testing HTTPS standard OK request\n")
 	}
-	res, _, err = httpsClient.SendRequest(ctx, "GET", "/ok", "", debug)
+	res, _, err = httpsClient.SendRequest(ctx, "GET", "/ok", "", debug, map[string]string{})
 	require.NoError(t, err, "client_test.go: sendRequest should not return an error")
 	assert.Equal(t, "It works!", res, "client_test.go: Got back '%s' but expected 'It works!'", res)
 }
@@ -176,6 +176,21 @@ func setupAPIClientServer() {
 	})
 	serverMux.HandleFunc("/check-header", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Custom-Header") != "test-value" {
+			http.Error(w, "Missing or invalid header", http.StatusBadRequest)
+			return
+		}
+		w.Write([]byte("Header OK"))
+	})
+	serverMux.HandleFunc("/check-resource-header", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Custom1-Header") != "test-value" {
+			http.Error(w, "Missing or invalid header", http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("X-Custom2-Header") != "overwritten" {
+			http.Error(w, "Missing or invalid header", http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("X-Custom3-Header") != "test-value" {
 			http.Error(w, "Missing or invalid header", http.StatusBadRequest)
 			return
 		}
@@ -562,7 +577,7 @@ func TestSendRequestErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			body, status, err := client.SendRequest(ctx, tt.method, tt.path, tt.data, debug)
+			body, status, err := client.SendRequest(ctx, tt.method, tt.path, tt.data, debug, map[string]string{})
 
 			assert.Equal(t, tt.expectedStatus, status, "Status code should match expected")
 
@@ -594,7 +609,7 @@ func TestSendRequestEmptyBodyNormalization(t *testing.T) {
 	client, err := NewAPIClient(opt)
 	require.NoError(t, err, "NewAPIClient should not return an error")
 
-	body, status, err := client.SendRequest(ctx, "GET", "/empty", "", debug)
+	body, status, err := client.SendRequest(ctx, "GET", "/empty", "", debug, map[string]string{})
 	require.NoError(t, err, "Should not return an error")
 	assert.Equal(t, 200, status, "Status should be 200")
 	assert.Equal(t, "{}", body, "Empty body should be normalized to {}")
@@ -616,7 +631,7 @@ func TestSendRequestXSSIPrefix(t *testing.T) {
 	client, err := NewAPIClient(opt)
 	require.NoError(t, err, "NewAPIClient should not return an error")
 
-	body, status, err := client.SendRequest(ctx, "GET", "/xssi", "", debug)
+	body, status, err := client.SendRequest(ctx, "GET", "/xssi", "", debug, map[string]string{})
 	require.NoError(t, err, "Should not return an error")
 	assert.Equal(t, 200, status, "Status should be 200")
 	assert.Equal(t, "\n{\"data\":\"test\"}", body, "XSSI prefix should be stripped")
@@ -640,7 +655,32 @@ func TestSendRequestWithHeaders(t *testing.T) {
 	client, err := NewAPIClient(opt)
 	require.NoError(t, err, "NewAPIClient should not return an error")
 
-	body, status, err := client.SendRequest(ctx, "GET", "/check-header", "", debug)
+	body, status, err := client.SendRequest(ctx, "GET", "/check-header", "", debug, map[string]string{})
+	require.NoError(t, err, "Should not return an error")
+	assert.Equal(t, 200, status, "Status should be 200")
+	assert.Equal(t, "Header OK", body, "Should receive success response")
+}
+
+func TestSendRequestWithResourceHeaders(t *testing.T) {
+	ctx := context.Background()
+	debug := false
+
+	setupAPIClientServer()
+	defer shutdownAPIClientServer()
+
+	opt := &APIClientOpt{
+		URI:     "http://127.0.0.1:8083",
+		Timeout: 2,
+		Debug:   debug,
+		Headers: map[string]string{
+			"X-Custom1-Header": "test-value",
+			"X-Custom2-Header": "test-value",
+		},
+	}
+	client, err := NewAPIClient(opt)
+	require.NoError(t, err, "NewAPIClient should not return an error")
+
+	body, status, err := client.SendRequest(ctx, "GET", "/check-resource-header", "", debug, map[string]string{"X-Custom2-Header": "overwritten", "X-Custom3-Header": "test-value"})
 	require.NoError(t, err, "Should not return an error")
 	assert.Equal(t, 200, status, "Status should be 200")
 	assert.Equal(t, "Header OK", body, "Should receive success response")
@@ -666,7 +706,7 @@ func TestSendRequestWithBasicAuth(t *testing.T) {
 	client, err := NewAPIClient(opt)
 	require.NoError(t, err, "NewAPIClient should not return an error")
 
-	body, status, err := client.SendRequest(ctx, "GET", "/check-auth", "", debug)
+	body, status, err := client.SendRequest(ctx, "GET", "/check-auth", "", debug, map[string]string{})
 	require.NoError(t, err, "Should not return an error")
 	assert.Equal(t, 200, status, "Status should be 200")
 	assert.Equal(t, "Authorized", body, "Should receive authorized response")
@@ -688,7 +728,7 @@ func TestSendRequestWithData(t *testing.T) {
 	require.NoError(t, err, "NewAPIClient should not return an error")
 
 	testData := `{"name":"test","value":123}`
-	body, status, err := client.SendRequest(ctx, "POST", "/json", testData, debug)
+	body, status, err := client.SendRequest(ctx, "POST", "/json", testData, debug, map[string]string{})
 	require.NoError(t, err, "Should not return an error")
 	assert.Equal(t, 200, status, "Status should be 200")
 	assert.NotEmpty(t, body, "Response body should not be empty")
@@ -707,7 +747,7 @@ func TestSendRequestConnectionError(t *testing.T) {
 	client, err := NewAPIClient(opt)
 	require.NoError(t, err, "NewAPIClient should not return an error")
 
-	_, _, err = client.SendRequest(ctx, "GET", "/test", "", debug)
+	_, _, err = client.SendRequest(ctx, "GET", "/test", "", debug, map[string]string{})
 	assert.Error(t, err, "Should return connection error")
 	assert.Contains(t, err.Error(), "connection refused", "Should contain connection refused error")
 }

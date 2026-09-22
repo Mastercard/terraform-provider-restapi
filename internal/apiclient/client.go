@@ -274,7 +274,7 @@ func (client *APIClient) String() string {
 }
 
 // SendRequest is a helper function that handles sending/receiving and handling of HTTP data in and out.
-func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool) (string, int, error) {
+func (client *APIClient) SendRequest(ctx context.Context, method string, path string, data string, forceDebug bool, headers map[string]string) (string, int, error) {
 	fullURI := client.uri + path
 	var req *retryablehttp.Request
 	var err error
@@ -300,6 +300,17 @@ func (client *APIClient) SendRequest(ctx context.Context, method string, path st
 	// Allow for tokens or other pre-created secrets
 	if len(client.headers) > 0 {
 		for n, v := range client.headers {
+			req.Header.Set(n, v)
+		}
+	}
+
+	// Overwrite global headers with resource defined headers
+	if len(headers) > 0 {
+		for n, v := range headers {
+			if req.Header.Get(n) != "" {
+				tflog.Debug(ctx, "Overwritting header from provider configuration with resource", map[string]interface{}{"name": n})
+			}
+
 			req.Header.Set(n, v)
 		}
 	}
