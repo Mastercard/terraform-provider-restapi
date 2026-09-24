@@ -11,4 +11,14 @@ provider "restapi" {
   create_method  = "PUT"
   update_method  = "PUT"
   destroy_method = "PUT"
+
+  # Optional: Extract objects from wrapped GET responses
+  # Use this if your API returns responses like: {"result": {...}, "success": true}
+  # Supports nested paths: "data/items", "response/resource"
+  # read_object_key = "result"
+
+  # Optional: Wrap POST/PUT request bodies in an envelope
+  # Use this if your API requires data nested like: {"entry": {...}}
+  # Supports nested paths: "request/data"
+  # write_object_key = "entry"
 }
