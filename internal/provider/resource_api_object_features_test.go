@@ -91,6 +91,75 @@ resource "restapi_object" "Test" {
 	})
 }
 
+// TestAccRestApiObject_IgnoreAllServerChanges_Update verifies that updating a resource
+// with ignore_all_server_changes = true does not cause "Provider produced inconsistent
+// result after apply" errors. The Update function must preserve api_data and api_response
+// from the prior state instead of overwriting them from the server response.
+func TestAccRestApiObject_IgnoreAllServerChanges_Update(t *testing.T) {
+	debug := false
+
+	apiServerObjects := make(map[string]map[string]interface{})
+
+	svr := fakeserver.NewFakeServer(8130, apiServerObjects, map[string]string{}, true, debug, "")
+	defer svr.Shutdown()
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				Config: `
+provider "restapi" {
+  uri                   = "http://127.0.0.1:8130"
+  write_returns_object  = false
+  create_returns_object = true
+}
+
+resource "restapi_object" "Test" {
+  path                      = "/api/objects"
+  update_method             = "PUT"
+  ignore_all_server_changes = true
+  data                      = jsonencode({ id = "iac1", name = "Original", secret = "s3cret" })
+  update_data               = jsonencode({ name = "Original" })
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "iac1"),
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Original"),
+				),
+			},
+			{
+				// Change update_data to trigger an in-place update.
+				// Before the fix, this would fail with:
+				//   "Provider produced inconsistent result after apply"
+				//   .api_data["name"]: was "Original", but now "Changed"
+				Config: `
+provider "restapi" {
+  uri                   = "http://127.0.0.1:8130"
+  write_returns_object  = false
+  create_returns_object = true
+}
+
+resource "restapi_object" "Test" {
+  path                      = "/api/objects"
+  update_method             = "PUT"
+  ignore_all_server_changes = true
+  data                      = jsonencode({ id = "iac1", name = "Original", secret = "s3cret" })
+  update_data               = jsonencode({ name = "Changed" })
+}
+`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("restapi_object.Test", "id", "iac1"),
+					// api_data should still show the original value because
+					// ignore_all_server_changes preserves state from before the update
+					resource.TestCheckResourceAttr("restapi_object.Test", "api_data.name", "Original"),
+				),
+			},
+		},
+	})
+}
+
 // TestAccRestApiObject_ForceNew tests that the force_new attribute works correctly:
 // - Changing fields NOT in force_new should update in-place (PUT)
 // - Changing fields in force_new should trigger destroy+recreate (DELETE+POST)
