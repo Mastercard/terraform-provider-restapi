@@ -342,6 +342,11 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 		)
 		return
 	}
+	if obj.ID == "" {
+		tflog.Info(ctx, "Read: object not found, removing from state")
+		resp.State.RemoveResource(ctx)
+		return
+	}
 	objString := obj.GetApiResponse()
 	tflog.Debug(ctx, "Read resource", map[string]interface{}{"id": obj.ID})
 
@@ -661,6 +666,14 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 		resp.Diagnostics.AddError(
 			"Error Reading API Object",
 			fmt.Sprintf("Could not read API object: %s", err.Error()),
+		)
+		return
+	}
+
+	if obj.ID == "" {
+		resp.Diagnostics.AddError(
+			"Error Reading API Object",
+			fmt.Sprintf("Could not import api_object '%s': object not found", req.ID),
 		)
 		return
 	}
