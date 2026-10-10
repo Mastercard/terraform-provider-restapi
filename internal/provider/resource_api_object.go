@@ -346,8 +346,9 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 	tflog.Debug(ctx, "Read resource", map[string]interface{}{"id": obj.ID})
 
 	// ignore_changes_to
+	var ignoreFields []string
+
 	if !state.IgnoreChangesTo.IsNull() && !state.IgnoreChangesTo.IsUnknown() {
-		var ignoreFields []string
 		resp.Diagnostics.Append(state.IgnoreChangesTo.ElementsAs(ctx, &ignoreFields, false)...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -357,54 +358,47 @@ func (r *RestAPIObjectResource) Read(ctx context.Context, req resource.ReadReque
 			"ignoreFields": ignoreFields,
 		})
 
-		if len(ignoreFields) > 0 {
-			// Skip ignore_changes_to processing if state.Data is null or unknown
-			// This can happen when the data attribute contains unknown interpolations
-			if state.Data.IsNull() || state.Data.IsUnknown() {
-				tflog.Debug(ctx, "Read: skipping ignore_changes_to processing due to null/unknown state data",
-					map[string]interface{}{
-						"state_data_null":    state.Data.IsNull(),
-						"state_data_unknown": state.Data.IsUnknown(),
-					})
-			} else {
-				planData, stateData := getPlanAndStateData(obj.GetApiResponse(), state.Data.ValueString(), &resp.Diagnostics)
-				if resp.Diagnostics.HasError() {
-					return
-				}
-
-				tflog.Debug(ctx, "Read: before ignoring", map[string]interface{}{
-					"planData":  planData,
-					"stateData": stateData,
-				})
-
-				ignoreServerAdditions := !state.IgnoreServerAdditions.IsNull() && state.IgnoreServerAdditions.ValueBool()
-				mergedData, hasDelta := getDelta(stateData, planData, ignoreFields, ignoreServerAdditions)
-				tflog.Debug(ctx, "Read: after ignoring", map[string]interface{}{
-					"mergedData": mergedData,
-					"hasDelta":   hasDelta,
-				})
-
-				jsonData, err := json.Marshal(mergedData)
-				if err != nil {
-					resp.Diagnostics.AddError(
-						"Error Marshaling Merged Data",
-						fmt.Sprintf("Could not marshal merged data: %s", err.Error()),
-					)
-					return
-				}
-				objString = string(jsonData)
-			}
-		}
 	}
 
-	// For Read we want to write to state only what was observed from the server - this may later be negated during ModifyPlan
-	// However, when ignore_server_additions is true, we should NOT overwrite state.Data with the full API response
-	// because the config only contains the fields the user configured, not the server-added fields
-	if state.IgnoreServerAdditions.IsNull() || !state.IgnoreServerAdditions.ValueBool() {
-		state.Data = jsontypes.NewNormalizedValue(objString)
+	// Skip ignore_changes_to processing if state.Data is null or unknown
+	// This can happen when the data attribute contains unknown interpolations
+	if state.Data.IsNull() || state.Data.IsUnknown() {
+		tflog.Debug(ctx, "Read: skipping ignore_changes_to processing due to null/unknown state data",
+			map[string]interface{}{
+				"state_data_null":    state.Data.IsNull(),
+				"state_data_unknown": state.Data.IsUnknown(),
+			})
 	} else {
-		tflog.Debug(ctx, "Read: keeping state.Data unchanged due to ignore_server_additions")
+		planData, stateData := getPlanAndStateData(obj.GetApiResponse(), state.Data.ValueString(), &resp.Diagnostics)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		tflog.Debug(ctx, "Read: before ignoring", map[string]interface{}{
+			"planData":  planData,
+			"stateData": stateData,
+		})
+
+		var ignoreServerAdditions = !state.IgnoreServerAdditions.IsNull() && state.IgnoreServerAdditions.ValueBool()
+		mergedData, hasDelta := getDelta(stateData, planData, ignoreFields, ignoreServerAdditions)
+		tflog.Debug(ctx, "Read: after ignoring", map[string]interface{}{
+			"mergedData": mergedData,
+			"hasDelta":   hasDelta,
+		})
+
+		jsonData, err := json.Marshal(mergedData)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Marshaling Merged Data",
+				fmt.Sprintf("Could not marshal merged data: %s", err.Error()),
+			)
+			return
+		}
+		objString = string(jsonData)
 	}
+
+	state.Data = jsontypes.NewNormalizedValue(objString)
+
 	setResourceModelData(ctx, obj, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -454,28 +448,19 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 	plan.ID = state.ID
 	plan.CreateResponse = state.CreateResponse
 
-	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
-		// ignore_server_additions: Read preserves user config in state.Data,
-		// so we just preserve api_data/api_response if user didn't change anything
-		if plan.Data.Equal(state.Data) {
-			plan.APIData = state.APIData
-			plan.APIResponse = state.APIResponse
+	// Normal flow: normalize null fields that server omits
+	if normalizeNullFields(planData, stateData) {
+		normalizedJSON, err := json.Marshal(planData)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Normalizing Null Fields",
+				fmt.Sprintf("Could not marshal normalized data: %s", err.Error()),
+			)
+			return
 		}
-	} else {
-		// Normal flow: normalize null fields that server omits
-		if normalizeNullFields(planData, stateData) {
-			normalizedJSON, err := json.Marshal(planData)
-			if err != nil {
-				resp.Diagnostics.AddError(
-					"Error Normalizing Null Fields",
-					fmt.Sprintf("Could not marshal normalized data: %s", err.Error()),
-				)
-				return
-			}
-			plan.Data = jsontypes.NewNormalizedValue(string(normalizedJSON))
-			plan.APIData = state.APIData
-			plan.APIResponse = state.APIResponse
-		}
+		plan.Data = jsontypes.NewNormalizedValue(string(normalizedJSON))
+		plan.APIData = state.APIData
+		plan.APIResponse = state.APIResponse
 	}
 
 	// force_new: check if any fields require resource replacement
