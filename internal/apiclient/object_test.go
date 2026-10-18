@@ -213,6 +213,18 @@ func TestAPIObject(t *testing.T) {
 		}
 	})
 
+	t.Run("copy_keys_with_update_data", func(t *testing.T) {
+		apiServerObjects["1"]["Thing"] = "radish"
+		testingObjects["normal"].updateData = make(map[string]interface{})
+		err := testingObjects["normal"].ReadObject(ctx)
+		if err != nil {
+			t.Fatalf("api_object_test.go: Failed in copy_keys_with_update_data test: %s", err)
+		}
+		if testingObjects["normal"].updateData["Thing"] != "radish" {
+			t.Fatalf("api_object_test.go: copy_keys for updateData failed. Expected 'radish', got '%+v'\n", testingObjects["normal"].updateData["Thing"])
+		}
+	})
+
 	// Go ahead and update one of our objects
 	t.Run("update_object", func(t *testing.T) {
 		testingObjects["minimal"].data["Thing"] = "spoon"

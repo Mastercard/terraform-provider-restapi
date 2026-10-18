@@ -277,6 +277,9 @@ func (obj *APIObject) updateInternalState(state string) error {
 		for _, key := range obj.apiClient.copyKeys {
 			tflog.Debug(ctx, "Copying key from api_data to data\n", map[string]interface{}{"key": key, "new": obj.apiData[key], "old": obj.data[key]})
 			obj.data[key] = obj.apiData[key]
+			if obj.updateData != nil {
+				obj.updateData[key] = obj.apiData[key]
+			}
 		}
 	} else {
 		tflog.Debug(ctx, "copy_keys is empty - not attempting to copy data", nil)

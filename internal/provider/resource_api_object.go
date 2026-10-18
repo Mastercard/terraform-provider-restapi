@@ -535,6 +535,20 @@ func (r *RestAPIObjectResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
+	/* If copy_keys is not empty, grab the latest data from the API
+	   so required keys (e.g. revision/version for optimistic concurrency)
+	   are copied into obj.data prior to sending the update request */
+	if len(client.Opts.CopyKeys) > 0 {
+		err = obj.ReadObject(ctx)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Reading API Object",
+				fmt.Sprintf("Could not read API object before update for copy_keys: %s", err.Error()),
+			)
+			return
+		}
+	}
+
 	err = obj.UpdateObject(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
