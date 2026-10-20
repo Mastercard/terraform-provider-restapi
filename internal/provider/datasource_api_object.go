@@ -33,6 +33,7 @@ type RestAPIObjectDataSourceModel struct {
 	ID                    types.String         `tfsdk:"id"`
 	APIData               types.Map            `tfsdk:"api_data"`
 	APIResponse           types.String         `tfsdk:"api_response"`
+	Headers               types.Map            `tfsdk:"headers"`
 }
 
 func NewRestAPIObjectDataSource() datasource.DataSource {
@@ -94,6 +95,11 @@ func (r *RestAPIObjectDataSource) Schema(ctx context.Context, req datasource.Sch
 			},
 			"debug": schema.BoolAttribute{
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
+				Optional:    true,
+			},
+			"headers": schema.MapAttribute{
+				ElementType: types.StringType,
+				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to modify header values which are set by the provider configuration",
 				Optional:    true,
 			},
 			"api_data": schema.MapAttribute{
@@ -160,12 +166,20 @@ func (r *RestAPIObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 
 	tflog.Debug(ctx, "Read routine called", map[string]interface{}{"object": state})
 
+	headers := make(map[string]string, len(state.Headers.Elements()))
+	diags := state.Headers.ElementsAs(ctx, &headers, false)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
 	opts := &apiclient.APIObjectOpts{
 		Path:        state.Path.ValueString(),
 		SearchPath:  state.SearchPath.ValueString(),
 		Debug:       state.Debug.ValueBool(),
 		QueryString: queryString,
 		IDAttribute: existingOrProviderOrDefaultString(state.IDAttribute, client.Opts.IDAttribute, ""),
+		Headers:     headers,
 	}
 
 	// If we have a read_query_string, we will use that in the API Object since the

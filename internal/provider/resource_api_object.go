@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -51,6 +52,7 @@ type RestAPIObjectResourceModel struct {
 	IgnoreChangesTo        types.List           `tfsdk:"ignore_changes_to"`
 	IgnoreAllServerChanges types.Bool           `tfsdk:"ignore_all_server_changes"`
 	IgnoreServerAdditions  types.Bool           `tfsdk:"ignore_server_additions"`
+	Headers                types.Map            `tfsdk:"headers"`
 
 	ID             types.String `tfsdk:"id"`
 	APIData        types.Map    `tfsdk:"api_data"`
@@ -137,7 +139,11 @@ func (r *RestAPIObjectResource) Schema(ctx context.Context, req resource.SchemaR
 				Description: "Whether to emit the HTTP request and response to STDERR while working with the API object on the server.",
 				Optional:    true,
 			},
-
+			"headers": schema.MapAttribute{
+				ElementType: types.StringType,
+				Description: "A map of header names and values to set on all outbound requests. This is useful if you want to modify header values which are set by the provider configuration",
+				Optional:    true,
+			},
 			"query_string": schema.StringAttribute{
 				Description: "Query string to be included in the path",
 				Optional:    true,
@@ -634,6 +640,7 @@ func (r *RestAPIObjectResource) ImportState(ctx context.Context, req resource.Im
 
 		ForceNew:        types.ListNull(types.StringType),
 		IgnoreChangesTo: types.ListNull(types.StringType),
+		Headers:         types.MapNull(types.StringType),
 	}
 
 	client, err := r.providerData.GetClient()
@@ -723,6 +730,14 @@ func makeAPIObject(ctx context.Context, client *apiclient.APIClient, id string, 
 			readSearch["search_patch"] = model.ReadSearch.SearchPatch.ValueString()
 		}
 		opts.ReadSearch = readSearch
+	}
+
+	if !model.Headers.IsNull() {
+		headers := make(map[string]string, len(model.Headers.Elements()))
+		diags := model.Headers.ElementsAs(ctx, &headers, false)
+		if diags.HasError() {
+			return nil, errors.New("Could not convert resource headers to map")
+		}
 	}
 
 	// Allow user to specify the ID manually

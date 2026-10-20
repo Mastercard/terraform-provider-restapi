@@ -46,7 +46,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         "identifier": "FooBar"
       }
     }
-  `, debug)
+  `, debug, map[string]string{})
 	client.SendRequest(ctx, "POST", "/api/objects", `
     {
       "id": "4321",
@@ -56,7 +56,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         "identifier": "FooBaz"
       }
     }
-  `, debug)
+  `, debug, map[string]string{})
 	client.SendRequest(ctx, "POST", "/api/objects", `
     {
       "id": "5678",
@@ -66,7 +66,7 @@ func TestAccRestapiobject_Basic(t *testing.T) {
         "identifier": "NestedFields"
       }
     }
-  `, debug)
+  `, debug, map[string]string{})
 
 	// Send a complex object that we will pretend is the results of a search
 	// client.send_request("POST", "/api/objects", `
@@ -269,6 +269,44 @@ data "restapi_object" "user_with_results_key" {
 					resource.TestCheckResourceAttr("data.restapi_object.user_with_results_key", "id", "user2"),
 					resource.TestCheckResourceAttr("data.restapi_object.user_with_results_key", "api_data.username", "jane_smith"),
 					resource.TestCheckResourceAttr("data.restapi_object.user_with_results_key", "api_data.full_name", "Jane Smith"),
+				),
+			},
+		},
+	})
+
+	resource.UnitTest(t, resource.TestCase{
+		IsUnitTest:               true,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		PreCheck:                 func() { svr.StartInBackground() },
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+provider "restapi" {
+  uri = "http://127.0.0.1:8117"
+  headers = {
+  	"EXAMPLE": "test"
+  	"DEFAULT": "test"
+  }
+}
+
+data "restapi_object" "user_search" {
+  path = "/api/objects"
+  search_key = "username"
+  search_value = "john_doe"
+  results_contains_object = true
+  debug = %t
+
+  headers = {
+  	"DEFAULT": "overwritten"
+  }
+}
+          `, debug),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRestapiObjectExists("data.restapi_object.user_search", "user1", client),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "id", "user1"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "api_data.username", "john_doe"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "api_data.email", "john@example.com"),
+					resource.TestCheckResourceAttr("data.restapi_object.user_search", "api_data.full_name", "John Doe"),
 				),
 			},
 		},
