@@ -455,11 +455,26 @@ func (r *RestAPIObjectResource) ModifyPlan(ctx context.Context, req resource.Mod
 	plan.CreateResponse = state.CreateResponse
 
 	if !plan.IgnoreServerAdditions.IsNull() && plan.IgnoreServerAdditions.ValueBool() {
-		// ignore_server_additions: Read preserves user config in state.Data,
-		// so we just preserve api_data/api_response if user didn't change anything
-		if plan.Data.Equal(state.Data) {
+		// ignore_server_additions: Read preserves user config in state.Data.
+		// Only lock api_data/api_response to the prior state when we are certain no
+		// update will run. An update is triggered by changes to data OR update_data
+		// (or other update-path attributes), so check both. If either is changing,
+		// mark api_data/api_response as unknown so Terraform does not enforce a
+		// specific post-apply value — the server may change fields like updated_at
+		// which would otherwise cause "inconsistent result after apply" errors.
+		willUpdate := !plan.Data.Equal(state.Data) ||
+			!plan.UpdateData.Equal(state.UpdateData) ||
+			!plan.UpdatePath.Equal(state.UpdatePath) ||
+			!plan.UpdateMethod.Equal(state.UpdateMethod) ||
+			!plan.Path.Equal(state.Path) ||
+			!plan.ObjectID.Equal(state.ObjectID)
+
+		if !willUpdate {
 			plan.APIData = state.APIData
 			plan.APIResponse = state.APIResponse
+		} else {
+			plan.APIData = types.MapUnknown(types.StringType)
+			plan.APIResponse = types.StringUnknown()
 		}
 	} else {
 		// Normal flow: normalize null fields that server omits
