@@ -499,6 +499,12 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 	var dataArray []interface{}
 	var ok bool
 
+	// read_search may locate the id differently than the created object does
+	idAttribute := obj.IDAttribute
+	if a := obj.readSearch["id_attribute"]; a != "" {
+		idAttribute = a
+	}
+
 	// Issue a GET to the base path and expect results to come back
 	searchPath := obj.searchPath
 	if queryString != "" {
@@ -564,16 +570,16 @@ func (obj *APIObject) FindObject(ctx context.Context, queryString string, search
 		// We found our record
 		if tmp == searchValue {
 			objFound = hash
-			obj.ID, err = GetStringAtKey(ctx, hash, obj.IDAttribute)
+			obj.ID, err = GetStringAtKey(ctx, hash, idAttribute)
 			if err != nil {
-				return nil, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", obj.IDAttribute, err)
+				return nil, fmt.Errorf("failed to find id_attribute '%s' in the record: %s", idAttribute, err)
 			}
 
 			tflog.Debug(ctx, "Found ID '%s'", map[string]interface{}{"id": obj.ID})
 
 			// But there is no id attribute???
 			if obj.ID == "" {
-				return nil, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, obj.IDAttribute)
+				return nil, fmt.Errorf("the object for '%s'='%s' did not have the id attribute '%s', or the value was empty", searchKey, searchValue, idAttribute)
 			}
 			break
 		}

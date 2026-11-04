@@ -119,6 +119,23 @@ func TestMakeAPIObject_ReadSearch(t *testing.T) {
 				"search_patch": `[{"op":"move","from":"/data","path":"/"}]`,
 			},
 		},
+		{
+			name: "read_search_with_id_attribute",
+			model: &RestAPIObjectResourceModel{
+				Path: types.StringValue("/api/objects"),
+				Data: jsontypes.NewNormalizedValue(`{"id":"123"}`),
+				ReadSearch: &ReadSearchModel{
+					SearchKey:   types.StringValue("id"),
+					SearchValue: types.StringValue("{id}"),
+					IDAttribute: types.StringValue("id"),
+				},
+			},
+			expectedSearch: map[string]string{
+				"search_key":   "id",
+				"search_value": "{id}",
+				"id_attribute": "id",
+			},
+		},
 	}
 
 	for _, tt := range tests {

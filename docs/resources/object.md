@@ -121,6 +121,7 @@ Required:
 
 Optional:
 
+- `id_attribute` (String) Defaults to the object's `id_attribute`. The key of the id in a search result, for APIs whose search results are shaped differently from the object they create (e.g. created as `{"data":{"id":1}}` but listed flat). Like `id_attribute`, it may be a '/'-delimited path.
 - `query_string` (String) An optional query string to send when performing the search.
 - `results_key` (String) When issuing a GET to the path, this JSON key is used to locate the results array. The format is 'field/field/field'. Example: 'results/values'. If omitted, it is assumed the results coming back are already an array and are to be used exactly as-is.
 - `search_data` (String) Valid JSON object to pass to search request as body

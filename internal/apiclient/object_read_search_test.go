@@ -493,3 +493,69 @@ func TestReadObject_ReadSearchWithSearchData(t *testing.T) {
 		t.Logf("Note: Search used method %s (may vary based on API client config)", receivedMethod)
 	}
 }
+
+// TestReadObject_ReadSearchIDAttribute tests read_search.id_attribute for an
+// API that creates the object wrapped but lists it flat: without it the id
+// lookup fails on the list item and the object is dropped from state.
+func TestReadObject_ReadSearchIDAttribute(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := map[string]interface{}{
+			"voiceUris": []interface{}{
+				map[string]interface{}{"voiceUriId": 1234, "uri": "a@example.com"},
+			},
+			"resultCount": 1,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	client, err := NewAPIClient(&APIClientOpt{
+		URI:     server.URL,
+		Timeout: 2,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create API client: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name        string
+		idAttribute string
+		expectedID  string
+	}{
+		{name: "without read_search id_attribute", idAttribute: "", expectedID: ""},
+		{name: "with read_search id_attribute", idAttribute: "voiceUriId", expectedID: "1234"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			readSearch := map[string]string{
+				"search_key":   "voiceUriId",
+				"search_value": "{id}",
+				"results_key":  "voiceUris",
+				"search_patch": `[{"op":"add","path":"/voiceUri","value":{}},` +
+					`{"op":"move","from":"/voiceUriId","path":"/voiceUri/voiceUriId"},` +
+					`{"op":"move","from":"/uri","path":"/voiceUri/uri"}]`,
+			}
+			if tt.idAttribute != "" {
+				readSearch["id_attribute"] = tt.idAttribute
+			}
+
+			obj, err := NewAPIObject(client, &APIObjectOpts{
+				Path:        "/configuration/voiceuri",
+				ID:          "1234",
+				Data:        `{"voiceUri": {"voiceUriId": 1234, "uri": "a@example.com"}}`,
+				IDAttribute: "voiceUri/voiceUriId",
+				ReadSearch:  readSearch,
+			})
+			if err != nil {
+				t.Fatalf("NewAPIObject() error = %v", err)
+			}
+
+			if err := obj.ReadObject(context.Background()); err != nil {
+				t.Fatalf("ReadObject() error = %v", err)
+			}
+			if obj.ID != tt.expectedID {
+				t.Errorf("Expected ID %q, got %q", tt.expectedID, obj.ID)
+			}
+		})
+	}
+}
